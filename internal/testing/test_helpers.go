@@ -45,7 +45,8 @@ func NewTestDB(t testing.TB) *sqlx.DB {
 // GenerateTestMasterKey creates a test master key for encryption
 func GenerateTestMasterKey() []byte {
 	// Use a fixed key for testing - DO NOT use in production
-	return []byte("test-master-key-32-bytes-long-ok!!")
+	// Must be exactly 32 bytes for AES-256
+	return []byte("test-master-key-32bytes-long-ok!")
 }
 
 // GenerateTestTenantID returns a consistent UUID for testing

@@ -10,9 +10,9 @@ export class UsersPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.locator('h1');
-    this.searchInput = page.locator('input[placeholder*="Search users"]');
-    this.addUserButton = page.locator('button', { hasText: 'Add User' });
+    this.heading = page.getByRole('heading', { level: 1 });
+    this.searchInput = page.getByPlaceholder('Search users...');
+    this.addUserButton = page.getByRole('link', { name: /Add User/ });
     this.table = page.locator('.table');
     this.tableRows = this.table.locator('tbody tr');
   }

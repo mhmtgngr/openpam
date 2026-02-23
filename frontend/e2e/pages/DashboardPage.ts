@@ -8,9 +8,10 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.locator('h1');
-    this.statsCards = page.locator('.card').filter({ hasText: /^(Total Users|Active Targets|Active Sessions|Pending Requests)$/ });
-    this.activityFeed = page.locator('text=Recent Activity');
+    this.heading = page.getByRole('heading', { level: 1 }).first();
+    // Look for stat cards by their title text
+    this.statsCards = page.locator('.card').filter({ hasText: /Total Users|Active Targets|Active Sessions|Pending Requests/ });
+    this.activityFeed = page.getByText('Recent Activity');
   }
 
   async goto() {
@@ -18,6 +19,7 @@ export class DashboardPage {
   }
 
   async getHeadingText() {
+    await this.heading.waitFor({ state: 'visible' });
     return this.heading.textContent();
   }
 
