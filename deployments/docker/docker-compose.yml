@@ -1,30 +1,53 @@
 version: "3.8"
 
+# OpenPAM - Privileged Access Management Platform
+# Docker Compose configuration for local development
+
 services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+
   postgres:
     image: postgres:16-alpine
+    container_name: openpam-postgres
     environment:
       POSTGRES_USER: openpam
       POSTGRES_PASSWORD: openpam_dev
       POSTGRES_DB: openpam
-    ports: ["5432:5432"]
-    volumes: [pgdata:/var/lib/postgresql/data]
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U openpam"]
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - openpam-net
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    container_name: openpam-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
+      retries: 5
+    networks:
+      - openpam-net
 
   minio:
     image: minio/minio:latest
+    container_name: openpam-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -32,56 +55,304 @@ services:
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes: [minio_data:/data]
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - openpam-net
+
+  # ============================================
+  # OpenPAM Services
+  # ============================================
 
   gateway:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.gateway }
-    ports: ["8500:8500"]
-    environment: &common_env
-      DATABASE_URL: postgres://openpam:openpam_dev@postgres:5432/openpam?sslmode=disable
-      REDIS_URL: redis://redis:6379/0
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.gateway
+    container_name: openpam-gateway
+    ports:
+      - "8500:8500"
+    environment:
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+
+      # Service
+      PORT: 8500
+      LOG_LEVEL: debug
+
+      # JWT (in production, mount keys as volume)
+      JWT_PRIVATE_KEY_PATH: /etc/openpam/jwt/private.pem
+      JWT_PUBLIC_KEY_PATH: /etc/openpam/jwt/public.pem
+
+      # Encryption
+      MASTER_KEY: ${MASTER_KEY:-development-key-32-bytes-long-!!}
+
+      # Session storage
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: openpam-sessions
+      MINIO_USE_SSL: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./jwt-keys:/etc/openpam/jwt:ro
+    networks:
+      - openpam-net
+    restart: unless-stopped
 
   session-service:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.session-service }
-    ports: ["8501:8501"]
-    environment: *common_env
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.session-service
+    container_name: openpam-session-service
+    ports:
+      - "8501:8501"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8501
+      LOG_LEVEL: debug
+      MASTER_KEY: ${MASTER_KEY:-development-key-32-bytes-long-!!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
 
   vault-service:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.vault-service }
-    ports: ["8502:8502"]
-    environment: *common_env
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.vault-service
+    container_name: openpam-vault-service
+    ports:
+      - "8502:8502"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8502
+      LOG_LEVEL: debug
+      MASTER_KEY: ${MASTER_KEY:-development-key-32-bytes-long-!!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
 
   credential-service:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.credential-service }
-    ports: ["8503:8503"]
-    environment: *common_env
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.credential-service
+    container_name: openpam-credential-service
+    ports:
+      - "8503:8503"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8503
+      LOG_LEVEL: debug
+      MASTER_KEY: ${MASTER_KEY:-development-key-32-bytes-long-!!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
 
   audit-service:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.audit-service }
-    ports: ["8504:8504"]
-    environment: *common_env
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.audit-service
+    container_name: openpam-audit-service
+    ports:
+      - "8504:8504"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8504
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
 
   admin-service:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.admin-service }
-    ports: ["8505:8505"]
-    environment: *common_env
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.admin-service
+    container_name: openpam-admin-service
+    ports:
+      - "8505:8505"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8505
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
 
   discovery-service:
-    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.discovery-service }
-    ports: ["8506:8506"]
-    environment: *common_env
-    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.discovery-service
+    container_name: openpam-discovery-service
+    ports:
+      - "8506:8506"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8506
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
+    # Privileged mode for network scanning
+    # In production, use separate scanning service
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+
+  # ============================================
+  # Frontend (for development)
+  # ============================================
+
+  frontend:
+    image: node:20-alpine
+    container_name: openpam-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../frontend:/app:cached
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8500
+    networks:
+      - openpam-net
+    profiles:
+      - dev
+
+  # ============================================
+  # Nginx Reverse Proxy (production)
+  # ============================================
+
+  nginx:
+    image: nginx:alpine
+    container_name: openpam-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - gateway
+    networks:
+      - openpam-net
+    profiles:
+      - production
 
 volumes:
   pgdata:
+    driver: local
+  redisdata:
+    driver: local
   minio_data:
+    driver: local
 
 networks:
-  default:
+  openpam-net:
+    driver: bridge
     name: openpam-net
