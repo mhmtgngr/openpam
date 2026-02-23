@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base32"
 	"fmt"
 	"net/url"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/rs/zerolog"
 	"github.com/skip2/go-qrcode"

@@ -1,13 +1,17 @@
 package events
 
 import (
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
-	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/google/uuid"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/rs/zerolog"

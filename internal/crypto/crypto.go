@@ -7,12 +7,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io"
 
+	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/hkdf"
 )
 
@@ -186,7 +188,7 @@ func (ee *EnvelopeEncryption) Encrypt(plaintext []byte) (*EncryptedData, error) 
 	}
 
 	// Encrypt data with DEK
-	dataEncryptor, err := NewEncryptor(dek)
+	_, err = NewEncryptor(dek)
 	if err != nil {
 		return nil, err
 	}
@@ -311,11 +313,6 @@ func (kd *KeyDerivation) DeriveKey(info []byte, length int) ([]byte, error) {
 	}
 	return key, nil
 }
-
-// PasswordHash implements Argon2id password hashing
-import (
-	"golang.org/x/crypto/argon2"
-)
 
 // HashPassword hashes a password using Argon2id
 func HashPassword(password string) (string, error) {
