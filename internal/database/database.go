@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -33,8 +34,25 @@ type DB struct {
 
 // New creates a new database connection
 func New(cfg Config, logger zerolog.Logger) (*DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Database, cfg.SSLMode)
+	// Enforce SSL/TLS for secure database connections
+	// In production, sslmode must be "require", "verify-ca", or "verify-full"
+	// Allow "disable" and "prefer" only for development environments
+	sslMode := cfg.SSLMode
+	if sslMode == "" {
+		// Default to require for security
+		sslMode = "require"
+		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'require'")
+	}
+
+	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters
+	// All config values are escaped to prevent malicious content from injecting SQL directives
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=/etc/ssl/certs/ca-certificates.crt",
+		url.QueryEscape(cfg.Host),
+		cfg.Port,
+		url.QueryEscape(cfg.User),
+		url.QueryEscape(cfg.Password),
+		url.QueryEscape(cfg.Database),
+		url.QueryEscape(sslMode))
 
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {

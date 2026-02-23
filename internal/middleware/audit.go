@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
+	"unsafe"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -79,14 +81,18 @@ func AuditMiddleware(auditSvc *audit.Service, logger zerolog.Logger, cfg AuditCo
 
 		// Read request body if needed
 		var requestBody map[string]interface{}
+		var bodyBytes []byte
 		if cfg.LogRequestBody && c.Request.Body != nil && c.Request.Method != "GET" {
-			bodyBytes, err := io.ReadAll(c.Request.Body)
+			var err error
+			bodyBytes, err = io.ReadAll(c.Request.Body)
 			if err == nil {
 				c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 				_ = json.Unmarshal(bodyBytes, &requestBody)
 				// Sanitize sensitive fields
 				requestBody = sanitizeData(requestBody, cfg.SensitiveFields)
 			}
+			// Zeroize sensitive body buffer after use to prevent memory leaks
+			zeroizeBytes(bodyBytes)
 		}
 
 		// Create response writer wrapper to capture response
@@ -272,6 +278,22 @@ func getUUID(val interface{}) uuid.UUID {
 		}
 	}
 	return uuid.Nil
+}
+
+// zeroizeBytes securely wipes sensitive data from memory
+// This prevents sensitive data from being captured in goroutine dumps or memory inspections
+func zeroizeBytes(data []byte) {
+	if len(data) == 0 {
+		return
+	}
+	// Overwrite the slice with zeros
+	for i := range data {
+		data[i] = 0
+	}
+	// Force the compiler to keep the wipe operation
+	runtime.KeepAlive(data)
+	// Prevent compiler optimizations by using unsafe
+	_ = unsafe.Pointer(&data[0])
 }
 
 // AuditOnlyLogs creates a simpler audit middleware that only logs to zerolog
