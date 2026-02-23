@@ -105,8 +105,8 @@
                 - columnheader "Outcome" [ref=e144]
                 - columnheader "Details" [ref=e145]
             - rowgroup [ref=e146]:
-              - row "2026-02-23 17:05:54 admin@example.com user created users user-1 success" [ref=e147]:
-                - cell "2026-02-23 17:05:54" [ref=e148]
+              - row "2026-02-23 17:10:14 admin@example.com user created users user-1 success" [ref=e147]:
+                - cell "2026-02-23 17:10:14" [ref=e148]
                 - cell "admin@example.com" [ref=e149]:
                   - generic [ref=e150]:
                     - paragraph [ref=e151]: admin@example.com

@@ -105,8 +105,8 @@
                 - columnheader "Outcome" [ref=e137]
                 - columnheader "Details" [ref=e138]
             - rowgroup [ref=e139]:
-              - row "2026-02-23 17:03:59 user@example.com 192.168.1.50 credential checkout credentials denied" [ref=e140]:
-                - cell "2026-02-23 17:03:59" [ref=e141]
+              - row "2026-02-23 17:08:24 user@example.com 192.168.1.50 credential checkout credentials denied" [ref=e140]:
+                - cell "2026-02-23 17:08:24" [ref=e141]
                 - cell "user@example.com 192.168.1.50" [ref=e142]:
                   - generic [ref=e143]:
                     - paragraph [ref=e144]: user@example.com

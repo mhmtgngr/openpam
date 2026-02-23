@@ -104,8 +104,8 @@
               - columnheader "Outcome" [ref=e137]
               - columnheader "Details" [ref=e138]
           - rowgroup [ref=e139]:
-            - row "2026-02-23 17:03:59 admin@example.com 192.168.1.100 user login users Admin User success" [ref=e140]:
-              - cell "2026-02-23 17:03:59" [ref=e141]
+            - row "2026-02-23 17:08:24 admin@example.com 192.168.1.100 user login users Admin User success" [ref=e140]:
+              - cell "2026-02-23 17:08:24" [ref=e141]
               - cell "admin@example.com 192.168.1.100" [ref=e142]:
                 - generic [ref=e143]:
                   - paragraph [ref=e144]: admin@example.com
@@ -118,8 +118,8 @@
               - cell "success" [ref=e151]:
                 - generic [ref=e152]: success
               - cell [ref=e153]
-            - row "2026-02-23 16:03:59 user@example.com 192.168.1.50 credential checkout credentials Production DB success" [ref=e154]:
-              - cell "2026-02-23 16:03:59" [ref=e155]
+            - row "2026-02-23 16:08:24 user@example.com 192.168.1.50 credential checkout credentials Production DB success" [ref=e154]:
+              - cell "2026-02-23 16:08:24" [ref=e155]
               - cell "user@example.com 192.168.1.50" [ref=e156]:
                 - generic [ref=e157]:
                   - paragraph [ref=e158]: user@example.com
@@ -132,8 +132,8 @@
               - cell "success" [ref=e165]:
                 - generic [ref=e166]: success
               - cell [ref=e167]
-            - row "2026-02-23 15:03:59 attacker@example.com 10.0.0.1 credential checkout credentials denied" [ref=e168]:
-              - cell "2026-02-23 15:03:59" [ref=e169]
+            - row "2026-02-23 15:08:24 attacker@example.com 10.0.0.1 credential checkout credentials denied" [ref=e168]:
+              - cell "2026-02-23 15:08:24" [ref=e169]
               - cell "attacker@example.com 10.0.0.1" [ref=e170]:
                 - generic [ref=e171]:
                   - paragraph [ref=e172]: attacker@example.com

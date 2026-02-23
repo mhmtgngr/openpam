@@ -96,7 +96,7 @@
               - option "Failure"
               - option "Denied"
   - generic:
-    - status [ref=e143]: Failed to fetch audit logs
+    - status [ref=e143]: An error occurred
     - status [ref=e149]: An error occurred
-    - status [ref=e155]: An error occurred
+    - status [ref=e155]: Failed to fetch audit logs
 ```

@@ -101,7 +101,7 @@
                 - columnheader "Duration" [ref=e133]
                 - columnheader [ref=e134]
             - rowgroup [ref=e135]:
-              - row "John Doe john@example.com Server ssh SSH active 2/23/2026, 5:04:26 PM 0m 0s Terminate Monitor" [ref=e136]:
+              - row "John Doe john@example.com Server ssh SSH active 2/23/2026, 5:08:51 PM 0m 0s Terminate Monitor" [ref=e136]:
                 - cell "John Doe john@example.com" [ref=e137]:
                   - generic [ref=e138]:
                     - paragraph [ref=e139]: John Doe
@@ -114,7 +114,7 @@
                   - generic [ref=e146]: SSH
                 - cell "active" [ref=e147]:
                   - generic [ref=e152]: active
-                - cell "2/23/2026, 5:04:26 PM" [ref=e153]
+                - cell "2/23/2026, 5:08:51 PM" [ref=e153]
                 - cell "0m 0s" [ref=e154]:
                   - generic [ref=e155]: 0m 0s
                 - cell "Terminate Monitor" [ref=e156]:
