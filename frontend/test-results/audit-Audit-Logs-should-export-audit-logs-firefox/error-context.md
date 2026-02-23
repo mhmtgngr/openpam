@@ -1,0 +1,102 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e39]: Targets
+        - link "Credentials" [ref=e40] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e41]
+          - generic [ref=e45]: Credentials
+        - link "My Requests" [ref=e46] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e47]
+          - generic [ref=e52]: My Requests
+        - link "Approvals" [ref=e53] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e54]
+          - generic [ref=e57]: Approvals
+        - link "Sessions" [ref=e58] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e59]
+          - generic [ref=e61]: Sessions
+        - link "Audit Logs" [ref=e62] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e63]
+          - generic [ref=e70]: Audit Logs
+        - link "Settings" [ref=e71] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e72]
+          - generic [ref=e75]: Settings
+      - generic [ref=e77]:
+        - generic [ref=e78]: TU
+        - generic [ref=e79]:
+          - paragraph [ref=e80]: Test User
+          - paragraph [ref=e81]: test@example.com
+    - generic [ref=e82]:
+      - banner [ref=e83]:
+        - generic [ref=e85]:
+          - img [ref=e86]
+          - textbox "Search targets, credentials, users..." [ref=e89]
+        - generic [ref=e90]:
+          - button "Refresh data" [ref=e91] [cursor=pointer]:
+            - img [ref=e92]
+          - button [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button "TU test@example.com" [ref=e103] [cursor=pointer]:
+            - generic [ref=e104]: TU
+            - generic [ref=e105]: test@example.com
+            - img [ref=e106]
+      - main [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - heading "Audit Logs" [level=1] [ref=e112]
+              - paragraph [ref=e113]: Complete audit trail of all system activities
+            - button "Export" [active] [ref=e114] [cursor=pointer]:
+              - img [ref=e116]
+              - text: Export
+          - generic [ref=e122]:
+            - generic [ref=e125]:
+              - img [ref=e127]
+              - textbox "Search audit logs..." [ref=e130]
+            - combobox [ref=e132]:
+              - option "All Resources" [selected]
+              - option "Users"
+              - option "Targets"
+              - option "Credentials"
+              - option "Requests"
+              - option "Sessions"
+            - combobox [ref=e134]:
+              - option "All Outcomes" [selected]
+              - option "Success"
+              - option "Failure"
+              - option "Denied"
+          - paragraph [ref=e137]: No audit events found
+  - generic:
+    - status [ref=e143]: An error occurred
+    - status [ref=e149]: An error occurred
+```

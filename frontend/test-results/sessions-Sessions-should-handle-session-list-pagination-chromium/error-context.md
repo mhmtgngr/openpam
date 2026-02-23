@@ -1,0 +1,544 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Audit Logs" [ref=e60] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e61]
+          - generic [ref=e64]: Audit Logs
+        - link "Settings" [ref=e65] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e66]
+          - generic [ref=e69]: Settings
+      - generic [ref=e71]:
+        - generic [ref=e72]: TU
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: Test User
+          - paragraph [ref=e75]: test@example.com
+    - generic [ref=e76]:
+      - banner [ref=e77]:
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - textbox "Search targets, credentials, users..." [ref=e83]
+        - generic [ref=e84]:
+          - button "Refresh data" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+          - button [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "TU test@example.com" [ref=e97] [cursor=pointer]:
+            - generic [ref=e98]: TU
+            - generic [ref=e99]: test@example.com
+            - img [ref=e100]
+      - main [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e105]:
+            - heading "Active Sessions" [level=1] [ref=e106]
+            - paragraph [ref=e107]: Monitor and manage privileged access sessions
+          - generic [ref=e110]:
+            - generic [ref=e113]:
+              - img [ref=e115]
+              - textbox "Search sessions..." [ref=e118]
+            - combobox [ref=e120]:
+              - option "All Types" [selected]
+              - option "SSH"
+              - option "RDP"
+              - option "Database"
+              - option "Kubernetes"
+            - combobox [ref=e122]:
+              - option "All Status" [selected]
+              - option "Active"
+              - option "Ended"
+              - option "Terminated"
+          - generic [ref=e123]:
+            - table [ref=e125]:
+              - rowgroup [ref=e126]:
+                - row "User Target Type Status Started Duration" [ref=e127]:
+                  - columnheader "User" [ref=e128]
+                  - columnheader "Target" [ref=e129]
+                  - columnheader "Type" [ref=e130]
+                  - columnheader "Status" [ref=e131]
+                  - columnheader "Started" [ref=e132]
+                  - columnheader "Duration" [ref=e133]
+                  - columnheader [ref=e134]
+              - rowgroup [ref=e135]:
+                - row "User0 Test user0@example.com Server 0 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e136]:
+                  - cell "User0 Test user0@example.com" [ref=e137]:
+                    - generic [ref=e138]:
+                      - paragraph [ref=e139]: User0 Test
+                      - paragraph [ref=e140]: user0@example.com
+                  - cell "Server 0 ssh" [ref=e141]:
+                    - generic [ref=e142]:
+                      - paragraph [ref=e143]: Server 0
+                      - paragraph [ref=e144]: ssh
+                  - cell "SSH" [ref=e145]:
+                    - generic [ref=e146]: SSH
+                  - cell "ended" [ref=e147]:
+                    - generic [ref=e148]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e149]
+                  - cell "60m" [ref=e150]
+                  - cell "View" [ref=e151]:
+                    - link "View" [ref=e153] [cursor=pointer]:
+                      - /url: /sessions/session-0
+                      - button "View" [ref=e154]:
+                        - img [ref=e156]
+                        - text: View
+                - row "User1 Test user1@example.com Server 1 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e159]:
+                  - cell "User1 Test user1@example.com" [ref=e160]:
+                    - generic [ref=e161]:
+                      - paragraph [ref=e162]: User1 Test
+                      - paragraph [ref=e163]: user1@example.com
+                  - cell "Server 1 ssh" [ref=e164]:
+                    - generic [ref=e165]:
+                      - paragraph [ref=e166]: Server 1
+                      - paragraph [ref=e167]: ssh
+                  - cell "SSH" [ref=e168]:
+                    - generic [ref=e169]: SSH
+                  - cell "ended" [ref=e170]:
+                    - generic [ref=e171]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e172]
+                  - cell "60m" [ref=e173]
+                  - cell "View" [ref=e174]:
+                    - link "View" [ref=e176] [cursor=pointer]:
+                      - /url: /sessions/session-1
+                      - button "View" [ref=e177]:
+                        - img [ref=e179]
+                        - text: View
+                - row "User2 Test user2@example.com Server 2 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e182]:
+                  - cell "User2 Test user2@example.com" [ref=e183]:
+                    - generic [ref=e184]:
+                      - paragraph [ref=e185]: User2 Test
+                      - paragraph [ref=e186]: user2@example.com
+                  - cell "Server 2 ssh" [ref=e187]:
+                    - generic [ref=e188]:
+                      - paragraph [ref=e189]: Server 2
+                      - paragraph [ref=e190]: ssh
+                  - cell "SSH" [ref=e191]:
+                    - generic [ref=e192]: SSH
+                  - cell "ended" [ref=e193]:
+                    - generic [ref=e194]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e195]
+                  - cell "60m" [ref=e196]
+                  - cell "View" [ref=e197]:
+                    - link "View" [ref=e199] [cursor=pointer]:
+                      - /url: /sessions/session-2
+                      - button "View" [ref=e200]:
+                        - img [ref=e202]
+                        - text: View
+                - row "User3 Test user3@example.com Server 3 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e205]:
+                  - cell "User3 Test user3@example.com" [ref=e206]:
+                    - generic [ref=e207]:
+                      - paragraph [ref=e208]: User3 Test
+                      - paragraph [ref=e209]: user3@example.com
+                  - cell "Server 3 ssh" [ref=e210]:
+                    - generic [ref=e211]:
+                      - paragraph [ref=e212]: Server 3
+                      - paragraph [ref=e213]: ssh
+                  - cell "SSH" [ref=e214]:
+                    - generic [ref=e215]: SSH
+                  - cell "ended" [ref=e216]:
+                    - generic [ref=e217]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e218]
+                  - cell "60m" [ref=e219]
+                  - cell "View" [ref=e220]:
+                    - link "View" [ref=e222] [cursor=pointer]:
+                      - /url: /sessions/session-3
+                      - button "View" [ref=e223]:
+                        - img [ref=e225]
+                        - text: View
+                - row "User4 Test user4@example.com Server 4 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e228]:
+                  - cell "User4 Test user4@example.com" [ref=e229]:
+                    - generic [ref=e230]:
+                      - paragraph [ref=e231]: User4 Test
+                      - paragraph [ref=e232]: user4@example.com
+                  - cell "Server 4 ssh" [ref=e233]:
+                    - generic [ref=e234]:
+                      - paragraph [ref=e235]: Server 4
+                      - paragraph [ref=e236]: ssh
+                  - cell "SSH" [ref=e237]:
+                    - generic [ref=e238]: SSH
+                  - cell "ended" [ref=e239]:
+                    - generic [ref=e240]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e241]
+                  - cell "60m" [ref=e242]
+                  - cell "View" [ref=e243]:
+                    - link "View" [ref=e245] [cursor=pointer]:
+                      - /url: /sessions/session-4
+                      - button "View" [ref=e246]:
+                        - img [ref=e248]
+                        - text: View
+                - row "User5 Test user5@example.com Server 5 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e251]:
+                  - cell "User5 Test user5@example.com" [ref=e252]:
+                    - generic [ref=e253]:
+                      - paragraph [ref=e254]: User5 Test
+                      - paragraph [ref=e255]: user5@example.com
+                  - cell "Server 5 ssh" [ref=e256]:
+                    - generic [ref=e257]:
+                      - paragraph [ref=e258]: Server 5
+                      - paragraph [ref=e259]: ssh
+                  - cell "SSH" [ref=e260]:
+                    - generic [ref=e261]: SSH
+                  - cell "ended" [ref=e262]:
+                    - generic [ref=e263]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e264]
+                  - cell "60m" [ref=e265]
+                  - cell "View" [ref=e266]:
+                    - link "View" [ref=e268] [cursor=pointer]:
+                      - /url: /sessions/session-5
+                      - button "View" [ref=e269]:
+                        - img [ref=e271]
+                        - text: View
+                - row "User6 Test user6@example.com Server 6 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e274]:
+                  - cell "User6 Test user6@example.com" [ref=e275]:
+                    - generic [ref=e276]:
+                      - paragraph [ref=e277]: User6 Test
+                      - paragraph [ref=e278]: user6@example.com
+                  - cell "Server 6 ssh" [ref=e279]:
+                    - generic [ref=e280]:
+                      - paragraph [ref=e281]: Server 6
+                      - paragraph [ref=e282]: ssh
+                  - cell "SSH" [ref=e283]:
+                    - generic [ref=e284]: SSH
+                  - cell "ended" [ref=e285]:
+                    - generic [ref=e286]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e287]
+                  - cell "60m" [ref=e288]
+                  - cell "View" [ref=e289]:
+                    - link "View" [ref=e291] [cursor=pointer]:
+                      - /url: /sessions/session-6
+                      - button "View" [ref=e292]:
+                        - img [ref=e294]
+                        - text: View
+                - row "User7 Test user7@example.com Server 7 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e297]:
+                  - cell "User7 Test user7@example.com" [ref=e298]:
+                    - generic [ref=e299]:
+                      - paragraph [ref=e300]: User7 Test
+                      - paragraph [ref=e301]: user7@example.com
+                  - cell "Server 7 ssh" [ref=e302]:
+                    - generic [ref=e303]:
+                      - paragraph [ref=e304]: Server 7
+                      - paragraph [ref=e305]: ssh
+                  - cell "SSH" [ref=e306]:
+                    - generic [ref=e307]: SSH
+                  - cell "ended" [ref=e308]:
+                    - generic [ref=e309]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e310]
+                  - cell "60m" [ref=e311]
+                  - cell "View" [ref=e312]:
+                    - link "View" [ref=e314] [cursor=pointer]:
+                      - /url: /sessions/session-7
+                      - button "View" [ref=e315]:
+                        - img [ref=e317]
+                        - text: View
+                - row "User8 Test user8@example.com Server 8 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e320]:
+                  - cell "User8 Test user8@example.com" [ref=e321]:
+                    - generic [ref=e322]:
+                      - paragraph [ref=e323]: User8 Test
+                      - paragraph [ref=e324]: user8@example.com
+                  - cell "Server 8 ssh" [ref=e325]:
+                    - generic [ref=e326]:
+                      - paragraph [ref=e327]: Server 8
+                      - paragraph [ref=e328]: ssh
+                  - cell "SSH" [ref=e329]:
+                    - generic [ref=e330]: SSH
+                  - cell "ended" [ref=e331]:
+                    - generic [ref=e332]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e333]
+                  - cell "60m" [ref=e334]
+                  - cell "View" [ref=e335]:
+                    - link "View" [ref=e337] [cursor=pointer]:
+                      - /url: /sessions/session-8
+                      - button "View" [ref=e338]:
+                        - img [ref=e340]
+                        - text: View
+                - row "User9 Test user9@example.com Server 9 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e343]:
+                  - cell "User9 Test user9@example.com" [ref=e344]:
+                    - generic [ref=e345]:
+                      - paragraph [ref=e346]: User9 Test
+                      - paragraph [ref=e347]: user9@example.com
+                  - cell "Server 9 ssh" [ref=e348]:
+                    - generic [ref=e349]:
+                      - paragraph [ref=e350]: Server 9
+                      - paragraph [ref=e351]: ssh
+                  - cell "SSH" [ref=e352]:
+                    - generic [ref=e353]: SSH
+                  - cell "ended" [ref=e354]:
+                    - generic [ref=e355]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e356]
+                  - cell "60m" [ref=e357]
+                  - cell "View" [ref=e358]:
+                    - link "View" [ref=e360] [cursor=pointer]:
+                      - /url: /sessions/session-9
+                      - button "View" [ref=e361]:
+                        - img [ref=e363]
+                        - text: View
+                - row "User10 Test user10@example.com Server 10 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e366]:
+                  - cell "User10 Test user10@example.com" [ref=e367]:
+                    - generic [ref=e368]:
+                      - paragraph [ref=e369]: User10 Test
+                      - paragraph [ref=e370]: user10@example.com
+                  - cell "Server 10 ssh" [ref=e371]:
+                    - generic [ref=e372]:
+                      - paragraph [ref=e373]: Server 10
+                      - paragraph [ref=e374]: ssh
+                  - cell "SSH" [ref=e375]:
+                    - generic [ref=e376]: SSH
+                  - cell "ended" [ref=e377]:
+                    - generic [ref=e378]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e379]
+                  - cell "60m" [ref=e380]
+                  - cell "View" [ref=e381]:
+                    - link "View" [ref=e383] [cursor=pointer]:
+                      - /url: /sessions/session-10
+                      - button "View" [ref=e384]:
+                        - img [ref=e386]
+                        - text: View
+                - row "User11 Test user11@example.com Server 11 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e389]:
+                  - cell "User11 Test user11@example.com" [ref=e390]:
+                    - generic [ref=e391]:
+                      - paragraph [ref=e392]: User11 Test
+                      - paragraph [ref=e393]: user11@example.com
+                  - cell "Server 11 ssh" [ref=e394]:
+                    - generic [ref=e395]:
+                      - paragraph [ref=e396]: Server 11
+                      - paragraph [ref=e397]: ssh
+                  - cell "SSH" [ref=e398]:
+                    - generic [ref=e399]: SSH
+                  - cell "ended" [ref=e400]:
+                    - generic [ref=e401]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e402]
+                  - cell "60m" [ref=e403]
+                  - cell "View" [ref=e404]:
+                    - link "View" [ref=e406] [cursor=pointer]:
+                      - /url: /sessions/session-11
+                      - button "View" [ref=e407]:
+                        - img [ref=e409]
+                        - text: View
+                - row "User12 Test user12@example.com Server 12 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e412]:
+                  - cell "User12 Test user12@example.com" [ref=e413]:
+                    - generic [ref=e414]:
+                      - paragraph [ref=e415]: User12 Test
+                      - paragraph [ref=e416]: user12@example.com
+                  - cell "Server 12 ssh" [ref=e417]:
+                    - generic [ref=e418]:
+                      - paragraph [ref=e419]: Server 12
+                      - paragraph [ref=e420]: ssh
+                  - cell "SSH" [ref=e421]:
+                    - generic [ref=e422]: SSH
+                  - cell "ended" [ref=e423]:
+                    - generic [ref=e424]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e425]
+                  - cell "60m" [ref=e426]
+                  - cell "View" [ref=e427]:
+                    - link "View" [ref=e429] [cursor=pointer]:
+                      - /url: /sessions/session-12
+                      - button "View" [ref=e430]:
+                        - img [ref=e432]
+                        - text: View
+                - row "User13 Test user13@example.com Server 13 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e435]:
+                  - cell "User13 Test user13@example.com" [ref=e436]:
+                    - generic [ref=e437]:
+                      - paragraph [ref=e438]: User13 Test
+                      - paragraph [ref=e439]: user13@example.com
+                  - cell "Server 13 ssh" [ref=e440]:
+                    - generic [ref=e441]:
+                      - paragraph [ref=e442]: Server 13
+                      - paragraph [ref=e443]: ssh
+                  - cell "SSH" [ref=e444]:
+                    - generic [ref=e445]: SSH
+                  - cell "ended" [ref=e446]:
+                    - generic [ref=e447]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e448]
+                  - cell "60m" [ref=e449]
+                  - cell "View" [ref=e450]:
+                    - link "View" [ref=e452] [cursor=pointer]:
+                      - /url: /sessions/session-13
+                      - button "View" [ref=e453]:
+                        - img [ref=e455]
+                        - text: View
+                - row "User14 Test user14@example.com Server 14 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e458]:
+                  - cell "User14 Test user14@example.com" [ref=e459]:
+                    - generic [ref=e460]:
+                      - paragraph [ref=e461]: User14 Test
+                      - paragraph [ref=e462]: user14@example.com
+                  - cell "Server 14 ssh" [ref=e463]:
+                    - generic [ref=e464]:
+                      - paragraph [ref=e465]: Server 14
+                      - paragraph [ref=e466]: ssh
+                  - cell "SSH" [ref=e467]:
+                    - generic [ref=e468]: SSH
+                  - cell "ended" [ref=e469]:
+                    - generic [ref=e470]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e471]
+                  - cell "60m" [ref=e472]
+                  - cell "View" [ref=e473]:
+                    - link "View" [ref=e475] [cursor=pointer]:
+                      - /url: /sessions/session-14
+                      - button "View" [ref=e476]:
+                        - img [ref=e478]
+                        - text: View
+                - row "User15 Test user15@example.com Server 15 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e481]:
+                  - cell "User15 Test user15@example.com" [ref=e482]:
+                    - generic [ref=e483]:
+                      - paragraph [ref=e484]: User15 Test
+                      - paragraph [ref=e485]: user15@example.com
+                  - cell "Server 15 ssh" [ref=e486]:
+                    - generic [ref=e487]:
+                      - paragraph [ref=e488]: Server 15
+                      - paragraph [ref=e489]: ssh
+                  - cell "SSH" [ref=e490]:
+                    - generic [ref=e491]: SSH
+                  - cell "ended" [ref=e492]:
+                    - generic [ref=e493]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e494]
+                  - cell "60m" [ref=e495]
+                  - cell "View" [ref=e496]:
+                    - link "View" [ref=e498] [cursor=pointer]:
+                      - /url: /sessions/session-15
+                      - button "View" [ref=e499]:
+                        - img [ref=e501]
+                        - text: View
+                - row "User16 Test user16@example.com Server 16 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e504]:
+                  - cell "User16 Test user16@example.com" [ref=e505]:
+                    - generic [ref=e506]:
+                      - paragraph [ref=e507]: User16 Test
+                      - paragraph [ref=e508]: user16@example.com
+                  - cell "Server 16 ssh" [ref=e509]:
+                    - generic [ref=e510]:
+                      - paragraph [ref=e511]: Server 16
+                      - paragraph [ref=e512]: ssh
+                  - cell "SSH" [ref=e513]:
+                    - generic [ref=e514]: SSH
+                  - cell "ended" [ref=e515]:
+                    - generic [ref=e516]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e517]
+                  - cell "60m" [ref=e518]
+                  - cell "View" [ref=e519]:
+                    - link "View" [ref=e521] [cursor=pointer]:
+                      - /url: /sessions/session-16
+                      - button "View" [ref=e522]:
+                        - img [ref=e524]
+                        - text: View
+                - row "User17 Test user17@example.com Server 17 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e527]:
+                  - cell "User17 Test user17@example.com" [ref=e528]:
+                    - generic [ref=e529]:
+                      - paragraph [ref=e530]: User17 Test
+                      - paragraph [ref=e531]: user17@example.com
+                  - cell "Server 17 ssh" [ref=e532]:
+                    - generic [ref=e533]:
+                      - paragraph [ref=e534]: Server 17
+                      - paragraph [ref=e535]: ssh
+                  - cell "SSH" [ref=e536]:
+                    - generic [ref=e537]: SSH
+                  - cell "ended" [ref=e538]:
+                    - generic [ref=e539]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e540]
+                  - cell "60m" [ref=e541]
+                  - cell "View" [ref=e542]:
+                    - link "View" [ref=e544] [cursor=pointer]:
+                      - /url: /sessions/session-17
+                      - button "View" [ref=e545]:
+                        - img [ref=e547]
+                        - text: View
+                - row "User18 Test user18@example.com Server 18 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e550]:
+                  - cell "User18 Test user18@example.com" [ref=e551]:
+                    - generic [ref=e552]:
+                      - paragraph [ref=e553]: User18 Test
+                      - paragraph [ref=e554]: user18@example.com
+                  - cell "Server 18 ssh" [ref=e555]:
+                    - generic [ref=e556]:
+                      - paragraph [ref=e557]: Server 18
+                      - paragraph [ref=e558]: ssh
+                  - cell "SSH" [ref=e559]:
+                    - generic [ref=e560]: SSH
+                  - cell "ended" [ref=e561]:
+                    - generic [ref=e562]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e563]
+                  - cell "60m" [ref=e564]
+                  - cell "View" [ref=e565]:
+                    - link "View" [ref=e567] [cursor=pointer]:
+                      - /url: /sessions/session-18
+                      - button "View" [ref=e568]:
+                        - img [ref=e570]
+                        - text: View
+                - row "User19 Test user19@example.com Server 19 ssh SSH ended 2/23/2026, 5:04:43 PM 60m View" [ref=e573]:
+                  - cell "User19 Test user19@example.com" [ref=e574]:
+                    - generic [ref=e575]:
+                      - paragraph [ref=e576]: User19 Test
+                      - paragraph [ref=e577]: user19@example.com
+                  - cell "Server 19 ssh" [ref=e578]:
+                    - generic [ref=e579]:
+                      - paragraph [ref=e580]: Server 19
+                      - paragraph [ref=e581]: ssh
+                  - cell "SSH" [ref=e582]:
+                    - generic [ref=e583]: SSH
+                  - cell "ended" [ref=e584]:
+                    - generic [ref=e585]: ended
+                  - cell "2/23/2026, 5:04:43 PM" [ref=e586]
+                  - cell "60m" [ref=e587]
+                  - cell "View" [ref=e588]:
+                    - link "View" [ref=e590] [cursor=pointer]:
+                      - /url: /sessions/session-19
+                      - button "View" [ref=e591]:
+                        - img [ref=e593]
+                        - text: View
+            - generic [ref=e597]:
+              - generic [ref=e598]: Showing 1 to 20 of 100 results
+              - generic [ref=e599]:
+                - button [disabled] [ref=e600]:
+                  - img [ref=e602]
+                - button [disabled] [ref=e605]:
+                  - img [ref=e607]
+                - button "1" [ref=e609] [cursor=pointer]
+                - button "2" [ref=e610] [cursor=pointer]
+                - button "3" [ref=e611] [cursor=pointer]
+                - button "4" [ref=e612] [cursor=pointer]
+                - button "5" [ref=e613] [cursor=pointer]
+                - button [ref=e614] [cursor=pointer]:
+                  - img [ref=e616]
+                - button [ref=e618] [cursor=pointer]:
+                  - img [ref=e620]
+  - generic:
+    - status [ref=e628]: An error occurred
+    - status [ref=e634]: An error occurred
+```

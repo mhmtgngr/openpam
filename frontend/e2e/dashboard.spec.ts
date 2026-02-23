@@ -22,21 +22,21 @@ test.describe('Dashboard', () => {
     await authenticatedPage.waitForLoadState('networkidle');
 
     // Check for navigation items - the sidebar has links with these texts
-    await expect(authenticatedPage.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-    await expect(authenticatedPage.getByRole('link', { name: 'Targets' })).toBeVisible();
-    await expect(authenticatedPage.getByRole('link', { name: 'Credentials' })).toBeVisible();
+    await expect(authenticatedPage.getByRole('link', { name: 'Dashboard', exact: true })).toBeVisible();
+    await expect(authenticatedPage.getByRole('link', { name: 'Targets', exact: true })).toBeVisible();
+    await expect(authenticatedPage.getByRole('link', { name: 'Credentials', exact: true })).toBeVisible();
   });
 
   test('should navigate to different sections', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/dashboard');
     await authenticatedPage.waitForLoadState('networkidle');
 
-    // Click on Targets
-    await authenticatedPage.getByRole('link', { name: 'Targets' }).click();
+    // Click on Targets (use exact: true to avoid ambiguity)
+    await authenticatedPage.getByRole('link', { name: 'Targets', exact: true }).click();
     await authenticatedPage.waitForURL('/targets', { timeout: 5000 });
 
     // Click on Credentials
-    await authenticatedPage.getByRole('link', { name: 'Credentials' }).click();
+    await authenticatedPage.getByRole('link', { name: 'Credentials', exact: true }).click();
     await authenticatedPage.waitForURL('/credentials', { timeout: 5000 });
   });
 

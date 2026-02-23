@@ -11,6 +11,10 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Clear storage before each test
+    contextOptions: {
+      storageState: undefined, // Don't use any stored auth state
+    },
   },
 
   projects: [

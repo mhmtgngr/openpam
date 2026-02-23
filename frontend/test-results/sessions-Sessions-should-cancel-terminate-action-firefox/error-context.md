@@ -1,0 +1,143 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: OpenPAM
+      - button [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - link "Dashboard" [ref=e15] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e16]
+        - generic [ref=e21]: Dashboard
+      - link "Users" [ref=e22] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e23]
+        - generic [ref=e28]: Users
+      - link "Roles" [ref=e29] [cursor=pointer]:
+        - /url: /roles
+        - img [ref=e30]
+        - generic [ref=e32]: Roles
+      - link "Targets" [ref=e33] [cursor=pointer]:
+        - /url: /targets
+        - img [ref=e34]
+        - generic [ref=e39]: Targets
+      - link "Credentials" [ref=e40] [cursor=pointer]:
+        - /url: /credentials
+        - img [ref=e41]
+        - generic [ref=e45]: Credentials
+      - link "My Requests" [ref=e46] [cursor=pointer]:
+        - /url: /requests/my
+        - img [ref=e47]
+        - generic [ref=e52]: My Requests
+      - link "Approvals" [ref=e53] [cursor=pointer]:
+        - /url: /approvals
+        - img [ref=e54]
+        - generic [ref=e57]: Approvals
+      - link "Sessions" [ref=e58] [cursor=pointer]:
+        - /url: /sessions
+        - img [ref=e59]
+        - generic [ref=e61]: Sessions
+      - link "Audit Logs" [ref=e62] [cursor=pointer]:
+        - /url: /audit
+        - img [ref=e63]
+        - generic [ref=e70]: Audit Logs
+      - link "Settings" [ref=e71] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e72]
+        - generic [ref=e75]: Settings
+    - generic [ref=e77]:
+      - generic [ref=e78]: TU
+      - generic [ref=e79]:
+        - paragraph [ref=e80]: Test User
+        - paragraph [ref=e81]: test@example.com
+  - generic [ref=e82]:
+    - banner [ref=e83]:
+      - generic [ref=e85]:
+        - img [ref=e86]
+        - textbox "Search targets, credentials, users..." [ref=e89]
+      - generic [ref=e90]:
+        - button "Refresh data" [ref=e91] [cursor=pointer]:
+          - img [ref=e92]
+        - button [ref=e98] [cursor=pointer]:
+          - img [ref=e99]
+        - button "TU test@example.com" [ref=e103] [cursor=pointer]:
+          - generic [ref=e104]: TU
+          - generic [ref=e105]: test@example.com
+          - img [ref=e106]
+    - main [ref=e108]:
+      - generic [ref=e109]:
+        - generic [ref=e111]:
+          - heading "Active Sessions" [level=1] [ref=e112]
+          - paragraph [ref=e113]: Monitor and manage privileged access sessions
+        - generic [ref=e116]:
+          - generic [ref=e119]:
+            - img [ref=e121]
+            - textbox "Search sessions..." [ref=e124]
+          - combobox [ref=e126]:
+            - option "All Types" [selected]
+            - option "SSH"
+            - option "RDP"
+            - option "Database"
+            - option "Kubernetes"
+          - combobox [ref=e128]:
+            - option "All Status" [selected]
+            - option "Active"
+            - option "Ended"
+            - option "Terminated"
+        - table [ref=e131]:
+          - rowgroup [ref=e132]:
+            - row "User Target Type Status Started Duration" [ref=e133]:
+              - columnheader "User" [ref=e134]
+              - columnheader "Target" [ref=e135]
+              - columnheader "Type" [ref=e136]
+              - columnheader "Status" [ref=e137]
+              - columnheader "Started" [ref=e138]
+              - columnheader "Duration" [ref=e139]
+              - columnheader [ref=e140]
+          - rowgroup [ref=e141]:
+            - row "John Doe john@example.com Server ssh SSH active 2/23/2026, 5:06:59 PM 0m 0s Terminate Monitor" [ref=e142]:
+              - cell "John Doe john@example.com" [ref=e143]:
+                - generic [ref=e144]:
+                  - paragraph [ref=e145]: John Doe
+                  - paragraph [ref=e146]: john@example.com
+              - cell "Server ssh" [ref=e147]:
+                - generic [ref=e148]:
+                  - paragraph [ref=e149]: Server
+                  - paragraph [ref=e150]: ssh
+              - cell "SSH" [ref=e151]:
+                - generic [ref=e152]: SSH
+              - cell "active" [ref=e153]:
+                - generic [ref=e158]: active
+              - cell "2/23/2026, 5:06:59 PM" [ref=e159]
+              - cell "0m 0s" [ref=e160]:
+                - generic [ref=e161]: 0m 0s
+              - cell "Terminate Monitor" [ref=e162]:
+                - generic [ref=e163]:
+                  - button "Terminate" [active] [ref=e164] [cursor=pointer]:
+                    - img [ref=e166]
+                    - text: Terminate
+                  - link "Monitor" [ref=e169] [cursor=pointer]:
+                    - /url: /sessions/session-1
+                    - button "Monitor" [ref=e170]:
+                      - img [ref=e172]
+                      - text: Monitor
+        - generic [ref=e176]:
+          - generic [ref=e177]:
+            - heading "Terminate Session" [level=3] [ref=e178]
+            - button [ref=e179] [cursor=pointer]:
+              - img [ref=e180]
+          - generic [ref=e183]:
+            - paragraph [ref=e184]: Are you sure you want to terminate this session? This action cannot be undone.
+            - generic [ref=e185]:
+              - generic [ref=e186]: Reason (optional)
+              - textbox "Reason (optional)" [ref=e187]:
+                - /placeholder: Provide a reason for terminating this session...
+            - generic [ref=e188]:
+              - button "Cancel" [ref=e189] [cursor=pointer]
+              - button "Terminate Session" [ref=e190] [cursor=pointer]
+```

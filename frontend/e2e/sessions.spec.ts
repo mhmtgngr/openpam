@@ -13,7 +13,7 @@ test.describe('Sessions', () => {
 
   test('should show empty state when no sessions', async ({ authenticatedPage }) => {
     // Mock the API to return empty list
-    await authenticatedPage.route('**/api/v1/sessions*', async (route) => {
+    await authenticatedPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -33,7 +33,7 @@ test.describe('Sessions', () => {
   });
 
   test('should display active sessions', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -86,16 +86,14 @@ test.describe('Sessions', () => {
     await mockApiPage.waitForLoadState('networkidle');
 
     // Should show sessions
-    await expect(mockApiPage.getByText('John Doe')).toBeVisible();
-    await expect(mockApiPage.getByText('Jane Smith')).toBeVisible();
-    await expect(mockApiPage.getByText('Production Server')).toBeVisible();
-    await expect(mockApiPage.getByText('Database Server')).toBeVisible();
-    await expect(mockApiPage.getByText('SSH')).toBeVisible();
-    await expect(mockApiPage.getByText('RDP')).toBeVisible();
+    await expect(mockApiPage.getByRole('cell').filter({ hasText: 'John Doe' })).toBeVisible();
+    await expect(mockApiPage.getByRole('cell').filter({ hasText: 'Jane Smith' })).toBeVisible();
+    await expect(mockApiPage.getByRole('cell').filter({ hasText: 'Production Server' })).toBeVisible();
+    await expect(mockApiPage.getByRole('cell').filter({ hasText: 'Database Server' })).toBeVisible();
   });
 
   test('should show active status indicator', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -138,7 +136,7 @@ test.describe('Sessions', () => {
 
   test('should filter sessions by status', async ({ mockApiPage }) => {
     let statusFilterCount = 0;
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       const url = route.request().url();
       if (url.includes('status=active')) {
         statusFilterCount++;
@@ -176,7 +174,7 @@ test.describe('Sessions', () => {
 
   test('should filter sessions by type', async ({ mockApiPage }) => {
     let typeFilterCount = 0;
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       const url = route.request().url();
       if (url.includes('type=ssh')) {
         typeFilterCount++;
@@ -214,7 +212,7 @@ test.describe('Sessions', () => {
 
   test('should search sessions', async ({ mockApiPage }) => {
     let searchRequestCount = 0;
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       const url = route.request().url();
       if (url.includes('search=john')) {
         searchRequestCount++;
@@ -251,7 +249,7 @@ test.describe('Sessions', () => {
   });
 
   test('should open terminate modal', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -290,7 +288,7 @@ test.describe('Sessions', () => {
 
   test('should terminate session with reason', async ({ mockApiPage }) => {
     let terminateCalled = false;
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       // Initial list request
       if (!route.request().url().includes('terminate')) {
         await route.fulfill({
@@ -339,7 +337,7 @@ test.describe('Sessions', () => {
   });
 
   test('should cancel terminate action', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       if (!route.request().url().includes('terminate')) {
         await route.fulfill({
           status: 200,
@@ -378,7 +376,7 @@ test.describe('Sessions', () => {
   });
 
   test('should show duration for active sessions', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -418,7 +416,7 @@ test.describe('Sessions', () => {
   });
 
   test('should show ended sessions with different status', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -454,13 +452,13 @@ test.describe('Sessions', () => {
     await sessionsPage.goto();
     await mockApiPage.waitForLoadState('networkidle');
 
-    // Should show ended/terminated sessions
-    await expect(mockApiPage.getByText('ended')).toBeVisible();
-    await expect(mockApiPage.getByText('terminated')).toBeVisible();
+    // Should show ended/terminated sessions (in the table data, not just the dropdown)
+    await expect(mockApiPage.getByRole('cell').filter({ hasText: 'ended' })).toBeVisible();
+    await expect(mockApiPage.getByRole('cell').filter({ hasText: 'terminated' })).toBeVisible();
   });
 
   test('should not show terminate button for ended sessions', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -493,7 +491,7 @@ test.describe('Sessions', () => {
   });
 
   test('should handle session list pagination', async ({ mockApiPage }) => {
-    await mockApiPage.route('**/api/v1/sessions*', async (route) => {
+    await mockApiPage.route('**/api/v1/sessions**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

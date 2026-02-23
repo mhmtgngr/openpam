@@ -1,0 +1,124 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e39]: Targets
+        - link "Credentials" [ref=e40] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e41]
+          - generic [ref=e45]: Credentials
+        - link "My Requests" [ref=e46] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e47]
+          - generic [ref=e52]: My Requests
+        - link "Approvals" [ref=e53] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e54]
+          - generic [ref=e57]: Approvals
+        - link "Sessions" [ref=e58] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e59]
+          - generic [ref=e61]: Sessions
+        - link "Audit Logs" [ref=e62] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e63]
+          - generic [ref=e70]: Audit Logs
+        - link "Settings" [ref=e71] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e72]
+          - generic [ref=e75]: Settings
+      - generic [ref=e77]:
+        - generic [ref=e78]: TU
+        - generic [ref=e79]:
+          - paragraph [ref=e80]: Test User
+          - paragraph [ref=e81]: test@example.com
+    - generic [ref=e82]:
+      - banner [ref=e83]:
+        - generic [ref=e85]:
+          - img [ref=e86]
+          - textbox "Search targets, credentials, users..." [ref=e89]
+        - generic [ref=e90]:
+          - button "Refresh data" [ref=e91] [cursor=pointer]:
+            - img [ref=e92]
+          - button [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button "TU test@example.com" [ref=e103] [cursor=pointer]:
+            - generic [ref=e104]: TU
+            - generic [ref=e105]: test@example.com
+            - img [ref=e106]
+      - main [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - button [ref=e111] [cursor=pointer]:
+              - img [ref=e112]
+            - generic [ref=e115]:
+              - heading "Add New User" [level=1] [ref=e116]
+              - paragraph [ref=e117]: Create a new user account
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - heading "Personal Information" [level=3] [ref=e121]
+              - paragraph [ref=e122]: Basic information about the user
+            - generic [ref=e123]:
+              - generic [ref=e124]:
+                - generic [ref=e125]: First Name
+                - textbox "First Name" [active] [ref=e127]
+              - generic [ref=e128]:
+                - generic [ref=e129]: Last Name
+                - textbox "Last Name" [ref=e131]
+            - generic [ref=e132]:
+              - generic [ref=e133]: Email Address
+              - textbox "Email Address" [ref=e135]
+            - generic [ref=e136]:
+              - generic [ref=e137]: Password
+              - textbox "Password" [ref=e139]
+              - paragraph [ref=e140]: Minimum 8 characters. Leave empty to send invitation email.
+            - generic [ref=e141]:
+              - checkbox "Send invitation email to user" [checked] [ref=e142]
+              - generic [ref=e143]: Send invitation email to user
+            - generic [ref=e144]:
+              - heading "Role & Status" [level=3] [ref=e145]
+              - paragraph [ref=e146]: Define user permissions and account status
+            - generic [ref=e147]:
+              - generic [ref=e148]: Role
+              - combobox "Role" [ref=e149]:
+                - option "Select a role" [disabled]
+                - option "Super Admin"
+                - option "Admin"
+                - option "Operator"
+                - option "Auditor"
+                - option "Requester"
+                - option "User" [selected]
+            - generic [ref=e150]:
+              - button "Cancel" [ref=e151] [cursor=pointer]
+              - button "Create User" [ref=e152] [cursor=pointer]:
+                - img [ref=e154]
+                - text: Create User
+  - generic:
+    - status [ref=e163]: An error occurred
+    - status [ref=e169]: An error occurred
+    - status [ref=e175]: An error occurred
+```

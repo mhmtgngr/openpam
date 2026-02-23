@@ -1,0 +1,826 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e39]: Targets
+        - link "Credentials" [ref=e40] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e41]
+          - generic [ref=e45]: Credentials
+        - link "My Requests" [ref=e46] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e47]
+          - generic [ref=e52]: My Requests
+        - link "Approvals" [ref=e53] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e54]
+          - generic [ref=e57]: Approvals
+        - link "Sessions" [ref=e58] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e59]
+          - generic [ref=e61]: Sessions
+        - link "Audit Logs" [ref=e62] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e63]
+          - generic [ref=e70]: Audit Logs
+        - link "Settings" [ref=e71] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e72]
+          - generic [ref=e75]: Settings
+      - generic [ref=e77]:
+        - generic [ref=e78]: TU
+        - generic [ref=e79]:
+          - paragraph [ref=e80]: Test User
+          - paragraph [ref=e81]: test@example.com
+    - generic [ref=e82]:
+      - banner [ref=e83]:
+        - generic [ref=e85]:
+          - img [ref=e86]
+          - textbox "Search targets, credentials, users..." [ref=e89]
+        - generic [ref=e90]:
+          - button "Refresh data" [ref=e91] [cursor=pointer]:
+            - img [ref=e92]
+          - button [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button "TU test@example.com" [ref=e103] [cursor=pointer]:
+            - generic [ref=e104]: TU
+            - generic [ref=e105]: test@example.com
+            - img [ref=e106]
+      - main [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - heading "Audit Logs" [level=1] [ref=e112]
+              - paragraph [ref=e113]: Complete audit trail of all system activities
+            - button "Export" [ref=e114] [cursor=pointer]:
+              - img [ref=e116]
+              - text: Export
+          - generic [ref=e122]:
+            - generic [ref=e125]:
+              - img [ref=e127]
+              - textbox "Search audit logs..." [ref=e130]
+            - combobox [ref=e132]:
+              - option "All Resources" [selected]
+              - option "Users"
+              - option "Targets"
+              - option "Credentials"
+              - option "Requests"
+              - option "Sessions"
+            - combobox [ref=e134]:
+              - option "All Outcomes" [selected]
+              - option "Success"
+              - option "Failure"
+              - option "Denied"
+          - generic [ref=e135]:
+            - table [ref=e137]:
+              - rowgroup [ref=e138]:
+                - row "Timestamp Actor Action Resource Outcome Details" [ref=e139]:
+                  - columnheader "Timestamp" [ref=e140]
+                  - columnheader "Actor" [ref=e141]
+                  - columnheader "Action" [ref=e142]
+                  - columnheader "Resource" [ref=e143]
+                  - columnheader "Outcome" [ref=e144]
+                  - columnheader "Details" [ref=e145]
+              - rowgroup [ref=e146]:
+                - row "2026-02-23 17:06:03 user0@example.com test action test success" [ref=e147]:
+                  - cell "2026-02-23 17:06:03" [ref=e148]
+                  - cell "user0@example.com" [ref=e149]:
+                    - generic [ref=e150]:
+                      - paragraph [ref=e151]: user0@example.com
+                      - paragraph
+                  - cell "test action" [ref=e152]
+                  - cell "test" [ref=e153]:
+                    - generic [ref=e154]:
+                      - paragraph [ref=e155]: test
+                      - paragraph
+                  - cell "success" [ref=e156]:
+                    - generic [ref=e157]: success
+                  - cell [ref=e158]
+                - row "2026-02-23 17:06:03 user1@example.com test action test success" [ref=e159]:
+                  - cell "2026-02-23 17:06:03" [ref=e160]
+                  - cell "user1@example.com" [ref=e161]:
+                    - generic [ref=e162]:
+                      - paragraph [ref=e163]: user1@example.com
+                      - paragraph
+                  - cell "test action" [ref=e164]
+                  - cell "test" [ref=e165]:
+                    - generic [ref=e166]:
+                      - paragraph [ref=e167]: test
+                      - paragraph
+                  - cell "success" [ref=e168]:
+                    - generic [ref=e169]: success
+                  - cell [ref=e170]
+                - row "2026-02-23 17:06:03 user2@example.com test action test success" [ref=e171]:
+                  - cell "2026-02-23 17:06:03" [ref=e172]
+                  - cell "user2@example.com" [ref=e173]:
+                    - generic [ref=e174]:
+                      - paragraph [ref=e175]: user2@example.com
+                      - paragraph
+                  - cell "test action" [ref=e176]
+                  - cell "test" [ref=e177]:
+                    - generic [ref=e178]:
+                      - paragraph [ref=e179]: test
+                      - paragraph
+                  - cell "success" [ref=e180]:
+                    - generic [ref=e181]: success
+                  - cell [ref=e182]
+                - row "2026-02-23 17:06:03 user3@example.com test action test success" [ref=e183]:
+                  - cell "2026-02-23 17:06:03" [ref=e184]
+                  - cell "user3@example.com" [ref=e185]:
+                    - generic [ref=e186]:
+                      - paragraph [ref=e187]: user3@example.com
+                      - paragraph
+                  - cell "test action" [ref=e188]
+                  - cell "test" [ref=e189]:
+                    - generic [ref=e190]:
+                      - paragraph [ref=e191]: test
+                      - paragraph
+                  - cell "success" [ref=e192]:
+                    - generic [ref=e193]: success
+                  - cell [ref=e194]
+                - row "2026-02-23 17:06:03 user4@example.com test action test success" [ref=e195]:
+                  - cell "2026-02-23 17:06:03" [ref=e196]
+                  - cell "user4@example.com" [ref=e197]:
+                    - generic [ref=e198]:
+                      - paragraph [ref=e199]: user4@example.com
+                      - paragraph
+                  - cell "test action" [ref=e200]
+                  - cell "test" [ref=e201]:
+                    - generic [ref=e202]:
+                      - paragraph [ref=e203]: test
+                      - paragraph
+                  - cell "success" [ref=e204]:
+                    - generic [ref=e205]: success
+                  - cell [ref=e206]
+                - row "2026-02-23 17:06:03 user5@example.com test action test success" [ref=e207]:
+                  - cell "2026-02-23 17:06:03" [ref=e208]
+                  - cell "user5@example.com" [ref=e209]:
+                    - generic [ref=e210]:
+                      - paragraph [ref=e211]: user5@example.com
+                      - paragraph
+                  - cell "test action" [ref=e212]
+                  - cell "test" [ref=e213]:
+                    - generic [ref=e214]:
+                      - paragraph [ref=e215]: test
+                      - paragraph
+                  - cell "success" [ref=e216]:
+                    - generic [ref=e217]: success
+                  - cell [ref=e218]
+                - row "2026-02-23 17:06:03 user6@example.com test action test success" [ref=e219]:
+                  - cell "2026-02-23 17:06:03" [ref=e220]
+                  - cell "user6@example.com" [ref=e221]:
+                    - generic [ref=e222]:
+                      - paragraph [ref=e223]: user6@example.com
+                      - paragraph
+                  - cell "test action" [ref=e224]
+                  - cell "test" [ref=e225]:
+                    - generic [ref=e226]:
+                      - paragraph [ref=e227]: test
+                      - paragraph
+                  - cell "success" [ref=e228]:
+                    - generic [ref=e229]: success
+                  - cell [ref=e230]
+                - row "2026-02-23 17:06:03 user7@example.com test action test success" [ref=e231]:
+                  - cell "2026-02-23 17:06:03" [ref=e232]
+                  - cell "user7@example.com" [ref=e233]:
+                    - generic [ref=e234]:
+                      - paragraph [ref=e235]: user7@example.com
+                      - paragraph
+                  - cell "test action" [ref=e236]
+                  - cell "test" [ref=e237]:
+                    - generic [ref=e238]:
+                      - paragraph [ref=e239]: test
+                      - paragraph
+                  - cell "success" [ref=e240]:
+                    - generic [ref=e241]: success
+                  - cell [ref=e242]
+                - row "2026-02-23 17:06:03 user8@example.com test action test success" [ref=e243]:
+                  - cell "2026-02-23 17:06:03" [ref=e244]
+                  - cell "user8@example.com" [ref=e245]:
+                    - generic [ref=e246]:
+                      - paragraph [ref=e247]: user8@example.com
+                      - paragraph
+                  - cell "test action" [ref=e248]
+                  - cell "test" [ref=e249]:
+                    - generic [ref=e250]:
+                      - paragraph [ref=e251]: test
+                      - paragraph
+                  - cell "success" [ref=e252]:
+                    - generic [ref=e253]: success
+                  - cell [ref=e254]
+                - row "2026-02-23 17:06:03 user9@example.com test action test success" [ref=e255]:
+                  - cell "2026-02-23 17:06:03" [ref=e256]
+                  - cell "user9@example.com" [ref=e257]:
+                    - generic [ref=e258]:
+                      - paragraph [ref=e259]: user9@example.com
+                      - paragraph
+                  - cell "test action" [ref=e260]
+                  - cell "test" [ref=e261]:
+                    - generic [ref=e262]:
+                      - paragraph [ref=e263]: test
+                      - paragraph
+                  - cell "success" [ref=e264]:
+                    - generic [ref=e265]: success
+                  - cell [ref=e266]
+                - row "2026-02-23 17:06:03 user10@example.com test action test success" [ref=e267]:
+                  - cell "2026-02-23 17:06:03" [ref=e268]
+                  - cell "user10@example.com" [ref=e269]:
+                    - generic [ref=e270]:
+                      - paragraph [ref=e271]: user10@example.com
+                      - paragraph
+                  - cell "test action" [ref=e272]
+                  - cell "test" [ref=e273]:
+                    - generic [ref=e274]:
+                      - paragraph [ref=e275]: test
+                      - paragraph
+                  - cell "success" [ref=e276]:
+                    - generic [ref=e277]: success
+                  - cell [ref=e278]
+                - row "2026-02-23 17:06:03 user11@example.com test action test success" [ref=e279]:
+                  - cell "2026-02-23 17:06:03" [ref=e280]
+                  - cell "user11@example.com" [ref=e281]:
+                    - generic [ref=e282]:
+                      - paragraph [ref=e283]: user11@example.com
+                      - paragraph
+                  - cell "test action" [ref=e284]
+                  - cell "test" [ref=e285]:
+                    - generic [ref=e286]:
+                      - paragraph [ref=e287]: test
+                      - paragraph
+                  - cell "success" [ref=e288]:
+                    - generic [ref=e289]: success
+                  - cell [ref=e290]
+                - row "2026-02-23 17:06:03 user12@example.com test action test success" [ref=e291]:
+                  - cell "2026-02-23 17:06:03" [ref=e292]
+                  - cell "user12@example.com" [ref=e293]:
+                    - generic [ref=e294]:
+                      - paragraph [ref=e295]: user12@example.com
+                      - paragraph
+                  - cell "test action" [ref=e296]
+                  - cell "test" [ref=e297]:
+                    - generic [ref=e298]:
+                      - paragraph [ref=e299]: test
+                      - paragraph
+                  - cell "success" [ref=e300]:
+                    - generic [ref=e301]: success
+                  - cell [ref=e302]
+                - row "2026-02-23 17:06:03 user13@example.com test action test success" [ref=e303]:
+                  - cell "2026-02-23 17:06:03" [ref=e304]
+                  - cell "user13@example.com" [ref=e305]:
+                    - generic [ref=e306]:
+                      - paragraph [ref=e307]: user13@example.com
+                      - paragraph
+                  - cell "test action" [ref=e308]
+                  - cell "test" [ref=e309]:
+                    - generic [ref=e310]:
+                      - paragraph [ref=e311]: test
+                      - paragraph
+                  - cell "success" [ref=e312]:
+                    - generic [ref=e313]: success
+                  - cell [ref=e314]
+                - row "2026-02-23 17:06:03 user14@example.com test action test success" [ref=e315]:
+                  - cell "2026-02-23 17:06:03" [ref=e316]
+                  - cell "user14@example.com" [ref=e317]:
+                    - generic [ref=e318]:
+                      - paragraph [ref=e319]: user14@example.com
+                      - paragraph
+                  - cell "test action" [ref=e320]
+                  - cell "test" [ref=e321]:
+                    - generic [ref=e322]:
+                      - paragraph [ref=e323]: test
+                      - paragraph
+                  - cell "success" [ref=e324]:
+                    - generic [ref=e325]: success
+                  - cell [ref=e326]
+                - row "2026-02-23 17:06:03 user15@example.com test action test success" [ref=e327]:
+                  - cell "2026-02-23 17:06:03" [ref=e328]
+                  - cell "user15@example.com" [ref=e329]:
+                    - generic [ref=e330]:
+                      - paragraph [ref=e331]: user15@example.com
+                      - paragraph
+                  - cell "test action" [ref=e332]
+                  - cell "test" [ref=e333]:
+                    - generic [ref=e334]:
+                      - paragraph [ref=e335]: test
+                      - paragraph
+                  - cell "success" [ref=e336]:
+                    - generic [ref=e337]: success
+                  - cell [ref=e338]
+                - row "2026-02-23 17:06:03 user16@example.com test action test success" [ref=e339]:
+                  - cell "2026-02-23 17:06:03" [ref=e340]
+                  - cell "user16@example.com" [ref=e341]:
+                    - generic [ref=e342]:
+                      - paragraph [ref=e343]: user16@example.com
+                      - paragraph
+                  - cell "test action" [ref=e344]
+                  - cell "test" [ref=e345]:
+                    - generic [ref=e346]:
+                      - paragraph [ref=e347]: test
+                      - paragraph
+                  - cell "success" [ref=e348]:
+                    - generic [ref=e349]: success
+                  - cell [ref=e350]
+                - row "2026-02-23 17:06:03 user17@example.com test action test success" [ref=e351]:
+                  - cell "2026-02-23 17:06:03" [ref=e352]
+                  - cell "user17@example.com" [ref=e353]:
+                    - generic [ref=e354]:
+                      - paragraph [ref=e355]: user17@example.com
+                      - paragraph
+                  - cell "test action" [ref=e356]
+                  - cell "test" [ref=e357]:
+                    - generic [ref=e358]:
+                      - paragraph [ref=e359]: test
+                      - paragraph
+                  - cell "success" [ref=e360]:
+                    - generic [ref=e361]: success
+                  - cell [ref=e362]
+                - row "2026-02-23 17:06:03 user18@example.com test action test success" [ref=e363]:
+                  - cell "2026-02-23 17:06:03" [ref=e364]
+                  - cell "user18@example.com" [ref=e365]:
+                    - generic [ref=e366]:
+                      - paragraph [ref=e367]: user18@example.com
+                      - paragraph
+                  - cell "test action" [ref=e368]
+                  - cell "test" [ref=e369]:
+                    - generic [ref=e370]:
+                      - paragraph [ref=e371]: test
+                      - paragraph
+                  - cell "success" [ref=e372]:
+                    - generic [ref=e373]: success
+                  - cell [ref=e374]
+                - row "2026-02-23 17:06:03 user19@example.com test action test success" [ref=e375]:
+                  - cell "2026-02-23 17:06:03" [ref=e376]
+                  - cell "user19@example.com" [ref=e377]:
+                    - generic [ref=e378]:
+                      - paragraph [ref=e379]: user19@example.com
+                      - paragraph
+                  - cell "test action" [ref=e380]
+                  - cell "test" [ref=e381]:
+                    - generic [ref=e382]:
+                      - paragraph [ref=e383]: test
+                      - paragraph
+                  - cell "success" [ref=e384]:
+                    - generic [ref=e385]: success
+                  - cell [ref=e386]
+                - row "2026-02-23 17:06:03 user20@example.com test action test success" [ref=e387]:
+                  - cell "2026-02-23 17:06:03" [ref=e388]
+                  - cell "user20@example.com" [ref=e389]:
+                    - generic [ref=e390]:
+                      - paragraph [ref=e391]: user20@example.com
+                      - paragraph
+                  - cell "test action" [ref=e392]
+                  - cell "test" [ref=e393]:
+                    - generic [ref=e394]:
+                      - paragraph [ref=e395]: test
+                      - paragraph
+                  - cell "success" [ref=e396]:
+                    - generic [ref=e397]: success
+                  - cell [ref=e398]
+                - row "2026-02-23 17:06:03 user21@example.com test action test success" [ref=e399]:
+                  - cell "2026-02-23 17:06:03" [ref=e400]
+                  - cell "user21@example.com" [ref=e401]:
+                    - generic [ref=e402]:
+                      - paragraph [ref=e403]: user21@example.com
+                      - paragraph
+                  - cell "test action" [ref=e404]
+                  - cell "test" [ref=e405]:
+                    - generic [ref=e406]:
+                      - paragraph [ref=e407]: test
+                      - paragraph
+                  - cell "success" [ref=e408]:
+                    - generic [ref=e409]: success
+                  - cell [ref=e410]
+                - row "2026-02-23 17:06:03 user22@example.com test action test success" [ref=e411]:
+                  - cell "2026-02-23 17:06:03" [ref=e412]
+                  - cell "user22@example.com" [ref=e413]:
+                    - generic [ref=e414]:
+                      - paragraph [ref=e415]: user22@example.com
+                      - paragraph
+                  - cell "test action" [ref=e416]
+                  - cell "test" [ref=e417]:
+                    - generic [ref=e418]:
+                      - paragraph [ref=e419]: test
+                      - paragraph
+                  - cell "success" [ref=e420]:
+                    - generic [ref=e421]: success
+                  - cell [ref=e422]
+                - row "2026-02-23 17:06:03 user23@example.com test action test success" [ref=e423]:
+                  - cell "2026-02-23 17:06:03" [ref=e424]
+                  - cell "user23@example.com" [ref=e425]:
+                    - generic [ref=e426]:
+                      - paragraph [ref=e427]: user23@example.com
+                      - paragraph
+                  - cell "test action" [ref=e428]
+                  - cell "test" [ref=e429]:
+                    - generic [ref=e430]:
+                      - paragraph [ref=e431]: test
+                      - paragraph
+                  - cell "success" [ref=e432]:
+                    - generic [ref=e433]: success
+                  - cell [ref=e434]
+                - row "2026-02-23 17:06:03 user24@example.com test action test success" [ref=e435]:
+                  - cell "2026-02-23 17:06:03" [ref=e436]
+                  - cell "user24@example.com" [ref=e437]:
+                    - generic [ref=e438]:
+                      - paragraph [ref=e439]: user24@example.com
+                      - paragraph
+                  - cell "test action" [ref=e440]
+                  - cell "test" [ref=e441]:
+                    - generic [ref=e442]:
+                      - paragraph [ref=e443]: test
+                      - paragraph
+                  - cell "success" [ref=e444]:
+                    - generic [ref=e445]: success
+                  - cell [ref=e446]
+                - row "2026-02-23 17:06:03 user25@example.com test action test success" [ref=e447]:
+                  - cell "2026-02-23 17:06:03" [ref=e448]
+                  - cell "user25@example.com" [ref=e449]:
+                    - generic [ref=e450]:
+                      - paragraph [ref=e451]: user25@example.com
+                      - paragraph
+                  - cell "test action" [ref=e452]
+                  - cell "test" [ref=e453]:
+                    - generic [ref=e454]:
+                      - paragraph [ref=e455]: test
+                      - paragraph
+                  - cell "success" [ref=e456]:
+                    - generic [ref=e457]: success
+                  - cell [ref=e458]
+                - row "2026-02-23 17:06:03 user26@example.com test action test success" [ref=e459]:
+                  - cell "2026-02-23 17:06:03" [ref=e460]
+                  - cell "user26@example.com" [ref=e461]:
+                    - generic [ref=e462]:
+                      - paragraph [ref=e463]: user26@example.com
+                      - paragraph
+                  - cell "test action" [ref=e464]
+                  - cell "test" [ref=e465]:
+                    - generic [ref=e466]:
+                      - paragraph [ref=e467]: test
+                      - paragraph
+                  - cell "success" [ref=e468]:
+                    - generic [ref=e469]: success
+                  - cell [ref=e470]
+                - row "2026-02-23 17:06:03 user27@example.com test action test success" [ref=e471]:
+                  - cell "2026-02-23 17:06:03" [ref=e472]
+                  - cell "user27@example.com" [ref=e473]:
+                    - generic [ref=e474]:
+                      - paragraph [ref=e475]: user27@example.com
+                      - paragraph
+                  - cell "test action" [ref=e476]
+                  - cell "test" [ref=e477]:
+                    - generic [ref=e478]:
+                      - paragraph [ref=e479]: test
+                      - paragraph
+                  - cell "success" [ref=e480]:
+                    - generic [ref=e481]: success
+                  - cell [ref=e482]
+                - row "2026-02-23 17:06:03 user28@example.com test action test success" [ref=e483]:
+                  - cell "2026-02-23 17:06:03" [ref=e484]
+                  - cell "user28@example.com" [ref=e485]:
+                    - generic [ref=e486]:
+                      - paragraph [ref=e487]: user28@example.com
+                      - paragraph
+                  - cell "test action" [ref=e488]
+                  - cell "test" [ref=e489]:
+                    - generic [ref=e490]:
+                      - paragraph [ref=e491]: test
+                      - paragraph
+                  - cell "success" [ref=e492]:
+                    - generic [ref=e493]: success
+                  - cell [ref=e494]
+                - row "2026-02-23 17:06:03 user29@example.com test action test success" [ref=e495]:
+                  - cell "2026-02-23 17:06:03" [ref=e496]
+                  - cell "user29@example.com" [ref=e497]:
+                    - generic [ref=e498]:
+                      - paragraph [ref=e499]: user29@example.com
+                      - paragraph
+                  - cell "test action" [ref=e500]
+                  - cell "test" [ref=e501]:
+                    - generic [ref=e502]:
+                      - paragraph [ref=e503]: test
+                      - paragraph
+                  - cell "success" [ref=e504]:
+                    - generic [ref=e505]: success
+                  - cell [ref=e506]
+                - row "2026-02-23 17:06:03 user30@example.com test action test success" [ref=e507]:
+                  - cell "2026-02-23 17:06:03" [ref=e508]
+                  - cell "user30@example.com" [ref=e509]:
+                    - generic [ref=e510]:
+                      - paragraph [ref=e511]: user30@example.com
+                      - paragraph
+                  - cell "test action" [ref=e512]
+                  - cell "test" [ref=e513]:
+                    - generic [ref=e514]:
+                      - paragraph [ref=e515]: test
+                      - paragraph
+                  - cell "success" [ref=e516]:
+                    - generic [ref=e517]: success
+                  - cell [ref=e518]
+                - row "2026-02-23 17:06:03 user31@example.com test action test success" [ref=e519]:
+                  - cell "2026-02-23 17:06:03" [ref=e520]
+                  - cell "user31@example.com" [ref=e521]:
+                    - generic [ref=e522]:
+                      - paragraph [ref=e523]: user31@example.com
+                      - paragraph
+                  - cell "test action" [ref=e524]
+                  - cell "test" [ref=e525]:
+                    - generic [ref=e526]:
+                      - paragraph [ref=e527]: test
+                      - paragraph
+                  - cell "success" [ref=e528]:
+                    - generic [ref=e529]: success
+                  - cell [ref=e530]
+                - row "2026-02-23 17:06:03 user32@example.com test action test success" [ref=e531]:
+                  - cell "2026-02-23 17:06:03" [ref=e532]
+                  - cell "user32@example.com" [ref=e533]:
+                    - generic [ref=e534]:
+                      - paragraph [ref=e535]: user32@example.com
+                      - paragraph
+                  - cell "test action" [ref=e536]
+                  - cell "test" [ref=e537]:
+                    - generic [ref=e538]:
+                      - paragraph [ref=e539]: test
+                      - paragraph
+                  - cell "success" [ref=e540]:
+                    - generic [ref=e541]: success
+                  - cell [ref=e542]
+                - row "2026-02-23 17:06:03 user33@example.com test action test success" [ref=e543]:
+                  - cell "2026-02-23 17:06:03" [ref=e544]
+                  - cell "user33@example.com" [ref=e545]:
+                    - generic [ref=e546]:
+                      - paragraph [ref=e547]: user33@example.com
+                      - paragraph
+                  - cell "test action" [ref=e548]
+                  - cell "test" [ref=e549]:
+                    - generic [ref=e550]:
+                      - paragraph [ref=e551]: test
+                      - paragraph
+                  - cell "success" [ref=e552]:
+                    - generic [ref=e553]: success
+                  - cell [ref=e554]
+                - row "2026-02-23 17:06:03 user34@example.com test action test success" [ref=e555]:
+                  - cell "2026-02-23 17:06:03" [ref=e556]
+                  - cell "user34@example.com" [ref=e557]:
+                    - generic [ref=e558]:
+                      - paragraph [ref=e559]: user34@example.com
+                      - paragraph
+                  - cell "test action" [ref=e560]
+                  - cell "test" [ref=e561]:
+                    - generic [ref=e562]:
+                      - paragraph [ref=e563]: test
+                      - paragraph
+                  - cell "success" [ref=e564]:
+                    - generic [ref=e565]: success
+                  - cell [ref=e566]
+                - row "2026-02-23 17:06:03 user35@example.com test action test success" [ref=e567]:
+                  - cell "2026-02-23 17:06:03" [ref=e568]
+                  - cell "user35@example.com" [ref=e569]:
+                    - generic [ref=e570]:
+                      - paragraph [ref=e571]: user35@example.com
+                      - paragraph
+                  - cell "test action" [ref=e572]
+                  - cell "test" [ref=e573]:
+                    - generic [ref=e574]:
+                      - paragraph [ref=e575]: test
+                      - paragraph
+                  - cell "success" [ref=e576]:
+                    - generic [ref=e577]: success
+                  - cell [ref=e578]
+                - row "2026-02-23 17:06:03 user36@example.com test action test success" [ref=e579]:
+                  - cell "2026-02-23 17:06:03" [ref=e580]
+                  - cell "user36@example.com" [ref=e581]:
+                    - generic [ref=e582]:
+                      - paragraph [ref=e583]: user36@example.com
+                      - paragraph
+                  - cell "test action" [ref=e584]
+                  - cell "test" [ref=e585]:
+                    - generic [ref=e586]:
+                      - paragraph [ref=e587]: test
+                      - paragraph
+                  - cell "success" [ref=e588]:
+                    - generic [ref=e589]: success
+                  - cell [ref=e590]
+                - row "2026-02-23 17:06:03 user37@example.com test action test success" [ref=e591]:
+                  - cell "2026-02-23 17:06:03" [ref=e592]
+                  - cell "user37@example.com" [ref=e593]:
+                    - generic [ref=e594]:
+                      - paragraph [ref=e595]: user37@example.com
+                      - paragraph
+                  - cell "test action" [ref=e596]
+                  - cell "test" [ref=e597]:
+                    - generic [ref=e598]:
+                      - paragraph [ref=e599]: test
+                      - paragraph
+                  - cell "success" [ref=e600]:
+                    - generic [ref=e601]: success
+                  - cell [ref=e602]
+                - row "2026-02-23 17:06:03 user38@example.com test action test success" [ref=e603]:
+                  - cell "2026-02-23 17:06:03" [ref=e604]
+                  - cell "user38@example.com" [ref=e605]:
+                    - generic [ref=e606]:
+                      - paragraph [ref=e607]: user38@example.com
+                      - paragraph
+                  - cell "test action" [ref=e608]
+                  - cell "test" [ref=e609]:
+                    - generic [ref=e610]:
+                      - paragraph [ref=e611]: test
+                      - paragraph
+                  - cell "success" [ref=e612]:
+                    - generic [ref=e613]: success
+                  - cell [ref=e614]
+                - row "2026-02-23 17:06:03 user39@example.com test action test success" [ref=e615]:
+                  - cell "2026-02-23 17:06:03" [ref=e616]
+                  - cell "user39@example.com" [ref=e617]:
+                    - generic [ref=e618]:
+                      - paragraph [ref=e619]: user39@example.com
+                      - paragraph
+                  - cell "test action" [ref=e620]
+                  - cell "test" [ref=e621]:
+                    - generic [ref=e622]:
+                      - paragraph [ref=e623]: test
+                      - paragraph
+                  - cell "success" [ref=e624]:
+                    - generic [ref=e625]: success
+                  - cell [ref=e626]
+                - row "2026-02-23 17:06:03 user40@example.com test action test success" [ref=e627]:
+                  - cell "2026-02-23 17:06:03" [ref=e628]
+                  - cell "user40@example.com" [ref=e629]:
+                    - generic [ref=e630]:
+                      - paragraph [ref=e631]: user40@example.com
+                      - paragraph
+                  - cell "test action" [ref=e632]
+                  - cell "test" [ref=e633]:
+                    - generic [ref=e634]:
+                      - paragraph [ref=e635]: test
+                      - paragraph
+                  - cell "success" [ref=e636]:
+                    - generic [ref=e637]: success
+                  - cell [ref=e638]
+                - row "2026-02-23 17:06:03 user41@example.com test action test success" [ref=e639]:
+                  - cell "2026-02-23 17:06:03" [ref=e640]
+                  - cell "user41@example.com" [ref=e641]:
+                    - generic [ref=e642]:
+                      - paragraph [ref=e643]: user41@example.com
+                      - paragraph
+                  - cell "test action" [ref=e644]
+                  - cell "test" [ref=e645]:
+                    - generic [ref=e646]:
+                      - paragraph [ref=e647]: test
+                      - paragraph
+                  - cell "success" [ref=e648]:
+                    - generic [ref=e649]: success
+                  - cell [ref=e650]
+                - row "2026-02-23 17:06:03 user42@example.com test action test success" [ref=e651]:
+                  - cell "2026-02-23 17:06:03" [ref=e652]
+                  - cell "user42@example.com" [ref=e653]:
+                    - generic [ref=e654]:
+                      - paragraph [ref=e655]: user42@example.com
+                      - paragraph
+                  - cell "test action" [ref=e656]
+                  - cell "test" [ref=e657]:
+                    - generic [ref=e658]:
+                      - paragraph [ref=e659]: test
+                      - paragraph
+                  - cell "success" [ref=e660]:
+                    - generic [ref=e661]: success
+                  - cell [ref=e662]
+                - row "2026-02-23 17:06:03 user43@example.com test action test success" [ref=e663]:
+                  - cell "2026-02-23 17:06:03" [ref=e664]
+                  - cell "user43@example.com" [ref=e665]:
+                    - generic [ref=e666]:
+                      - paragraph [ref=e667]: user43@example.com
+                      - paragraph
+                  - cell "test action" [ref=e668]
+                  - cell "test" [ref=e669]:
+                    - generic [ref=e670]:
+                      - paragraph [ref=e671]: test
+                      - paragraph
+                  - cell "success" [ref=e672]:
+                    - generic [ref=e673]: success
+                  - cell [ref=e674]
+                - row "2026-02-23 17:06:03 user44@example.com test action test success" [ref=e675]:
+                  - cell "2026-02-23 17:06:03" [ref=e676]
+                  - cell "user44@example.com" [ref=e677]:
+                    - generic [ref=e678]:
+                      - paragraph [ref=e679]: user44@example.com
+                      - paragraph
+                  - cell "test action" [ref=e680]
+                  - cell "test" [ref=e681]:
+                    - generic [ref=e682]:
+                      - paragraph [ref=e683]: test
+                      - paragraph
+                  - cell "success" [ref=e684]:
+                    - generic [ref=e685]: success
+                  - cell [ref=e686]
+                - row "2026-02-23 17:06:03 user45@example.com test action test success" [ref=e687]:
+                  - cell "2026-02-23 17:06:03" [ref=e688]
+                  - cell "user45@example.com" [ref=e689]:
+                    - generic [ref=e690]:
+                      - paragraph [ref=e691]: user45@example.com
+                      - paragraph
+                  - cell "test action" [ref=e692]
+                  - cell "test" [ref=e693]:
+                    - generic [ref=e694]:
+                      - paragraph [ref=e695]: test
+                      - paragraph
+                  - cell "success" [ref=e696]:
+                    - generic [ref=e697]: success
+                  - cell [ref=e698]
+                - row "2026-02-23 17:06:03 user46@example.com test action test success" [ref=e699]:
+                  - cell "2026-02-23 17:06:03" [ref=e700]
+                  - cell "user46@example.com" [ref=e701]:
+                    - generic [ref=e702]:
+                      - paragraph [ref=e703]: user46@example.com
+                      - paragraph
+                  - cell "test action" [ref=e704]
+                  - cell "test" [ref=e705]:
+                    - generic [ref=e706]:
+                      - paragraph [ref=e707]: test
+                      - paragraph
+                  - cell "success" [ref=e708]:
+                    - generic [ref=e709]: success
+                  - cell [ref=e710]
+                - row "2026-02-23 17:06:03 user47@example.com test action test success" [ref=e711]:
+                  - cell "2026-02-23 17:06:03" [ref=e712]
+                  - cell "user47@example.com" [ref=e713]:
+                    - generic [ref=e714]:
+                      - paragraph [ref=e715]: user47@example.com
+                      - paragraph
+                  - cell "test action" [ref=e716]
+                  - cell "test" [ref=e717]:
+                    - generic [ref=e718]:
+                      - paragraph [ref=e719]: test
+                      - paragraph
+                  - cell "success" [ref=e720]:
+                    - generic [ref=e721]: success
+                  - cell [ref=e722]
+                - row "2026-02-23 17:06:03 user48@example.com test action test success" [ref=e723]:
+                  - cell "2026-02-23 17:06:03" [ref=e724]
+                  - cell "user48@example.com" [ref=e725]:
+                    - generic [ref=e726]:
+                      - paragraph [ref=e727]: user48@example.com
+                      - paragraph
+                  - cell "test action" [ref=e728]
+                  - cell "test" [ref=e729]:
+                    - generic [ref=e730]:
+                      - paragraph [ref=e731]: test
+                      - paragraph
+                  - cell "success" [ref=e732]:
+                    - generic [ref=e733]: success
+                  - cell [ref=e734]
+                - row "2026-02-23 17:06:03 user49@example.com test action test success" [ref=e735]:
+                  - cell "2026-02-23 17:06:03" [ref=e736]
+                  - cell "user49@example.com" [ref=e737]:
+                    - generic [ref=e738]:
+                      - paragraph [ref=e739]: user49@example.com
+                      - paragraph
+                  - cell "test action" [ref=e740]
+                  - cell "test" [ref=e741]:
+                    - generic [ref=e742]:
+                      - paragraph [ref=e743]: test
+                      - paragraph
+                  - cell "success" [ref=e744]:
+                    - generic [ref=e745]: success
+                  - cell [ref=e746]
+            - generic [ref=e748]:
+              - generic [ref=e749]: Showing 1 to 50 of 150 results
+              - generic [ref=e750]:
+                - button [disabled] [ref=e751]:
+                  - img [ref=e753]
+                - button [disabled] [ref=e756]:
+                  - img [ref=e758]
+                - button "1" [ref=e760] [cursor=pointer]
+                - button "2" [ref=e761] [cursor=pointer]
+                - button "3" [ref=e762] [cursor=pointer]
+                - button [ref=e763] [cursor=pointer]:
+                  - img [ref=e765]
+                - button [ref=e767] [cursor=pointer]:
+                  - img [ref=e769]
+  - generic:
+    - status [ref=e777]: An error occurred
+    - status [ref=e783]: An error occurred
+```
