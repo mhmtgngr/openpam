@@ -33,6 +33,16 @@
 
 set -euo pipefail
 
+# ── Load PATH for background/nohup execution ──
+# nohup doesn't load shell profiles, so tools like go, node, claude may be missing
+for rc in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc"; do
+  [ -f "$rc" ] && source "$rc" 2>/dev/null || true
+done
+# Common tool locations
+export PATH="$HOME/go/bin:$HOME/.local/bin:$HOME/.npm-global/bin:$HOME/.nvm/versions/node/*/bin:/usr/local/go/bin:/usr/local/bin:$PATH"
+# Load nvm if present
+[ -s "$HOME/.nvm/nvm.sh" ] && source "$HOME/.nvm/nvm.sh" 2>/dev/null || true
+
 # ═══════════════════════════════════════════════
 # CONFIGURATION
 # ═══════════════════════════════════════════════
@@ -1112,7 +1122,10 @@ while [[ $# -gt 0 ]]; do case $1 in
 esac; done
 
 [ -z "$PROJECT" ] && [ -z "$PHASE" ] && [ "$RESUME" = false ] && { show_help; exit 0; }
-command -v claude &>/dev/null || { err "Claude Code not found"; exit 1; }
+command -v claude &>/dev/null || { err "Claude Code not found. Install: npm install -g @anthropic-ai/claude-code"; exit 1; }
+command -v go &>/dev/null && log "✓ go $(go version | awk '{print $3}')" || warn "⚠ go not found — backend build/test will fail"
+command -v node &>/dev/null && log "✓ node $(node -v)" || warn "⚠ node not found — frontend/playwright will fail"
+command -v podman &>/dev/null || command -v docker &>/dev/null || warn "⚠ podman/docker not found — deploy phase will fail"
 if [ ! -d "$REPO_DIR/.git" ]; then
   log "No git repo found — initializing..."
   cd "$REPO_DIR"
