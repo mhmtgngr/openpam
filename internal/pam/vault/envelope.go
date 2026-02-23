@@ -5,12 +5,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/rs/zerolog"
@@ -127,8 +126,9 @@ func (ee *EnvelopeEncryption) StoreDEK(ctx context.Context, credentialID string,
 func (ee *EnvelopeEncryption) RetrieveDEK(ctx context.Context, credentialID string) ([]byte, error) {
 	// Try cache first
 	cacheKey := fmt.Sprintf("dek:%s", credentialID)
-	if encryptedDEK, err := ee.cache.Get(ctx, cacheKey); err == nil {
-		return ee.DecryptDEK([]byte(encryptedDEK))
+	var encryptedDEKStr string
+	if err := ee.cache.Get(ctx, cacheKey, &encryptedDEKStr); err == nil {
+		return ee.DecryptDEK([]byte(encryptedDEKStr))
 	}
 
 	// Fetch from database

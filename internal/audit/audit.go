@@ -279,9 +279,11 @@ func (r *Repository) ExportEvents(ctx context.Context, tenantID uuid.UUID, filte
 func (r *Repository) publishEvent(ctx context.Context, event *Event) {
 	channel := fmt.Sprintf("audit:%s", event.TenantID)
 	data, _ := json.Marshal(event)
-	_ = r.cache.PubSub().Publish(ctx, channel, map[string]interface{}{
-		"type": "audit_event",
-		"data": string(data),
+	_ = r.cache.PubSub().Publish(ctx, channel, cache.Event{
+		Type: "audit_event",
+		Data: map[string]interface{}{
+			"event": string(data),
+		},
 	})
 }
 

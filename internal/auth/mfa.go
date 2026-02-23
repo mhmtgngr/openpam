@@ -1,11 +1,13 @@
 package auth
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base32"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -16,7 +18,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/oauth2"
 )
 
 // TOTPConfig holds TOTP configuration
@@ -71,7 +72,7 @@ func (t *TOTPManager) GenerateQRCode(email, secret string) ([]byte, error) {
 	params.Set("period", fmt.Sprintf("%d", t.config.Period))
 	u.RawQuery = params.Encode()
 
-	return qrcode.Encode(u.String(), qrcode.Medium)
+	return qrcode.Encode(u.String(), qrcode.Medium, 256)
 }
 
 // VerifyCode verifies a TOTP code
@@ -185,7 +186,7 @@ func NewWebAuthnManager(cfg WebAuthnConfig, c *cache.Cache, logger zerolog.Logge
 		RPOrigins:     cfg.RPOrigins,
 	}
 
-	webauthn, err := webauthn.New(wconfig)
+	webauthn, err := webauthn.New(&wconfig)
 	if err != nil {
 		return nil, fmt.Errorf("webauthn.New: %w", err)
 	}
@@ -220,13 +221,18 @@ func (u *WebAuthnUser) WebAuthnDisplayName() string {
 	return u.DisplayName
 }
 
+// WebAuthnIcon returns the user's icon URL
+func (u *WebAuthnUser) WebAuthnIcon() string {
+	return ""
+}
+
 // WebAuthnCredentials returns the user's credentials
 func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 	return u.Credentials
 }
 
 // BeginRegistration starts WebAuthn registration
-func (w *WebAuthnManager) BeginRegistration(user WebAuthnUser) (*protocol.CredentialCreation, *webauthn.SessionData, error) {
+func (w *WebAuthnManager) BeginRegistration(user *WebAuthnUser) (*protocol.CredentialCreation, *webauthn.SessionData, error) {
 	options, sessionData, err := w.webauthn.BeginRegistration(user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("webauthn.BeginRegistration: %w", err)
@@ -242,17 +248,17 @@ func (w *WebAuthnManager) BeginRegistration(user WebAuthnUser) (*protocol.Creden
 }
 
 // FinishRegistration completes WebAuthn registration
-func (w *WebAuthnManager) FinishRegistration(user WebAuthnUser, response *protocol.ParsedCredentialCreationData) (webauthn.Credential, error) {
+func (w *WebAuthnManager) FinishRegistration(user *WebAuthnUser, req *http.Request) (*webauthn.Credential, error) {
 	// Get session data
 	key := fmt.Sprintf("webauthn:registration:%s", string(user.WebAuthnID()))
 	var sessionData webauthn.SessionData
 	if err := w.cache.Get(context.Background(), key, &sessionData); err != nil {
-		return webauthn.Credential{}, fmt.Errorf("webauthn: session not found")
+		return nil, fmt.Errorf("webauthn: session not found")
 	}
 
-	credential, err := w.webauthn.FinishRegistration(user, sessionData, response)
+	credential, err := w.webauthn.FinishRegistration(user, sessionData, req)
 	if err != nil {
-		return webauthn.Credential{}, fmt.Errorf("webauthn.FinishRegistration: %w", err)
+		return nil, fmt.Errorf("webauthn.FinishRegistration: %w", err)
 	}
 
 	// Clean up session
@@ -262,7 +268,7 @@ func (w *WebAuthnManager) FinishRegistration(user WebAuthnUser, response *protoc
 }
 
 // BeginLogin starts WebAuthn login
-func (w *WebAuthnManager) BeginLogin(user WebAuthnUser) (*protocol.CredentialAssertion, *webauthn.SessionData, error) {
+func (w *WebAuthnManager) BeginLogin(user *WebAuthnUser) (*protocol.CredentialAssertion, *webauthn.SessionData, error) {
 	options, sessionData, err := w.webauthn.BeginLogin(user)
 	if err != nil {
 		return nil, nil, fmt.Errorf("webauthn.BeginLogin: %w", err)
@@ -278,7 +284,7 @@ func (w *WebAuthnManager) BeginLogin(user WebAuthnUser) (*protocol.CredentialAss
 }
 
 // FinishLogin completes WebAuthn login
-func (w *WebAuthnManager) FinishLogin(user WebAuthnUser, response *protocol.ParsedCredentialAssertionData) error {
+func (w *WebAuthnManager) FinishLogin(user *WebAuthnUser, req *http.Request) error {
 	// Get session data
 	key := fmt.Sprintf("webauthn:login:%s", string(user.WebAuthnID()))
 	var sessionData webauthn.SessionData
@@ -286,7 +292,7 @@ func (w *WebAuthnManager) FinishLogin(user WebAuthnUser, response *protocol.Pars
 		return fmt.Errorf("webauthn: session not found")
 	}
 
-	_, err := w.webauthn.FinishLogin(user, sessionData, response)
+	_, err := w.webauthn.FinishLogin(user, sessionData, req)
 	if err != nil {
 		return fmt.Errorf("webauthn.FinishLogin: %w", err)
 	}

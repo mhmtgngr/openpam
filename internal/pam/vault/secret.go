@@ -2,8 +2,12 @@ package vault
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -313,7 +317,8 @@ func (s *VaultService) StoreSecret(ctx context.Context, secret *Secret, plaintex
 
 	// Set next rotation based on policy
 	if secret.RotationPolicy != "" && secret.RotationPolicy != RotationManual {
-		secret.NextRotationAt = s.calculateNextRotation(time.Now(), secret.RotationPolicy)
+		nextRotation := s.calculateNextRotation(time.Now(), secret.RotationPolicy)
+		secret.NextRotationAt = &nextRotation
 	}
 
 	// Create secret record

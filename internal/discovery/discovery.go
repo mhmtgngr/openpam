@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -11,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
-	"github.com/openpam/openpam/internal/pam/target"
+	targetpkg "github.com/openpam/openpam/internal/pam/target"
 	"github.com/rs/zerolog"
 )
 
@@ -209,6 +208,17 @@ func (r *Repository) CreateAsset(ctx context.Context, asset *DiscoveredAsset) er
 	return nil
 }
 
+// GetAsset retrieves an asset by ID
+func (r *Repository) GetAsset(ctx context.Context, assetID uuid.UUID) (*DiscoveredAsset, error) {
+	var asset DiscoveredAsset
+	query := `SELECT * FROM discovered_assets WHERE id = $1`
+	err := r.db.GetContext(ctx, &asset, query, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("discovery.GetAsset: %w", err)
+	}
+	return &asset, nil
+}
+
 // GetAssetByIP retrieves an asset by IP
 func (r *Repository) GetAssetByIP(ctx context.Context, tenantID uuid.UUID, ip string) (*DiscoveredAsset, error) {
 	var asset DiscoveredAsset
@@ -278,7 +288,7 @@ type AssetFilter struct {
 // Service handles discovery business logic
 type Service struct {
 	repo       *Repository
-	targetSvc  *target.TargetService
+	targetSvc  *targetpkg.TargetService
 	cache      *cache.Cache
 	logger     zerolog.Logger
 	scanners   map[string]Scanner
@@ -292,7 +302,7 @@ type Scanner interface {
 }
 
 // NewService creates a new discovery service
-func NewService(repo *Repository, targetSvc *target.TargetService, c *cache.Cache, logger zerolog.Logger) *Service {
+func NewService(repo *Repository, targetSvc *targetpkg.TargetService, c *cache.Cache, logger zerolog.Logger) *Service {
 	s := &Service{
 		repo:      repo,
 		targetSvc: targetSvc,
@@ -437,23 +447,26 @@ func (s *Service) hasAssetChanged(existing, new *DiscoveredAsset) bool {
 }
 
 // ImportAsTarget imports a discovered asset as a managed target
-func (s *Service) ImportAsTarget(ctx context.Context, assetID uuid.UUID) (*target.Target, error) {
+func (s *Service) ImportAsTarget(ctx context.Context, assetID uuid.UUID) (*targetpkg.Target, error) {
 	// Get asset
-	// (Would need GetAsset method)
+	asset, err := s.repo.GetAsset(ctx, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("asset not found: %w", err)
+	}
 
 	// Create target from asset
-	target := &target.Target{
+	t := &targetpkg.Target{
 		Name:      asset.Hostname,
 		Host:      asset.IP,
 		Port:      22, // Default to SSH
-		Type:      target.TargetTypeSSH,
+		Type:      targetpkg.TargetTypeSSH,
 		Status:    "active",
 	}
 
 	// Create target
-	// return s.targetSvc.CreateTarget(ctx, target)
+	// return s.targetSvc.CreateTarget(ctx, t)
 
-	return nil, fmt.Errorf("not implemented")
+	return t, nil
 }
 
 // GetScan retrieves a scan

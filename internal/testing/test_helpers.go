@@ -241,3 +241,58 @@ func CleanupTestDatabase(t testing.TB, db *sqlx.DB) {
 		_, _ = db.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s CASCADE", table))
 	}
 }
+
+// NewMockCache creates a mock cache for testing
+func NewMockCache(t testing.TB) *MockCache {
+	return &MockCache{
+		data: make(map[string]string),
+	}
+}
+
+// MockCache is a simple in-memory cache for testing
+type MockCache struct {
+	data map[string]string
+}
+
+func (m *MockCache) Get(ctx context.Context, key string, dest interface{}) error {
+	val, ok := m.data[key]
+	if !ok {
+		return fmt.Errorf("key not found: %s", key)
+	}
+	// Simple string assignment - in real usage would need proper unmarshaling
+	if s, ok := dest.(*string); ok {
+		*s = val
+	}
+	return nil
+}
+
+func (m *MockCache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	m.data[key] = fmt.Sprintf("%v", value)
+	return nil
+}
+
+func (m *MockCache) Delete(ctx context.Context, key string) error {
+	delete(m.data, key)
+	return nil
+}
+
+func (m *MockCache) DeleteByPattern(ctx context.Context, pattern string) error {
+	return nil
+}
+
+func (m *MockCache) Exists(ctx context.Context, key string) bool {
+	_, ok := m.data[key]
+	return ok
+}
+
+func (m *MockCache) TTL(ctx context.Context, key string) (time.Duration, error) {
+	return 0, nil
+}
+
+func (m *MockCache) Close() error {
+	return nil
+}
+
+func (m *MockCache) Health(ctx context.Context) error {
+	return nil
+}

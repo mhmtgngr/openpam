@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -243,7 +242,7 @@ func (s *RDPSession) RecordFrame(data []byte) {
 // BroadcastFrame broadcasts a frame to monitoring sessions
 func (p *RDPProxy) BroadcastFrame(ctx context.Context, sessionID uuid.UUID, frame []byte) {
 	channel := fmt.Sprintf("session:%s:frames", sessionID)
-	_ = p.cache.PubSub().Publish(ctx, channel, events.Event{
+	_ = p.cache.PubSub().Publish(ctx, channel, cache.Event{
 		Type: "frame",
 		Data: map[string]interface{}{
 			"frame": frame,
@@ -356,8 +355,9 @@ func (fb *RDPFrameBuffer) flush(ctx context.Context) {
 	fb.mu.Unlock()
 
 	// Process frames for recording
-	for _, frame := range frames {
+	for range frames {
 		// Upload to storage or add to encoder
+		// TODO: implement frame processing
 	}
 }
 

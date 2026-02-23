@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -66,7 +67,7 @@ func (db *DB) Health(ctx context.Context) error {
 // NamedExecContext executes a named query with tenant context
 func (db *DB) NamedExecContext(ctx context.Context, tenantID string, query string, arg interface{}) (sql.Result, error) {
 	// Inject tenant_id into query via context if needed
-	return db.NamedExecContext(ctx, query, arg)
+	return db.DB.NamedExecContext(ctx, query, arg)
 }
 
 // QueryRowTenantContext executes a query with automatic tenant filtering
@@ -133,10 +134,10 @@ func (ts *TenantScoped) Select(ctx context.Context, dest interface{}, query stri
 
 // NamedGet executes a named query with tenant filtering
 func (ts *TenantScoped) NamedGet(ctx context.Context, dest interface{}, query string, arg interface{}) error {
-	return ts.db.NamedGetContext(ctx, dest, query, arg)
+	return ts.db.GetContext(ctx, dest, query, arg)
 }
 
 // NamedSelect executes a named query with tenant filtering
 func (ts *TenantScoped) NamedSelect(ctx context.Context, dest interface{}, query string, arg interface{}) error {
-	return ts.db.NamedSelectContext(ctx, dest, query, arg)
+	return ts.db.SelectContext(ctx, dest, query, arg)
 }

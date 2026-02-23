@@ -2,7 +2,6 @@ package credential
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -37,7 +36,7 @@ func NewService(db *sqlx.DB, vaultSvc *vault.VaultService, rotationSvc *rotation
 // CreateCredential creates a new credential in the vault
 func (s *Service) CreateCredential(ctx context.Context, secret *vault.Secret, plaintext vault.SecretData) error {
 	// Validate input
-	if err := s.validateSecret(secret, plaintext); err != nil {
+	if err := s.validateSecret(secret); err != nil {
 		return err
 	}
 
@@ -64,7 +63,8 @@ func (s *Service) CreateCredential(ctx context.Context, secret *vault.Secret, pl
 
 // GetCredential retrieves a credential (without secret data)
 func (s *Service) GetCredential(ctx context.Context, id uuid.UUID) (*vault.Secret, error) {
-	return s.vault.RetrieveSecret(ctx, id)
+	repo := vault.NewSecretRepository(s.db, s.cache, s.logger)
+	return repo.GetByID(ctx, id)
 }
 
 // ListCredentials lists credentials for a tenant
@@ -90,7 +90,8 @@ func (s *Service) RotateCredential(ctx context.Context, id uuid.UUID, newPlainte
 
 // TestCredential tests if a credential is valid
 func (s *Service) TestCredential(ctx context.Context, id uuid.UUID) error {
-	secret, err := s.vault.RetrieveSecret(ctx, id)
+	repo := vault.NewSecretRepository(s.db, s.cache, s.logger)
+	secret, err := repo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -129,12 +130,9 @@ type CredentialHistoryEntry struct {
 }
 
 // validateSecret validates credential data
-func (s *Service) validateSecret(secret *vault.Secret, plaintext vault.SecretData) error {
+func (s *Service) validateSecret(secret *vault.Secret) error {
 	if secret.Name == "" {
 		return fmt.Errorf("credential: name is required")
-	}
-	if plaintext.Username == "" {
-		return fmt.Errorf("credential: username is required")
 	}
 	if secret.Type == "" {
 		return fmt.Errorf("credential: type is required")
@@ -142,18 +140,12 @@ func (s *Service) validateSecret(secret *vault.Secret, plaintext vault.SecretDat
 	if secret.TenantID == uuid.Nil {
 		return fmt.Errorf("credential: tenant ID is required")
 	}
-
-	switch secret.Type {
-	case vault.SecretTypePassword:
-		if plaintext.Password == "" {
-			return fmt.Errorf("credential: password required")
-		}
-	case vault.SecretTypeSSHKey:
-		if plaintext.PrivateKey == "" {
-			return fmt.Errorf("credential: private key required")
-		}
+	if secret.Host == "" {
+		return fmt.Errorf("credential: host is required")
 	}
-
+	if secret.Port <= 0 {
+		return fmt.Errorf("credential: port is required")
+	}
 	return nil
 }
 
@@ -177,22 +169,17 @@ func (s *Service) BatchRotateCredentials(ctx context.Context, credentialIDs []uu
 	results := make(map[uuid.UUID]error)
 	var rotated []vault.Secret
 
+	repo := vault.NewSecretRepository(s.db, s.cache, s.logger)
+
 	for _, id := range credentialIDs {
-		secret, err := s.vault.RetrieveSecret(ctx, id)
+		secret, err := repo.GetByID(ctx, id)
 		if err != nil {
 			results[id] = err
 			continue
 		}
 
-		// Generate new credential
-		newPlaintext, err := s.rotation.GenerateNewCredential(ctx, secret)
-		if err != nil {
-			results[id] = err
-			continue
-		}
-
-		// Rotate
-		if err := s.vault.RotateSecret(ctx, id, *newPlaintext); err != nil {
+		// Rotate - the rotation service will generate and apply new credentials
+		if err := s.rotation.RotateCredential(ctx, id); err != nil {
 			results[id] = err
 			continue
 		}
@@ -245,12 +232,28 @@ func (s *Service) GetCredentialUsageStats(ctx context.Context, credentialID uuid
 		ORDER BY count DESC
 		LIMIT 5
 	`
-	var users []struct {
-		UserID uuid.UUID `db:"user_id" json:"user_id"`
-		Count  int       `db:"count" json:"count"`
+	type dbUserStat struct {
+		UserID uuid.UUID `db:"user_id"`
+		Count  int       `db:"count"`
 	}
-	if err := s.db.SelectContext(ctx, &users, usersQuery, credentialID); err != nil {
+	var dbUsers []dbUserStat
+	if err := s.db.SelectContext(ctx, &dbUsers, usersQuery, credentialID); err != nil {
 		return nil, err
+	}
+
+	// Convert to json-annotated struct
+	topUsers := make([]struct {
+		UserID uuid.UUID `json:"user_id"`
+		Count  int       `json:"count"`
+	}, len(dbUsers))
+	for i, u := range dbUsers {
+		topUsers[i] = struct {
+			UserID uuid.UUID `json:"user_id"`
+			Count  int       `json:"count"`
+		}{
+			UserID: u.UserID,
+			Count:  u.Count,
+		}
 	}
 
 	return &CredentialStats{
@@ -258,7 +261,7 @@ func (s *Service) GetCredentialUsageStats(ctx context.Context, credentialID uuid
 		CheckoutCount30d: checkoutCount,
 		SessionCount30d:  sessionCount,
 		LastUsedAt:       lastUsed,
-		TopUsers:         users,
+		TopUsers:         topUsers,
 	}, nil
 }
 
@@ -276,8 +279,9 @@ type CredentialStats struct {
 
 // SyncCredential syncs a credential with a target system
 func (s *Service) SyncCredential(ctx context.Context, credentialID uuid.UUID, targetID uuid.UUID) error {
-	// Retrieve credential
-	secret, err := s.vault.RetrieveSecret(ctx, credentialID)
+	// Retrieve credential metadata
+	repo := vault.NewSecretRepository(s.db, s.cache, s.logger)
+	secret, err := repo.GetByID(ctx, credentialID)
 	if err != nil {
 		return err
 	}

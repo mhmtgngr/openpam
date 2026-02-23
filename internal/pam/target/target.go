@@ -3,6 +3,7 @@ package target
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/google/uuid"

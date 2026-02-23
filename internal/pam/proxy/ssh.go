@@ -2,10 +2,8 @@ package proxy
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"io"
-	"net"
 	"sync"
 	"time"
 
@@ -286,7 +284,7 @@ func (p *SSHProxy) forwardFromSSH(session *Session, output io.Reader) {
 func (p *SSHProxy) BroadcastKeystrokes(ctx context.Context, sessionID uuid.UUID, keystroke string) {
 	// Send to monitoring subscribers via Redis pub/sub
 	channel := fmt.Sprintf("session:%s:keystrokes", sessionID)
-	_ = p.cache.PubSub().Publish(ctx, channel, events.Event{
+	_ = p.cache.PubSub().Publish(ctx, channel, cache.Event{
 		Type:     "keystroke",
 		Data:     map[string]interface{}{"keystroke": keystroke},
 	})

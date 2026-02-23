@@ -28,7 +28,7 @@ func main() {
 	logger := log.With().Str("service", "gateway").Logger()
 
 	// Initialize dependencies
-	db, err := database.NewDatabase(database.Config{
+	db, err := database.New(database.Config{
 		Host:            config.DBHost,
 		Port:            config.DBPort,
 		User:            config.DBUser,
@@ -59,10 +59,7 @@ func main() {
 	eventBus := events.New(redisCache, logger)
 	eventPublisher := events.NewPublisher(eventBus)
 
-	jwtManager, err := auth.NewJWTManager(/* load RSA keys */ nil, nil, redisCache, logger)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize JWT manager")
-	}
+	jwtManager := auth.NewJWTManager(/* load RSA keys */ nil, nil, redisCache, logger)
 
 	totpManager := auth.NewTOTPManager(auth.TOTPConfig{
 		Issuer:     "OpenPAM",

@@ -3,8 +3,8 @@ package rotation
 import (
 	"context"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,7 +46,7 @@ func NewService(db *sqlx.DB, vaultSvc *vault.VaultService, c *cache.Cache, logge
 	// Register default connectors
 	s.RegisterConnector(NewLinuxConnector())
 	s.RegisterConnector(newWindowsConnector())
-	s.RegisterConnector(newPostgreSQLConnector())
+	s.RegisterConnector(NewPostgreSQLConnector())
 	s.RegisterConnector(newMySQLConnector())
 	s.RegisterConnector(newAWSSecretsConnector())
 
