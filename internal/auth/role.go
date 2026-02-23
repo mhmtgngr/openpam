@@ -58,6 +58,40 @@ func NewRoleRepository(db *sqlx.DB, logger zerolog.Logger) *RoleRepository {
 	return &RoleRepository{db: db, logger: logger}
 }
 
+// CheckTenantAccess verifies that the requesting user has access to the tenant
+// and that the role belongs to the same tenant
+func (r *RoleRepository) CheckTenantAccess(ctx context.Context, roleID, tenantID uuid.UUID) error {
+	var roleTenantID uuid.UUID
+	query := `SELECT tenant_id FROM roles WHERE id = $1 AND deleted_at IS NULL`
+	err := r.db.GetContext(ctx, &roleTenantID, query, roleID)
+	if err != nil {
+		return fmt.Errorf("role.CheckTenantAccess: role not found")
+	}
+
+	if roleTenantID != tenantID {
+		return fmt.Errorf("role.CheckTenantAccess: unauthorized access to role from different tenant")
+	}
+
+	return nil
+}
+
+// CheckAdminAccess verifies the user has admin or super_admin role within the tenant
+func (r *RoleRepository) CheckAdminAccess(ctx context.Context, userID, tenantID uuid.UUID) (bool, error) {
+	query := `
+		SELECT COUNT(*) FROM user_roles ur
+		JOIN roles r ON r.id = ur.role_id
+		WHERE ur.user_id = $1 AND r.tenant_id = $2
+		AND r.name IN ('admin', 'super_admin')
+		AND r.deleted_at IS NULL
+	`
+	var count int
+	err := r.db.GetContext(ctx, &count, query, userID, tenantID)
+	if err != nil {
+		return false, fmt.Errorf("role.CheckAdminAccess: %w", err)
+	}
+	return count > 0, nil
+}
+
 // Create creates a new role
 func (r *RoleRepository) Create(ctx context.Context, role *Role) error {
 	role.ID = uuid.New()
@@ -293,8 +327,26 @@ func NewRoleService(repo *RoleRepository, logger zerolog.Logger) *RoleService {
 	return &RoleService{repo: repo, logger: logger}
 }
 
-// CreateRole creates a new role
-func (s *RoleService) CreateRole(ctx context.Context, role *Role) error {
+// AuthorizationContext holds context for authorization checks
+type AuthorizationContext struct {
+	UserID   uuid.UUID
+	TenantID uuid.UUID
+	IsAdmin  bool
+}
+
+// CreateRole creates a new role with authorization check
+func (s *RoleService) CreateRole(ctx context.Context, role *Role, authCtx AuthorizationContext) error {
+	// Authorization: user must be from the same tenant
+	if role.TenantID != authCtx.TenantID {
+		return fmt.Errorf("role: unauthorized - cannot create role for different tenant")
+	}
+
+	// Only admins can create roles
+	isAdmin, err := s.repo.CheckAdminAccess(ctx, authCtx.UserID, authCtx.TenantID)
+	if err != nil || !isAdmin {
+		return fmt.Errorf("role: unauthorized - admin access required")
+	}
+
 	// Validate role
 	if err := s.validateRole(role); err != nil {
 		return err
@@ -309,8 +361,35 @@ func (s *RoleService) CreateRole(ctx context.Context, role *Role) error {
 	return s.repo.Create(ctx, role)
 }
 
-// UpdateRole updates an existing role
-func (s *RoleService) UpdateRole(ctx context.Context, role *Role) error {
+// CreateRoleLegacy creates a new role (legacy method for backward compatibility)
+func (s *RoleService) CreateRoleLegacy(ctx context.Context, role *Role) error {
+	// Validate role
+	if err := s.validateRole(role); err != nil {
+		return err
+	}
+
+	// Check if role name already exists
+	existing, err := s.repo.GetByName(ctx, role.TenantID, role.Name)
+	if err == nil && existing != nil {
+		return fmt.Errorf("role: name already exists")
+	}
+
+	return s.repo.Create(ctx, role)
+}
+
+// UpdateRole updates an existing role with authorization check
+func (s *RoleService) UpdateRole(ctx context.Context, role *Role, authCtx AuthorizationContext) error {
+	// Authorization: check tenant access
+	if err := s.repo.CheckTenantAccess(ctx, role.ID, authCtx.TenantID); err != nil {
+		return err
+	}
+
+	// Only admins can update roles
+	isAdmin, err := s.repo.CheckAdminAccess(ctx, authCtx.UserID, authCtx.TenantID)
+	if err != nil || !isAdmin {
+		return fmt.Errorf("role: unauthorized - admin access required")
+	}
+
 	// Validate role
 	if err := s.validateRole(role); err != nil {
 		return err
@@ -328,8 +407,38 @@ func (s *RoleService) UpdateRole(ctx context.Context, role *Role) error {
 	return s.repo.Update(ctx, role)
 }
 
-// DeleteRole deletes a role
-func (s *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
+// UpdateRoleLegacy updates an existing role (legacy method)
+func (s *RoleService) UpdateRoleLegacy(ctx context.Context, role *Role) error {
+	// Validate role
+	if err := s.validateRole(role); err != nil {
+		return err
+	}
+
+	// Don't allow modifying system roles
+	existing, err := s.repo.GetByID(ctx, role.ID)
+	if err != nil {
+		return err
+	}
+	if existing.IsSystem {
+		return fmt.Errorf("role: cannot modify system roles")
+	}
+
+	return s.repo.Update(ctx, role)
+}
+
+// DeleteRole deletes a role with authorization check
+func (s *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID, authCtx AuthorizationContext) error {
+	// Authorization: check tenant access
+	if err := s.repo.CheckTenantAccess(ctx, roleID, authCtx.TenantID); err != nil {
+		return err
+	}
+
+	// Only admins can delete roles
+	isAdmin, err := s.repo.CheckAdminAccess(ctx, authCtx.UserID, authCtx.TenantID)
+	if err != nil || !isAdmin {
+		return fmt.Errorf("role: unauthorized - admin access required")
+	}
+
 	// Don't allow deleting system roles
 	role, err := s.repo.GetByID(ctx, roleID)
 	if err != nil {
@@ -348,8 +457,63 @@ func (s *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
 	return s.repo.Delete(ctx, roleID)
 }
 
-// AssignPermission assigns a permission to a role
-func (s *RoleService) AssignPermission(ctx context.Context, roleID uuid.UUID, resource, action string) error {
+// DeleteRoleLegacy deletes a role (legacy method)
+func (s *RoleService) DeleteRoleLegacy(ctx context.Context, roleID uuid.UUID) error {
+	// Don't allow deleting system roles
+	role, err := s.repo.GetByID(ctx, roleID)
+	if err != nil {
+		return err
+	}
+	if role.IsSystem {
+		return fmt.Errorf("role: cannot delete system roles")
+	}
+
+	// Check if role has users
+	users, err := s.repo.GetRoleUsers(ctx, roleID, 1, 0)
+	if err == nil && len(users) > 0 {
+		return fmt.Errorf("role: cannot delete role with assigned users")
+	}
+
+	return s.repo.Delete(ctx, roleID)
+}
+
+// AssignPermission assigns a permission to a role with authorization check
+func (s *RoleService) AssignPermission(ctx context.Context, roleID uuid.UUID, resource, action string, authCtx AuthorizationContext) error {
+	// Authorization: check tenant access
+	if err := s.repo.CheckTenantAccess(ctx, roleID, authCtx.TenantID); err != nil {
+		return err
+	}
+
+	// Only admins can assign permissions
+	isAdmin, err := s.repo.CheckAdminAccess(ctx, authCtx.UserID, authCtx.TenantID)
+	if err != nil || !isAdmin {
+		return fmt.Errorf("role: unauthorized - admin access required")
+	}
+
+	// Get role
+	role, err := s.repo.GetByID(ctx, roleID)
+	if err != nil {
+		return err
+	}
+
+	// Get permission
+	permission, err := s.repo.GetPermissionByResourceAction(ctx, resource, action)
+	if err != nil {
+		// Create permission if it doesn't exist
+		permission = &Permission{
+			ID:       uuid.New(),
+			Resource: resource,
+			Action:   action,
+			Scope:    "all",
+		}
+		// Note: You'd want to create it in DB here
+	}
+
+	return s.repo.GrantPermission(ctx, role.ID, permission.ID)
+}
+
+// AssignPermissionLegacy assigns a permission (legacy method)
+func (s *RoleService) AssignPermissionLegacy(ctx context.Context, roleID uuid.UUID, resource, action string) error {
 	// Get role
 	role, err := s.repo.GetByID(ctx, roleID)
 	if err != nil {
@@ -453,6 +617,11 @@ func (s *RoleService) validateRole(role *Role) error {
 		return fmt.Errorf("role: tenant ID is required")
 	}
 	return nil
+}
+
+// GetRepo returns the role repository
+func (s *RoleService) GetRepo() *RoleRepository {
+	return s.repo
 }
 
 // Predefined system roles

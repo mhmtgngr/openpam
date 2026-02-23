@@ -589,6 +589,7 @@ func TestRoleService_CreateRole(t *testing.T) {
 	service := NewRoleService(repo, opamtesting.Logger(t))
 
 	tenantID, _ := uuid.Parse(opamtesting.GenerateTestTenantID())
+	userID := uuid.New()
 	role := &Role{
 		Name:        "service-create",
 		DisplayName: "Service Create Role",
@@ -596,7 +597,12 @@ func TestRoleService_CreateRole(t *testing.T) {
 		TenantID:    tenantID,
 	}
 
-	err := service.CreateRole(ctx, role)
+	authCtx := AuthorizationContext{
+		UserID:   userID,
+		TenantID: tenantID,
+		IsAdmin:  true,
+	}
+	err := service.CreateRole(ctx, role, authCtx)
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, role.ID)
 }
@@ -664,9 +670,17 @@ func TestRoleService_CreateRole_Validation(t *testing.T) {
 	}
 	require.NoError(t, repo.Create(ctx, duplicateRole))
 
+	// Create auth context for tests
+	userID := uuid.New()
+	authCtx := AuthorizationContext{
+		UserID:   userID,
+		TenantID: tenantID,
+		IsAdmin:  true,
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := service.CreateRole(ctx, tt.role)
+			err := service.CreateRole(ctx, tt.role, authCtx)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)
@@ -685,6 +699,7 @@ func TestRoleService_UpdateRole_SystemRole(t *testing.T) {
 	service := NewRoleService(repo, opamtesting.Logger(t))
 
 	tenantID, _ := uuid.Parse(opamtesting.GenerateTestTenantID())
+	userID := uuid.New()
 	role := &Role{
 		Name:        "system-role",
 		DisplayName: "System Role",
@@ -698,7 +713,12 @@ func TestRoleService_UpdateRole_SystemRole(t *testing.T) {
 
 	// Try to update system role
 	role.DisplayName = "Modified"
-	err = service.UpdateRole(ctx, role)
+	authCtx := AuthorizationContext{
+		UserID:   userID,
+		TenantID: tenantID,
+		IsAdmin:  true,
+	}
+	err = service.UpdateRole(ctx, role, authCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot modify system roles")
 }
@@ -713,6 +733,7 @@ func TestRoleService_DeleteRole_SystemRole(t *testing.T) {
 	service := NewRoleService(repo, opamtesting.Logger(t))
 
 	tenantID, _ := uuid.Parse(opamtesting.GenerateTestTenantID())
+	userID := uuid.New()
 	role := &Role{
 		Name:        "delete-system",
 		DisplayName: "Delete System Role",
@@ -725,7 +746,12 @@ func TestRoleService_DeleteRole_SystemRole(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to delete system role
-	err = service.DeleteRole(ctx, role.ID)
+	authCtx := AuthorizationContext{
+		UserID:   userID,
+		TenantID: tenantID,
+		IsAdmin:  true,
+	}
+	err = service.DeleteRole(ctx, role.ID, authCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot delete system roles")
 }
@@ -740,6 +766,7 @@ func TestRoleService_DeleteRole_WithUsers(t *testing.T) {
 	service := NewRoleService(repo, opamtesting.Logger(t))
 
 	tenantID, _ := uuid.Parse(opamtesting.GenerateTestTenantID())
+	userID := uuid.New()
 	role := &Role{
 		Name:        "users-role",
 		DisplayName: "Users Role",
@@ -751,17 +778,22 @@ func TestRoleService_DeleteRole_WithUsers(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a user and assign role
-	userID := uuid.New()
+	testUserID := uuid.New()
 	_, err = db.ExecContext(ctx, `INSERT INTO users (id, email, first_name, last_name, password_hash, tenant_id) VALUES ($1, $2, $3, $4, $5, $6)`,
-		userID, "withrole@example.com", "With", "Role", "hash", tenantID)
+		testUserID, "withrole@example.com", "With", "Role", "hash", tenantID)
 	require.NoError(t, err)
 
 	assignedBy := uuid.New()
-	err = repo.AssignRole(ctx, userID, role.ID, assignedBy)
+	err = repo.AssignRole(ctx, testUserID, role.ID, assignedBy)
 	require.NoError(t, err)
 
 	// Try to delete role with users
-	err = service.DeleteRole(ctx, role.ID)
+	authCtx := AuthorizationContext{
+		UserID:   userID,
+		TenantID: tenantID,
+		IsAdmin:  true,
+	}
+	err = service.DeleteRole(ctx, role.ID, authCtx)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot delete role with assigned users")
 }
@@ -776,6 +808,7 @@ func TestRoleService_AssignPermission(t *testing.T) {
 	service := NewRoleService(repo, opamtesting.Logger(t))
 
 	tenantID, _ := uuid.Parse(opamtesting.GenerateTestTenantID())
+	userID := uuid.New()
 	role := &Role{
 		Name:        "assignperm-role",
 		DisplayName: "Assign Perm Role",
@@ -787,7 +820,12 @@ func TestRoleService_AssignPermission(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assign permission (will be created if it doesn't exist)
-	err = service.AssignPermission(ctx, role.ID, "credential", "create")
+	authCtx := AuthorizationContext{
+		UserID:   userID,
+		TenantID: tenantID,
+		IsAdmin:  true,
+	}
+	err = service.AssignPermission(ctx, role.ID, "credential", "create", authCtx)
 	require.NoError(t, err)
 
 	// Verify permission was assigned

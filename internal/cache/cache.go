@@ -109,6 +109,15 @@ func (c *Cache) TTL(ctx context.Context, key string) (time.Duration, error) {
 	return c.client.TTL(ctx, key).Result()
 }
 
+// Increment increments a counter and returns the new value
+func (c *Cache) Increment(ctx context.Context, key string, delta int64) (int64, error) {
+	result, err := c.client.IncrBy(ctx, key, delta).Result()
+	if err != nil {
+		return 0, fmt.Errorf("cache.IncrBy: %w", err)
+	}
+	return result, nil
+}
+
 // SessionStore handles session-related cache operations
 type SessionStore struct {
 	cache *Cache

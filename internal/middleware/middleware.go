@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime/debug"
 	"time"
@@ -333,6 +334,155 @@ func RequireMFA() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		c.Next()
+	}
+}
+
+// PrivilegedOperation verifies MFA and user permissions for privileged operations
+// These operations include: credential checkout, session termination, role changes, etc.
+func PrivilegedOperation(logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check if MFA was verified
+		mfaVerified, exists := c.Get("mfa_verified")
+		if !exists || !mfaVerified.(bool) {
+			requestID, _ := c.Get("request_id")
+			logger.Warn().
+				Str("request_id", requestID.(string)).
+				Str("path", c.Request.URL.Path).
+				Str("method", c.Request.Method).
+				Msg("Privileged operation attempted without MFA")
+
+			c.JSON(403, gin.H{
+				"error": gin.H{
+					"code":    "MFA_REQUIRED",
+					"message": "Multi-factor authentication required for this operation",
+					"details": gin.H{
+						"action_required": "complete_mfa",
+						"mfa_methods":     []string{"totp", "sms", "email", "webauthn"},
+					},
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		// Additional check: verify MFA timestamp is recent (within 5 minutes)
+		if mfaTimestamp, exists := c.Get("mfa_timestamp"); exists {
+			if timestamp, ok := mfaTimestamp.(time.Time); ok {
+				if time.Since(timestamp) > 5*time.Minute {
+					c.JSON(403, gin.H{
+						"error": gin.H{
+							"code":    "MFA_EXPIRED",
+							"message": "MFA verification expired. Please re-authenticate.",
+						},
+					})
+					c.Abort()
+					return
+				}
+			}
+		}
+
+		c.Next()
+	}
+}
+
+// MFAScope defines which operations require MFA
+type MFAScope string
+
+const (
+	MFAScopeCredentialCheckout MFAScope = "credential_checkout"
+	MFAScopeSessionTerminate  MFAScope = "session_terminate"
+	MFAScopeRoleModify        MFAScope = "role_modify"
+	MFAScopeUserModify        MFAScope = "user_modify"
+	MFAScopeSettingsModify    MFAScope = "settings_modify"
+)
+
+// RequireMFAForScope checks MFA based on operation scope
+func RequireMFAForScope(scope MFAScope, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get user's MFA preferences and verified scopes from context
+		mfaScopes, exists := c.Get("mfa_scopes")
+		if !exists {
+			// No MFA scopes set, require full MFA
+			c.JSON(403, gin.H{
+				"error": gin.H{
+					"code":    "MFA_REQUIRED",
+					"message": fmt.Sprintf("MFA required for %s operations", scope),
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		scopes, ok := mfaScopes.(map[MFAScope]bool)
+		if !ok || !scopes[scope] {
+			c.JSON(403, gin.H{
+				"error": gin.H{
+					"code":    "MFA_REQUIRED",
+					"message": fmt.Sprintf("MFA required for %s operations", scope),
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// VerifyMFAToken verifies an MFA token provided in the request
+func VerifyMFAToken(verifyFunc func(token, userID string) (bool, error), logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			MFAToken string `json:"mfa_token" binding:"required"`
+		}
+
+		// Only try to bind JSON for POST/PUT/PATCH
+		if c.Request.Method == "POST" || c.Request.Method == "PUT" || c.Request.Method == "PATCH" {
+			// Read body to avoid consuming it
+			body, err := io.ReadAll(c.Request.Body)
+			if err != nil {
+				c.JSON(400, gin.H{"error": gin.H{"code": "INVALID_BODY", "message": "Failed to read request body"}})
+				c.Abort()
+				return
+			}
+
+			// Restore body for later handlers
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+
+			if err := json.Unmarshal(body, &req); err == nil && req.MFAToken != "" {
+				userID, exists := c.Get("user_id")
+				if !exists {
+					c.JSON(401, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "User not authenticated"}})
+					c.Abort()
+					return
+				}
+
+				valid, err := verifyFunc(req.MFAToken, userID.(string))
+				if err != nil || !valid {
+					requestID, _ := c.Get("request_id")
+					logger.Warn().
+						Str("request_id", requestID.(string)).
+						Str("user_id", userID.(string)).
+						Err(err).
+						Msg("Invalid MFA token")
+
+					c.JSON(403, gin.H{
+						"error": gin.H{
+							"code":    "INVALID_MFA_TOKEN",
+							"message": "Multi-factor authentication token is invalid or expired",
+						},
+					})
+					c.Abort()
+					return
+				}
+
+				// Mark MFA as verified
+				c.Set("mfa_verified", true)
+				c.Set("mfa_timestamp", time.Now())
+			}
+		}
+
 		c.Next()
 	}
 }

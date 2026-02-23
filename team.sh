@@ -1,46 +1,44 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 #
 #  AI Development Team
-#  ────────────────────────────
+#  ─────────────────────
 #  A complete AI-powered software development team.
+#  Project-agnostic: reads CLAUDE.md for context.
 #
-#  TEAM ROLES:
-#    🧑‍💼 Project Manager   (Z.ai / Claude)  — Requirements, user stories, task breakdown
-#    🏗️  Architect          (Z.ai / Claude)  — System design, schemas, API contracts
-#    ⚙️  Backend Dev        (Claude Code)    — Go/Gin implementation
-#    🎨 Frontend Dev        (Claude Code)    — React/TypeScript implementation
-#    🧪 Tester             (Claude Code)    — Unit tests, integration, Playwright E2E
-#    📋 QA Controller       (Z.ai / Claude)  — Code review, quality gates
-#    🔒 Security Auditor    (Z.ai / Claude)  — Vulnerability scan, OWASP checks
-#    🐳 DevOps             (Claude Code)    — Docker build, run, deploy, smoke test
+#  TEAM:
+#    🧑‍💼 PM              (Z.ai / Claude)  — Requirements, user stories
+#    🔍 Market Researcher (Z.ai / Claude)  — Competitor analysis, feature gaps
+#    🏗️  Architect        (Z.ai / Claude)  — System design, API contracts
+#    ⚙️  Backend Dev      (Claude Code)    — Implementation
+#    🎨 Frontend Dev      (Claude Code)    — React/TypeScript UI
+#    🧪 Tester           (Claude Code)    — Unit tests, E2E
+#    📋 QA Controller     (Z.ai / Claude)  — Code review, quality gates
+#    🔒 Security Auditor  (Z.ai / Claude)  — Vulnerability scan
+#    🐳 DevOps           (Claude Code)    — Docker, deploy, smoke test
 #
 #  WATERFALL + FEEDBACK LOOPS:
-#    Requirements → Market Research → Design → Backend → Frontend → Testing → QA → Security → Deploy
-#         ↑                                                          |        |       |
-#         └──────────────────────────────────────────────────────────┘────────┘───────┘
-#                              (auto-fix and re-verify on failure)
+#    Requirements → Market Research → Design → Backend → Frontend
+#    → Testing → QA → Security → Deploy
+#         ↑               |        |       |
+#         └───────────────┘────────┘───────┘ (auto-fix on failure)
 #
 #  USAGE:
-#    ./team.sh --project "Add API key management with rotation"
+#    cd ~/your-project
+#    ./team.sh --project "description"
 #    ./team.sh --status
 #    ./team.sh --resume
 #    ./team.sh --stop
 #
-#  Runs in background by default. Survives SSH disconnect.
-#
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
 # ── Load PATH for background/nohup execution ──
-# nohup doesn't load shell profiles, so tools like go, node, claude may be missing
 for rc in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile" "$HOME/.zshrc"; do
   [ -f "$rc" ] && source "$rc" 2>/dev/null || true
 done
-# Common tool locations
 export PATH="$HOME/go/bin:$HOME/.local/bin:$HOME/.npm-global/bin:$HOME/.nvm/versions/node/*/bin:/usr/local/go/bin:/usr/local/bin:$PATH"
-# Load nvm if present
 [ -s "$HOME/.nvm/nvm.sh" ] && source "$HOME/.nvm/nvm.sh" 2>/dev/null || true
 
 # ═══════════════════════════════════════════════
@@ -59,6 +57,7 @@ CLAUDE_MODEL="${CLAUDE_MODEL:-opus}"
 ZAI_API_KEY="${ZAI_API_KEY:-}"
 ZAI_URL="${ZAI_ENDPOINT:-https://api.z.ai/api/paas/v4/chat/completions}"
 ZAI_MODEL="${ZAI_MODEL:-glm-5}"
+ZAI_SEARCH_URL="${ZAI_SEARCH_ENDPOINT:-https://api.z.ai/api/paas/v4/web_search}"
 
 MAX_LOOPS=3
 DOCKER_TIMEOUT=30
@@ -66,24 +65,17 @@ DOCKER_TIMEOUT=30
 # Port range (auto-detected from docker-compose, or default)
 SERVICE_PORTS="${SERVICE_PORTS:-}"
 
-# Auto-detect ports from docker-compose
 detect_service_ports() {
   local compose=""
   [ -f "$REPO_DIR/docker-compose.yml" ] && compose="$REPO_DIR/docker-compose.yml"
   [ -f "$REPO_DIR/deployments/docker/docker-compose.yml" ] && compose="$REPO_DIR/deployments/docker/docker-compose.yml"
-
   if [ -n "$compose" ] && [ -f "$compose" ]; then
-    SERVICE_PORTS=$(grep -oP '"\K\d{4,5}(?=:\d)' "$compose" 2>/dev/null | sort -u | tr '\n' ' ')
+    SERVICE_PORTS=$(grep -oP '"\K\d{4,5}(?=:\d)' "$compose" 2>/dev/null | sort -u | tr '\n' ' ' || true)
   fi
-
-  # Fallback: scan common range
   if [ -z "$SERVICE_PORTS" ]; then
     SERVICE_PORTS="8500 8501 8502 8503 8504 8505 8506"
   fi
 }
-
-# Z.ai Web Search
-ZAI_SEARCH_URL="${ZAI_SEARCH_ENDPOINT:-https://api.z.ai/api/paas/v4/web_search}"
 
 BRANCH=""
 
@@ -163,7 +155,7 @@ PYEOF
 }
 
 # ═══════════════════════════════════════════════
-# Z.AI BRAIN (PM, Architect, QA, Security roles)
+# Z.AI BRAIN (PM, Architect, QA, Security)
 # ═══════════════════════════════════════════════
 
 zai_think() {
@@ -267,11 +259,7 @@ PYEOF
 # ═══════════════════════════════════════════════
 
 zai_web_search() {
-  # Usage: zai_web_search "query" "output_file"
-  # Tries Z.ai web search first, falls back to Claude Code
-  local query="$1"
-  local out_file="$2"
-
+  local query="$1" out_file="$2"
   team "🔍 Research" "Searching: $query"
 
   # ── Try Z.ai first ──
@@ -315,18 +303,14 @@ PYEOF
         return 0
       fi
     fi
-
     rm -f "$out_file.raw"
     warn "  Z.ai search failed (HTTP $http_code) — falling back to Claude"
   fi
 
-  # ── Fallback: Claude Code web search ──
+  # ── Fallback: Claude Code ──
   team "🔍 Research" "Using Claude Code for: $query"
-
   cd "$REPO_DIR"
-  claude -p \
-    --model "$CLAUDE_MODEL" \
-    --dangerously-skip-permissions \
+  claude -p --model "$CLAUDE_MODEL" --dangerously-skip-permissions \
     "Search the web for: $query
 
 Return ONLY a JSON object with search results in this exact format:
@@ -335,7 +319,6 @@ Return ONLY a JSON object with search results in this exact format:
 Return at least 5 results. No markdown, no explanation, just the JSON." \
     > "$out_file" 2>/dev/null || true
 
-  # Clean output
   python3 - "$out_file" << 'PYEOF'
 import json, re, sys
 f = sys.argv[1]
@@ -348,7 +331,6 @@ if m:
             json.dump(parsed, open(f, "w"), indent=2)
             exit(0)
     except: pass
-# If parsing failed, wrap raw text as a single result
 json.dump({"results": [{"title": "Claude search", "content": content[:1000], "url": ""}]}, open(f, "w"), indent=2)
 PYEOF
 
@@ -359,35 +341,23 @@ PYEOF
 }
 
 market_research() {
-  # Performs competitor analysis and returns market gap report
-  local out_file="$1"
-  local reqs_file="$2"
-
+  local out_file="$1" reqs_file="$2"
   team "🔍 Research" "Starting market analysis..."
 
-  # Read project context to generate relevant search queries
   local ctx
   ctx=$(read_project_context | head -c 500)
   local project_type
   project_type=$(echo "$ctx" | head -5 | tr '\n' ' ')
 
-  # Search 1: Direct competitors
   zai_web_search "$PROJECT_NAME $project_type competitors comparison features 2025 enterprise" \
     "$ARTIFACTS/market_competitors.json"
-
-  # Search 2: Feature comparison
   zai_web_search "$PROJECT_NAME similar products features comparison best practices 2025" \
     "$ARTIFACTS/market_features.json"
-
-  # Search 3: Latest trends
   zai_web_search "$project_type trends 2025 emerging technologies best practices" \
     "$ARTIFACTS/market_trends.json"
-
-  # Search 4: Security/compliance standards
   zai_web_search "$project_type security compliance SOC2 ISO27001 GDPR requirements 2025" \
     "$ARTIFACTS/market_compliance.json"
 
-  # Combine all search results
   python3 - "$ARTIFACTS/market_competitors.json" "$ARTIFACTS/market_features.json" \
     "$ARTIFACTS/market_trends.json" "$ARTIFACTS/market_compliance.json" \
     "$ARTIFACTS/market_combined.json" << 'PYEOF'
@@ -403,7 +373,6 @@ for f, k in zip(files, keys):
 json.dump(combined, open(sys.argv[5], "w"), indent=2)
 PYEOF
 
-  # Analyze with Z.ai or Claude
   local search_data
   search_data=$(head -c 6000 "$ARTIFACTS/market_combined.json" 2>/dev/null || echo "{}")
   local reqs
@@ -479,7 +448,7 @@ claude_do() {
 
   if [ "$ok" = true ]; then
     cd "$REPO_DIR"; git add -A
-    if ! git diff --cached --quiet; then
+    if ! git diff --cached --quiet 2>/dev/null; then
       git commit -m "[$role_name] $(echo "$prompt" | head -1 | cut -c1-60)" 2>/dev/null || true
     fi
     team "$role_name" "✓ Committed"
@@ -500,7 +469,9 @@ docker_build_all() {
     [ -f "$df" ] || continue
     local svc; svc=$(basename "$df" | sed 's/Dockerfile\.//')
     log "  🐳 Building: $svc"
-    if podman build -f "$df" -t "${PROJECT_NAME}/${svc}:dev" . 2>&1 | tee -a "$PHASE_LOGS/docker_build.log" | tail -5; then
+    local build_rc=0
+    podman build -f "$df" -t "${PROJECT_NAME}/${svc}:dev" . 2>&1 | tee -a "$PHASE_LOGS/docker_build.log" | tail -5 || build_rc=$?
+    if [ $build_rc -eq 0 ]; then
       log "  ✓ Built: $svc"
     else
       warn "  ✗ Build failed: $svc — fixing..."
@@ -520,7 +491,7 @@ docker_up() {
   [ -f "docker-compose.yml" ] && compose="docker-compose.yml"
   [ -f "deployments/docker/docker-compose.yml" ] && compose="deployments/docker/docker-compose.yml"
   if [ -n "$compose" ]; then
-    podman-compose -f "$compose" up -d 2>&1 | tee -a "$PHASE_LOGS/docker_up.log" | tail -10
+    podman-compose -f "$compose" up -d 2>&1 | tee -a "$PHASE_LOGS/docker_up.log" | tail -10 || true
     sleep "$DOCKER_TIMEOUT"
     local h=0 t=0
     for port in $SERVICE_PORTS; do
@@ -543,11 +514,13 @@ docker_down() {
 run_go_tests() {
   team "🧪 Tester" "Running Go tests..."
   cd "$REPO_DIR"
-  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | tail -30
-  return "${PIPESTATUS[0]}"
+  local rc=0
+  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | tail -30 || rc=$?
+  return $rc
 }
 
 fix_go_tests() {
+  cd "$REPO_DIR"
   claude_do "🧪 Tester" "Read CLAUDE.md. Fix Go test failures:
 $(tail -50 "$PHASE_LOGS/go_test.log")
 Run 'go test ./...' after." "$PHASE_LOGS/go_test_fix.log"
@@ -558,9 +531,10 @@ run_playwright() {
   [ -d "$dir" ] || return 0
   team "🧪 Tester" "Running Playwright..."
   cd "$dir"
-  [ -d "node_modules" ] || { npm install 2>&1 | tail -3; npx playwright install --with-deps 2>&1 | tail -3; }
-  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | tail -20
-  return "${PIPESTATUS[0]}"
+  [ -d "node_modules" ] || { npm install 2>&1 | tail -3 || true; npx playwright install --with-deps 2>&1 | tail -3 || true; }
+  local rc=0
+  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | tail -20 || rc=$?
+  return $rc
 }
 
 fix_playwright() {
@@ -580,7 +554,8 @@ ensure_branch() {
 merge_to_main() {
   cd "$REPO_DIR"
   git add -A && git commit -m "pre-merge" 2>/dev/null || true
-  git checkout main 2>/dev/null; git pull origin main 2>/dev/null || true
+  git checkout main 2>/dev/null || true
+  git pull origin main 2>/dev/null || true
   if git merge "$BRANCH" --no-ff -m "Merge $BRANCH" 2>/dev/null; then
     git push origin main 2>/dev/null || true
     log "  ✓ Merged → main"
@@ -597,9 +572,14 @@ merge_to_main() {
 # WATERFALL PHASES
 # ═══════════════════════════════════════════════
 
+# ──────────────────────────────
+# 1. REQUIREMENTS (PM)
+# ──────────────────────────────
 phase_requirements() {
   local project="$1"
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 1: REQUIREMENTS — 🧑‍💼 PM"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 1: REQUIREMENTS — 🧑‍💼 PM"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set requirements status running
 
   cat > "$TEAM_DIR/tmp_sys.txt" << 'PROMPT'
@@ -629,12 +609,13 @@ PROMPT
 # 1.5 MARKET RESEARCH (Researcher)
 # ──────────────────────────────
 phase_market_research() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 1.5: MARKET RESEARCH — 🔍 Researcher"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 1.5: MARKET RESEARCH — 🔍 Researcher"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set market_research status running
 
   market_research "$ARTIFACTS/03_market_analysis.json" "$ARTIFACTS/01_requirements.json"
 
-  # Check for critical gaps and inject into requirements
   local gaps
   gaps=$(python3 -c "
 import json
@@ -651,17 +632,13 @@ except: print('Analysis not available')
   log "  Market gaps found:"
   echo "$gaps" | while read -r line; do log "    $line"; done
 
-  # Enrich requirements with market insights
   python3 - "$ARTIFACTS/01_requirements.json" "$ARTIFACTS/03_market_analysis.json" << 'PYEOF'
 import json, sys
 try:
     reqs = json.load(open(sys.argv[1]))
     market = json.load(open(sys.argv[2]))
-
-    # Add market-driven requirements
     existing_ids = [r.get("id","") for r in reqs.get("functional_requirements", [])]
     next_id = len(existing_ids) + 1
-
     for feat in market.get("recommended_features", []):
         if feat.get("priority") in ("critical", "high"):
             reqs.setdefault("functional_requirements", []).append({
@@ -673,34 +650,33 @@ try:
                 "competitive_advantage": feat.get("competitive_advantage", "")
             })
             next_id += 1
-
-    # Add market context
     reqs["market_context"] = {
         "competitors_analyzed": [c.get("name","") for c in market.get("competitor_summary", [])],
         "key_gaps": [g.get("gap","") for g in market.get("market_gaps", [])[:5]],
         "trends": [t.get("trend","") for t in market.get("emerging_trends", [])[:5]],
         "unique_selling_points": market.get("unique_selling_points", [])
     }
-
     json.dump(reqs, open(sys.argv[1], "w"), indent=2)
 except Exception as e:
     print(f"Warning: Could not enrich requirements: {e}")
 PYEOF
 
   state_set market_research status done
-  log "✅ Market research done → $ARTIFACTS/03_market_analysis.json"
+  log "✅ Market research done"
 }
 
 # ──────────────────────────────
 # 2. DESIGN (Architect)
 # ──────────────────────────────
 phase_design() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 2: DESIGN — 🏗️  Architect"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 2: DESIGN — 🏗️  Architect"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set design status running
 
   cd "$REPO_DIR"
   local reqs; reqs=$(head -c 5000 "$ARTIFACTS/01_requirements.json" 2>/dev/null || echo "{}")
-  local files; files=$(find internal frontend/src -name "*.go" -o -name "*.tsx" 2>/dev/null | grep -v _test | grep -v node_modules | sort | head -50)
+  local files; files=$(find internal frontend/src -name "*.go" -o -name "*.tsx" 2>/dev/null | grep -v _test | grep -v node_modules | sort | head -50 || true)
   local market; market=$(head -c 2000 "$ARTIFACTS/03_market_analysis.json" 2>/dev/null || echo "{}")
 
   cat > "$TEAM_DIR/tmp_sys.txt" << 'PROMPT'
@@ -733,8 +709,13 @@ PROMPT
   log "✅ Design done"
 }
 
+# ──────────────────────────────
+# 3. BACKEND (Backend Dev)
+# ──────────────────────────────
 phase_backend() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 3: BACKEND — ⚙️  Backend Dev"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 3: BACKEND — ⚙️  Backend Dev"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set backend status running; ensure_branch
 
   local design; design=$(head -c 6000 "$ARTIFACTS/02_design.json" 2>/dev/null || echo "{}")
@@ -750,15 +731,22 @@ IMPLEMENT ALL backend files from design. Follow the patterns and conventions des
     "$PHASE_LOGS/03_backend.log"
 
   cd "$REPO_DIR"
-  if ! go build ./... 2>&1 | tee "$PHASE_LOGS/03_compile.log" | tail -5; then
+  local build_ok=true
+  go build ./... 2>&1 | tee "$PHASE_LOGS/03_compile.log" | tail -5 || build_ok=false
+  if [ "$build_ok" = false ]; then
     claude_do "⚙️  Backend" "Fix Go compilation errors: $(tail -30 "$PHASE_LOGS/03_compile.log")" "$PHASE_LOGS/03_compile_fix.log"
   fi
 
   state_set backend status done; log "✅ Backend done"
 }
 
+# ──────────────────────────────
+# 4. FRONTEND (Frontend Dev)
+# ──────────────────────────────
 phase_frontend() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 4: FRONTEND — 🎨 Frontend Dev"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 4: FRONTEND — 🎨 Frontend Dev"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set frontend status running; ensure_branch
 
   local design; design=$(head -c 6000 "$ARTIFACTS/02_design.json" 2>/dev/null || echo "{}")
@@ -774,8 +762,10 @@ IMPLEMENT ALL frontend components/pages from design. Follow the conventions in C
     "$PHASE_LOGS/04_frontend.log"
 
   if [ -d "$REPO_DIR/frontend" ]; then
-    cd "$REPO_DIR/frontend"; [ -d "node_modules" ] || npm install 2>&1 | tail -3
-    if ! npx tsc --noEmit 2>&1 | tee "$PHASE_LOGS/04_typecheck.log" | tail -5; then
+    cd "$REPO_DIR/frontend"; [ -d "node_modules" ] || npm install 2>&1 | tail -3 || true
+    local ts_ok=true
+    npx tsc --noEmit 2>&1 | tee "$PHASE_LOGS/04_typecheck.log" | tail -5 || ts_ok=false
+    if [ "$ts_ok" = false ]; then
       cd "$REPO_DIR"
       claude_do "🎨 Frontend" "Fix TypeScript errors: $(tail -30 "$PHASE_LOGS/04_typecheck.log")" "$PHASE_LOGS/04_ts_fix.log"
     fi
@@ -784,13 +774,17 @@ IMPLEMENT ALL frontend components/pages from design. Follow the conventions in C
   state_set frontend status done; log "✅ Frontend done"
 }
 
+# ──────────────────────────────
+# 5. TESTING (Tester)
+# ──────────────────────────────
 phase_testing() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 5: TESTING — 🧪 Tester"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 5: TESTING — 🧪 Tester"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set testing status running; ensure_branch
 
   local design; design=$(head -c 4000 "$ARTIFACTS/02_design.json" 2>/dev/null || echo "{}")
 
-  # Write tests
   claude_do "🧪 Tester" \
     "Read CLAUDE.md first. You are the Test Engineer for this project.
 DESIGN: $design
@@ -822,13 +816,18 @@ Write comprehensive tests for ALL new files following CLAUDE.md conventions. Wri
   state_set testing status done; log "✅ Testing done"
 }
 
+# ──────────────────────────────
+# 6. QA REVIEW (QA Controller)
+# ──────────────────────────────
 phase_qa() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 6: QA — 📋 QA Controller"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 6: QA — 📋 QA Controller"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set qa status running
 
   cd "$REPO_DIR"
-  local diff; diff=$(git diff main --stat 2>/dev/null | tail -15)
-  local files; files=$(git diff main --name-only 2>/dev/null | grep "\.go$" | head -20)
+  local diff; diff=$(git diff main --stat 2>/dev/null | tail -15 || true)
+  local files; files=$(git diff main --name-only 2>/dev/null | grep "\.go$" | head -20 || true)
   local code=""; for f in $(echo "$files" | head -5); do [ -f "$f" ] && code="$code
 --- $f ---
 $(head -80 "$f")"; done
@@ -868,16 +867,21 @@ Fix ALL blocking/critical. Run 'go test ./...'." "$PHASE_LOGS/06_qa_fix.log"
   state_set qa verdict "$verdict"; state_set qa status done; log "✅ QA: $verdict"
 }
 
+# ──────────────────────────────
+# 7. SECURITY (Security Auditor)
+# ──────────────────────────────
 phase_security() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 7: SECURITY — 🔒 Security Auditor"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 7: SECURITY — 🔒 Security Auditor"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set security status running
 
   cd "$REPO_DIR"
-  local auth=""; for f in $(find internal -name "*.go" 2>/dev/null | xargs grep -l "auth\|token\|password\|jwt\|session" 2>/dev/null | head -10); do
+  local auth=""; for f in $(find internal -name "*.go" 2>/dev/null | xargs grep -l "auth\|token\|password\|jwt\|session" 2>/dev/null | head -10 || true); do
     auth="$auth
 --- $f ---
 $(head -60 "$f")"; done
-  local handlers=""; for f in $(find internal -name "handler*.go" -o -name "middleware*.go" 2>/dev/null | head -8); do
+  local handlers=""; for f in $(find internal -name "handler*.go" -o -name "middleware*.go" 2>/dev/null | head -8 || true); do
     handlers="$handlers
 --- $f ---
 $(head -50 "$f")"; done
@@ -890,7 +894,7 @@ PROMPT
   cat > "$TEAM_DIR/tmp_usr.txt" << PROMPT
 AUTH CODE: $auth
 HANDLERS: $handlers
-Check: SQL injection, XSS, CSRF, insecure JWT, weak crypto, missing auth, IDOR, data exposure. IAM platform — be thorough.
+Check: SQL injection, XSS, CSRF, insecure JWT, weak crypto, missing auth, IDOR, data exposure. Be thorough.
 PROMPT
 
   ai_think "🔒 Security" "$TEAM_DIR/tmp_sys.txt" "$TEAM_DIR/tmp_usr.txt" "$ARTIFACTS/07_security.json"
@@ -905,7 +909,7 @@ for v in d.get('vulnerabilities',[]):
     if v.get('severity') in ('critical','high'): print(f\"{v['severity'].upper()}: {v.get('file','')}: {v.get('description','')} → {v.get('fix','')}\")
 for f in d.get('critical_fixes',[]): print(f'FIX: {f}')
 " 2>/dev/null || echo "Fix security issues")
-    claude_do "⚙️  Backend" "Read CLAUDE.md. SECURITY FIX for IAM platform:
+    claude_do "⚙️  Backend" "Read CLAUDE.md. SECURITY FIX:
 $fixes
 Fix ALL critical/high vulnerabilities. Run 'go test ./...'." "$PHASE_LOGS/07_sec_fix.log"
     run_go_tests || { fix_go_tests; run_go_tests || true; }
@@ -914,11 +918,15 @@ Fix ALL critical/high vulnerabilities. Run 'go test ./...'." "$PHASE_LOGS/07_sec
   state_set security verdict "$verdict"; state_set security status done; log "✅ Security: $verdict"
 }
 
+# ──────────────────────────────
+# 8. DEPLOY (DevOps)
+# ──────────────────────────────
 phase_deploy() {
-  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; log "PHASE 8: DEPLOY — 🐳 DevOps"; log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  log "PHASE 8: DEPLOY — 🐳 DevOps"
+  log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   state_set deploy status running
 
-  # Create Dockerfiles if missing
   if ! ls "$REPO_DIR/deployments/docker/Dockerfile."* >/dev/null 2>&1; then
     claude_do "🐳 DevOps" \
       "Read CLAUDE.md. Create Docker setup in deployments/docker/:
@@ -931,8 +939,7 @@ Follow the service names and ports defined in CLAUDE.md." \
   docker_build_all || true
   docker_up
 
-  # Smoke
-  # 8C — Smoke tests
+  # Smoke tests
   detect_service_ports
   team "🐳 DevOps" "Smoke testing..."
   local ok=true
@@ -942,7 +949,7 @@ Follow the service names and ports defined in CLAUDE.md." \
 
   if [ "$ok" = false ]; then
     local logs=""
-    for cname in $(podman ps -a --format '{{.Names}}' 2>/dev/null | grep "$PROJECT_NAME" | head -10); do
+    for cname in $(podman ps -a --format '{{.Names}}' 2>/dev/null | grep "$PROJECT_NAME" | head -10 || true); do
       local l; l=$(podman logs "$cname" 2>&1 | tail -15); [ -n "$l" ] && logs="$logs
 === $cname ===
 $l"
@@ -952,10 +959,8 @@ $logs" "$PHASE_LOGS/08_fix.log"
     docker_build_all || true; docker_down; docker_up
   fi
 
-  # Final E2E
   [ -d "$REPO_DIR/frontend" ] && { run_playwright || true; }
 
-  # Merge
   cd "$REPO_DIR"; git add -A && git commit -m "[DevOps] deploy ready" 2>/dev/null || true
   merge_to_main
 
@@ -979,7 +984,7 @@ run_waterfall() {
   local loop=0
 
   log "╔═══════════════════════════════════════════════╗"
-  log "║   AI Development Team                 ║"
+  log "║   AI Development Team                         ║"
   log "╠═══════════════════════════════════════════════╣"
   log "║ 🧑‍💼 PM → 🔍 Market → 🏗️ Arch → ⚙️ Back         ║"
   log "║ → 🎨 Front → 🧪 Test → 📋 QA → 🔒 Sec → 🐳      ║"
@@ -1047,9 +1052,9 @@ stop_team() {
   if is_running; then
     local pid; pid=$(cat "$PID_FILE")
     log "Stopping (PID: $pid)..."
-    kill -TERM "$pid" 2>/dev/null; sleep 2; pkill -P "$pid" 2>/dev/null
-    pkill -f "claude.*dangerously-skip-permissions" 2>/dev/null; rm -f "$PID_FILE"
-    docker_down 2>/dev/null; log "✓ Stopped"
+    kill -TERM "$pid" 2>/dev/null || true; sleep 2; pkill -P "$pid" 2>/dev/null || true
+    pkill -f "claude.*dangerously-skip-permissions" 2>/dev/null || true; rm -f "$PID_FILE"
+    docker_down 2>/dev/null || true; log "✓ Stopped"
   else echo "Not running"; fi
 }
 
@@ -1068,7 +1073,8 @@ launch_bg() {
 
 show_status() {
   echo ""; echo "  ═══ AI Development Team ═══"; echo ""
-  if is_running; then echo "  🔄 RUNNING (PID: $(cat "$PID_FILE"))"; echo "  📺 tail -f $LIVE_LOG"
+  if is_running; then echo "  🔄 RUNNING (PID: $(cat "$PID_FILE" 2>/dev/null))"
+    echo "  📺 tail -f $LIVE_LOG"
   else echo "  ⏹  Not running"; fi; echo ""
   [ -f "$STATE_FILE" ] && python3 - "$STATE_FILE" << 'PYEOF'
 import json, sys
@@ -1093,8 +1099,10 @@ PYEOF
 show_help() { cat << 'H'
 
   ╔══════════════════════════════════════╗
-  ║   AI Development Team       ║
+  ║   AI Development Team               ║
   ╚══════════════════════════════════════╝
+
+  Just cd into your project and run.
 
   USAGE:
     ./team.sh --project "description"    # Full waterfall (background)
@@ -1102,12 +1110,12 @@ show_help() { cat << 'H'
     ./team.sh --resume                   # Continue
     ./team.sh --stop                     # Stop
     ./team.sh --phase backend            # Single phase
-    ./team.sh --phase market             # Run market research only
+    ./team.sh --phase market             # Market research only
     ./team.sh --project "desc" --fg      # Foreground
 
   PORTS: Auto-detected from docker-compose.yml (default: 8500-8506)
 
-  ENV: ZAI_API_KEY (enables Z.ai + web search), CLAUDE_MODEL (default:opus), Runs from current directory (cd into your project first)
+  ENV: ZAI_API_KEY (enables Z.ai + web search), CLAUDE_MODEL (default:opus)
 
 H
 }
@@ -1122,10 +1130,13 @@ while [[ $# -gt 0 ]]; do case $1 in
 esac; done
 
 [ -z "$PROJECT" ] && [ -z "$PHASE" ] && [ "$RESUME" = false ] && { show_help; exit 0; }
+
 command -v claude &>/dev/null || { err "Claude Code not found. Install: npm install -g @anthropic-ai/claude-code"; exit 1; }
 command -v go &>/dev/null && log "✓ go $(go version | awk '{print $3}')" || warn "⚠ go not found — backend build/test will fail"
 command -v node &>/dev/null && log "✓ node $(node -v)" || warn "⚠ node not found — frontend/playwright will fail"
 command -v podman &>/dev/null || command -v docker &>/dev/null || warn "⚠ podman/docker not found — deploy phase will fail"
+
+# Auto-init git if needed
 if [ ! -d "$REPO_DIR/.git" ]; then
   log "No git repo found — initializing..."
   cd "$REPO_DIR"

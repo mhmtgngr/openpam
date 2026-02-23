@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/x509"
@@ -454,6 +455,82 @@ func SecureRandomString(length int) (string, error) {
 		return "", fmt.Errorf("crypto.SecureRandom: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(bytes)[:length], nil
+}
+
+// RSA Key functions for JWT signing
+
+// MarshalRSAPrivateKey marshals an RSA private key to PEM
+func MarshalRSAPrivateKey(key *rsa.PrivateKey) ([]byte, error) {
+	der := x509.MarshalPKCS1PrivateKey(key)
+
+	block := &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: der,
+	}
+
+	return pem.EncodeToMemory(block), nil
+}
+
+// MarshalRSAPublicKey marshals an RSA public key to PEM
+func MarshalRSAPublicKey(key *rsa.PublicKey) ([]byte, error) {
+	der, err := x509.MarshalPKIXPublicKey(key)
+	if err != nil {
+		return nil, fmt.Errorf("crypto.MarshalPKIXPublicKey: %w", err)
+	}
+
+	block := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: der,
+	}
+
+	return pem.EncodeToMemory(block), nil
+}
+
+// ParseRSAPrivateKey parses a PEM-encoded RSA private key
+func ParseRSAPrivateKey(pemData []byte) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil {
+		return nil, fmt.Errorf("crypto: failed to decode PEM block")
+	}
+
+	// Try PKCS1 first
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err == nil {
+		return key, nil
+	}
+
+	// Try PKCS8
+	key2, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("crypto.ParseRSAPrivateKey: %w", err)
+	}
+
+	rsaKey, ok := key2.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("crypto: not an RSA private key")
+	}
+
+	return rsaKey, nil
+}
+
+// ParseRSAPublicKey parses a PEM-encoded RSA public key
+func ParseRSAPublicKey(pemData []byte) (*rsa.PublicKey, error) {
+	block, _ := pem.Decode(pemData)
+	if block == nil {
+		return nil, fmt.Errorf("crypto: failed to decode PEM block")
+	}
+
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("crypto.ParsePKIXPublicKey: %w", err)
+	}
+
+	rsaKey, ok := key.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("crypto: not an RSA public key")
+	}
+
+	return rsaKey, nil
 }
 
 // RotateMasterKey re-encrypts all DEKs with a new master key
