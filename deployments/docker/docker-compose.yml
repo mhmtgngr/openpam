@@ -1,0 +1,87 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: openpam
+      POSTGRES_PASSWORD: openpam_dev
+      POSTGRES_DB: openpam
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openpam"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes: [minio_data:/data]
+
+  gateway:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.gateway }
+    ports: ["8500:8500"]
+    environment: &common_env
+      DATABASE_URL: postgres://openpam:openpam_dev@postgres:5432/openpam?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  session-service:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.session-service }
+    ports: ["8501:8501"]
+    environment: *common_env
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  vault-service:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.vault-service }
+    ports: ["8502:8502"]
+    environment: *common_env
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  credential-service:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.credential-service }
+    ports: ["8503:8503"]
+    environment: *common_env
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  audit-service:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.audit-service }
+    ports: ["8504:8504"]
+    environment: *common_env
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  admin-service:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.admin-service }
+    ports: ["8505:8505"]
+    environment: *common_env
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+  discovery-service:
+    build: { context: ../.. , dockerfile: deployments/docker/Dockerfile.discovery-service }
+    ports: ["8506:8506"]
+    environment: *common_env
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy } }
+
+volumes:
+  pgdata:
+  minio_data:
+
+networks:
+  default:
+    name: openpam-net
