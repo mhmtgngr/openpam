@@ -30,15 +30,14 @@ const setupMocks = (page: Page) => {
 
 // Helper to perform login
 const performLogin = async (page: Page) => {
-  // Clear localStorage BEFORE navigating to ensure no stale auth state
-  await page.goto('about:blank');
+  // Navigate to login page first
+  await page.goto('/login');
+
+  // Clear localStorage after navigation to ensure no stale auth state
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
   });
-
-  // Now navigate to login
-  await page.goto('/login');
 
   // Wait for the loading spinner to disappear and the form to be visible
   // The page may show a loading spinner initially while checking auth
