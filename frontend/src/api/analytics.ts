@@ -35,6 +35,27 @@ export const analyticsApi = {
   getDashboardTrends: (period?: 'day' | 'week' | 'month' | 'quarter') =>
     api.get<DashboardTrends>('/analytics/dashboard/trends', { period }),
 
+  // Dashboard data (combined view)
+  getDashboard: (params?: Pick<SessionMetricsParams, 'start_date' | 'end_date'>) =>
+    api.get<{
+      metrics: SessionMetrics;
+      trends: DashboardTrends;
+      realtime: {
+        active_sessions: number;
+        active_users: number;
+        sessions_last_hour: number;
+        avg_active_duration: number;
+      };
+    }>('/analytics/dashboard', params),
+
+  // Time series data
+  getTimeSeries: (params?: SessionMetricsParams & { metric?: 'sessions' | 'users' | 'duration' }) =>
+    api.get<Array<{
+      timestamp: string;
+      value: number;
+      label?: string;
+    }>>('/analytics/timeseries', params),
+
   // User Activity
   getUserActivity: (params?: UserActivityParams) =>
     api.get<PaginatedResponse<UserActivity>>('/analytics/users/activity', params),
@@ -90,4 +111,34 @@ export const analyticsApi = {
 
   exportUserActivity: (params: UserActivityParams & { format: 'csv' | 'json' }) =>
     api.post<{ download_url: string; expires_at: string }>('/analytics/users/export', params),
+
+  // Anomaly detection (alias to compliance API)
+  listAnomalies: (params?: Pick<SessionMetricsParams, 'start_date' | 'end_date'> & {
+    severity?: string;
+    type?: string;
+    status?: string;
+  }) =>
+    api.get<PaginatedResponse<{
+      id: string;
+      type: string;
+      severity: string;
+      title: string;
+      description: string;
+      detected_at: string;
+      confidence_score: number;
+      status: string;
+    }>>('/analytics/anomalies', params),
+
+  updateAnomalyStatus: (id: string, data: { status: string; notes?: string }) =>
+    api.patch<{ id: string; status: string }>(`/analytics/anomalies/${id}`, data),
+
+  // Compliance summary (alias to compliance api)
+  getComplianceSummary: (framework?: string) =>
+    api.get<{
+      overall_score: number;
+      control_count: number;
+      compliant_count: number;
+      non_compliant_count: number;
+      last_assessed: string;
+    }>('/analytics/compliance/summary', { framework }),
 };

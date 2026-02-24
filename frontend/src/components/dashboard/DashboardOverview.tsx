@@ -2,37 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../common/Card';
 import { LoadingState } from '../common/LoadingState';
 import { analyticsApi } from '../../api/analytics';
-
-interface SessionSummary {
-  total_sessions: number;
-  active_sessions: number;
-  avg_duration: number;
-  peak_concurrent: number;
-  sessions_by_type: Record<string, number>;
-}
-
-interface UserActivitySummary {
-  active_users: number;
-  total_commands: number;
-  high_risk_users: number;
-}
-
-interface DashboardMetrics {
-  session_metrics: SessionSummary;
-  user_activity: UserActivitySummary;
-  timestamp: string;
-}
+import type { SessionMetrics } from '@/types';
+import { Activity, Clock, Users, BarChart3 } from 'lucide-react';
 
 interface DashboardOverviewProps {
   dateFrom?: string;
   dateTo?: string;
 }
 
+interface DashboardResponse {
+  metrics: SessionMetrics;
+  trends: {
+    sessions: { current: number; previous: number; change_percent: number };
+    users: { current: number; previous: number; change_percent: number };
+  };
+  realtime: {
+    active_sessions: number;
+    active_users: number;
+    sessions_last_hour: number;
+    avg_active_duration: number;
+  };
+}
+
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   dateFrom,
   dateTo,
 }) => {
-  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,11 +38,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       setError(null);
       try {
         const params: Record<string, string> = {};
-        if (dateFrom) params.from = dateFrom;
-        if (dateTo) params.to = dateTo;
+        if (dateFrom) params.start_date = dateFrom;
+        if (dateTo) params.end_date = dateTo;
 
         const response = await analyticsApi.getDashboard(params);
-        setMetrics(response.dashboard);
+        setData(response.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load dashboard metrics');
       } finally {
@@ -61,98 +57,77 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     return <LoadingState message="Loading dashboard..." />;
   }
 
-  if (error || !metrics) {
+  if (error || !data) {
     return (
-      <Card className="p-6">
-        <div className="text-center text-red-600">
-          <p className="font-semibold">Error Loading Dashboard</p>
-          <p className="text-sm">{error || 'Unknown error'}</p>
+      <Card>
+        <div className="card-body">
+          <div className="text-center text-danger-400">
+            <p className="font-semibold">Error Loading Dashboard</p>
+            <p className="text-sm text-gray-400">{error || 'Unknown error'}</p>
+          </div>
         </div>
       </Card>
     );
   }
 
-  const { session_metrics, user_activity } = metrics;
+  const { metrics, realtime } = data;
 
   return (
     <div className="space-y-6">
       {/* Session Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Total Sessions"
-          value={session_metrics.total_sessions}
-          icon="📊"
-          trend={null}
+          title="Active Sessions"
+          value={realtime.active_sessions}
+          icon={Activity}
+          color="bg-success-400/20 text-success-400"
         />
         <MetricCard
-          title="Active Sessions"
-          value={session_metrics.active_sessions}
-          icon="🔴"
-          trend={null}
+          title="Sessions Today"
+          value={metrics.total_sessions_today || 0}
+          icon={BarChart3}
+          color="bg-primary-400/20 text-primary-400"
+        />
+        <MetricCard
+          title="Active Users"
+          value={realtime.active_users}
+          icon={Users}
+          color="bg-warning-400/20 text-warning-400"
         />
         <MetricCard
           title="Avg Duration"
-          value={`${Math.round(session_metrics.avg_duration / 60)}m`}
-          icon="⏱️"
-          trend={null}
-        />
-        <MetricCard
-          title="Peak Concurrent"
-          value={session_metrics.peak_concurrent}
-          icon="⚡"
-          trend={null}
-        />
-      </div>
-
-      {/* User Activity */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <MetricCard
-          title="Active Users"
-          value={user_activity.active_users}
-          icon="👥"
-          trend={null}
-        />
-        <MetricCard
-          title="Commands Executed"
-          value={user_activity.total_commands}
-          icon="⌨️"
-          trend={null}
-        />
-        <MetricCard
-          title="High Risk Users"
-          value={user_activity.high_risk_users}
-          icon="⚠️"
-          trend={null}
-          alert={user_activity.high_risk_users > 0}
+          value={`${Math.round(metrics.avg_session_duration_seconds / 60)}m`}
+          icon={Clock}
+          color="bg-info-400/20 text-primary-400"
         />
       </div>
 
       {/* Sessions by Type */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Sessions by Type</h3>
-        {Object.keys(session_metrics.sessions_by_type).length > 0 ? (
-          <div className="space-y-3">
-            {Object.entries(session_metrics.sessions_by_type).map(([type, count]) => (
-              <div key={type} className="flex items-center justify-between">
-                <span className="capitalize text-gray-700">{type}</span>
-                <div className="flex items-center gap-3">
-                  <div className="w-48 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full"
-                      style={{
-                        width: `${(count / session_metrics.total_sessions) * 100}%`,
-                      }}
-                    />
+      {metrics.sessions_by_type && Object.keys(metrics.sessions_by_type).length > 0 && (
+        <Card>
+          <div className="card-body">
+            <h3 className="text-lg font-semibold text-white mb-4">Sessions by Type</h3>
+            <div className="space-y-3">
+              {Object.entries(metrics.sessions_by_type).map(([type, count]) => (
+                <div key={type} className="flex items-center justify-between">
+                  <span className="capitalize text-gray-300">{type}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="w-48 bg-gray-700 rounded-full h-2">
+                      <div
+                        className="bg-primary-500 h-2 rounded-full"
+                        style={{
+                          width: `${(count / (metrics.total_sessions_today || 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium w-12 text-right text-white">{count as number}</span>
                   </div>
-                  <span className="text-sm font-medium w-12 text-right">{count}</span>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        ) : (
-          <EmptyState message="No session data available" />
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 };
@@ -160,32 +135,29 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 interface MetricCardProps {
   title: string;
   value: number | string;
-  icon: string;
-  trend?: number | null;
-  alert?: boolean;
+  icon: React.ElementType;
+  color: string;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
   title,
   value,
-  icon,
-  trend,
-  alert = false,
+  icon: Icon,
+  color,
 }) => (
-  <Card className={`p-4 ${alert ? 'border-red-500 border-2' : ''}`}>
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm text-gray-600">{title}</p>
-        <p className={`text-2xl font-bold ${alert ? 'text-red-600' : 'text-gray-900'}`}>
-          {value}
-        </p>
-        {trend !== null && trend !== undefined && (
-          <p className={`text-xs ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
+  <Card>
+    <div className="card-body">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-gray-400">{title}</p>
+          <p className="text-2xl font-bold text-white">
+            {value}
           </p>
-        )}
+        </div>
+        <div className={`rounded-lg p-3 ${color}`}>
+          <Icon className="h-6 w-6" />
+        </div>
       </div>
-      <span className="text-3xl">{icon}</span>
     </div>
   </Card>
 );

@@ -219,7 +219,7 @@ test.describe('Access Policy Management', () => {
       await authenticatedPage.waitForLoadState('networkidle');
 
       const activeBadges = authenticatedPage.getByText('active').all();
-      expect(await activeBadges.length).toBeGreaterThan(0);
+      expect((await activeBadges).length).toBeGreaterThan(0);
     });
 
     test('should display policy tags', async ({ authenticatedPage }) => {

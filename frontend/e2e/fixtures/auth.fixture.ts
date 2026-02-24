@@ -62,6 +62,123 @@ const setupMocks = (page: Page) => {
       body: JSON.stringify({ data: { devices: [] } }),
     });
   });
+
+  // Policies routes
+  page.route('**/api/v1/policies/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [], pagination: { total: 0, offset: 0, limit: 20 } }),
+    });
+  });
+
+  // Roles routes
+  page.route('**/api/v1/roles**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [], pagination: { total: 0, offset: 0, limit: 20 } }),
+    });
+  });
+  page.route('**/api/v1/roles/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'role-1', name: 'Test Role', permissions: [] } }),
+    });
+  });
+
+  // Tenants routes
+  page.route('**/api/v1/tenants**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [], pagination: { total: 0, offset: 0, limit: 20 } }),
+    });
+  });
+  page.route('**/api/v1/tenants/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: { id: 'tenant-1', name: 'Test Tenant', slug: 'test-tenant' } }),
+    });
+  });
+
+  // Analytics routes
+  page.route('**/api/v1/analytics/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        metrics: { total_sessions: 0, total_users: 0, avg_duration: 0 },
+        trends: { sessions: { current: 0, previous: 0 }, users: { current: 0, previous: 0 } },
+        realtime: { active_sessions: 0, active_users: 0, sessions_last_hour: 0, avg_active_duration: 0 },
+        data: [],
+        pagination: { total: 0, offset: 0, limit: 20 }
+      }),
+    });
+  });
+
+  // Compliance routes
+  page.route('**/api/v1/compliance/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        overall_score: 100,
+        control_count: 0,
+        compliant_count: 0,
+        non_compliant_count: 0,
+        last_assessed: new Date().toISOString(),
+        data: [],
+        pagination: { total: 0, offset: 0, limit: 20 }
+      }),
+    });
+  });
+
+  // Reports routes
+  page.route('**/api/v1/reports/**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [], pagination: { total: 0, offset: 0, limit: 20 } }),
+    });
+  });
+
+  // Sessions routes
+  page.route('**/api/v1/sessions**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: [], pagination: { total: 0, offset: 0, limit: 20 } }),
+    });
+  });
+  page.route('**/api/v1/sessions/**', async (route) => {
+    const url = route.request().url();
+    if (route.request().method() === 'POST' && url.includes('/terminate')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: {
+            id: 'session-1',
+            user: { id: 'user-1', first_name: 'Test', last_name: 'User', email: 'test@example.com' },
+            target: { id: 'target-1', name: 'Test Server' },
+            type: 'ssh',
+            status: 'active',
+            started_at: new Date().toISOString(),
+            can_terminate: true,
+          },
+        }),
+      });
+    }
+  });
 };
 
 // Helper to perform login
@@ -114,17 +231,16 @@ export const test = base.extend<{
   },
 
   // Page with mocked API (always mocks, even if backend is available)
-  // Also sets up auth tokens so the user is authenticated
+  // This page is NOT authenticated by default - tests must set up their own auth state
   mockApiPage: async ({ page }, use) => {
     setupMocks(page);
 
-    // Set up auth tokens directly without going through login flow
-    // This allows the page to bypass the login redirect
+    // Start with a clean state
     await page.goto('/');
 
     await page.evaluate(() => {
-      localStorage.setItem('access_token', 'mock-test-token');
-      localStorage.setItem('refresh_token', 'mock-refresh-token');
+      localStorage.clear();
+      sessionStorage.clear();
     });
 
     await use(page);

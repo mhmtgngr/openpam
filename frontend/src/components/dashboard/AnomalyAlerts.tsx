@@ -4,18 +4,17 @@ import { LoadingState } from '../common/LoadingState';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { analyticsApi } from '../../api/analytics';
+import { AlertOctagon, AlertTriangle } from 'lucide-react';
 
 interface AnomalyDetection {
   id: string;
-  tenant_id: string;
-  user_id?: string;
   type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  status: 'open' | 'investigating' | 'resolved' | 'false_positive' | 'ignored';
+  severity: string;
+  title?: string;
   description: string;
   detected_at: string;
-  assigned_to?: string;
-  resolution_notes?: string;
+  confidence_score: number;
+  status: string;
 }
 
 interface AnomalyAlertsProps {
@@ -44,7 +43,7 @@ export const AnomalyAlerts: React.FC<AnomalyAlertsProps> = ({
         if (limit) params.limit = String(limit);
 
         const response = await analyticsApi.listAnomalies(params);
-        setAnomalies(response.anomalies || []);
+        setAnomalies(response.data?.data || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load anomalies');
       } finally {
@@ -82,10 +81,12 @@ export const AnomalyAlerts: React.FC<AnomalyAlertsProps> = ({
 
   if (error) {
     return (
-      <Card className="p-6">
-        <div className="text-center text-red-600">
-          <p className="font-semibold">Error Loading Anomalies</p>
-          <p className="text-sm">{error}</p>
+      <Card>
+        <div className="card-body">
+          <div className="text-center text-danger-400">
+            <p className="font-semibold">Error Loading Anomalies</p>
+            <p className="text-sm text-gray-400">{error}</p>
+          </div>
         </div>
       </Card>
     );
@@ -98,49 +99,55 @@ export const AnomalyAlerts: React.FC<AnomalyAlertsProps> = ({
     <div className="space-y-4">
       {/* Summary */}
       {(criticalCount > 0 || highCount > 0) && (
-        <Card className={`p-4 ${criticalCount > 0 ? 'border-red-500 border-2 bg-red-50' : 'border-yellow-500 border-2 bg-yellow-50'}`}>
-          <div className="flex items-center gap-4">
-            <span className="text-3xl">
-              {criticalCount > 0 ? '🚨' : '⚠️'}
-            </span>
-            <div>
-              <p className="font-semibold">
-                {criticalCount > 0 ? 'Critical Anomalies Require Attention' : 'High Severity Anomalies'}
-              </p>
-              <p className="text-sm text-gray-700">
-                {criticalCount > 0
-                  ? `${criticalCount} critical anomaly(ies) need immediate investigation`
-                  : `${highCount} high severity anomaly(ies) pending review`}
-              </p>
+        <Card className={`border-2 ${criticalCount > 0 ? 'border-danger-500 bg-danger-500/10' : 'border-warning-500 bg-warning-500/10'}`}>
+          <div className="card-body">
+            <div className="flex items-center gap-4">
+              <div className={`rounded-lg p-3 ${criticalCount > 0 ? 'bg-danger-500/20 text-danger-400' : 'bg-warning-500/20 text-warning-400'}`}>
+                {criticalCount > 0 ? <AlertOctagon className="h-6 w-6" /> : <AlertTriangle className="h-6 w-6" />}
+              </div>
+              <div>
+                <p className="font-semibold text-white">
+                  {criticalCount > 0 ? 'Critical Anomalies Require Attention' : 'High Severity Anomalies'}
+                </p>
+                <p className="text-sm text-gray-300">
+                  {criticalCount > 0
+                    ? `${criticalCount} critical anomaly(ies) need immediate investigation`
+                    : `${highCount} high severity anomaly(ies) pending review`}
+                </p>
+              </div>
             </div>
           </div>
         </Card>
       )}
 
       {/* Filters */}
-      <Card className="p-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium">Filter:</span>
-          {['open', 'investigating', 'resolved', 'false_positive'].map((s) => (
-            <button
-              key={s}
-              onClick={() => handleStatusChange(s)}
-              className={`px-3 py-1 rounded-full text-sm capitalize ${
-                filterStatus === s
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {s.replace('_', ' ')}
-            </button>
-          ))}
+      <Card>
+        <div className="card-body">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-gray-300">Filter:</span>
+            {['open', 'investigating', 'resolved', 'false_positive'].map((s) => (
+              <button
+                key={s}
+                onClick={() => handleStatusChange(s)}
+                className={`px-3 py-1 rounded-full text-sm capitalize transition-colors ${
+                  filterStatus === s
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                {s.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
         </div>
       </Card>
 
       {/* Anomaly List */}
       {anomalies.length === 0 ? (
-        <Card className="p-6">
-          <EmptyState message="No anomalies detected" />
+        <Card>
+          <div className="card-body">
+            <EmptyState message="No anomalies detected" />
+          </div>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -163,76 +170,66 @@ interface AnomalyCardProps {
 }
 
 const AnomalyCard: React.FC<AnomalyCardProps> = ({ anomaly, onAssign }) => (
-  <Card className={`p-4 ${
-    anomaly.severity === 'critical' ? 'border-red-500 border-2' :
-    anomaly.severity === 'high' ? 'border-orange-500 border' : ''
-  }`}>
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-2">
-          <SeverityBadge severity={anomaly.severity} />
-          <StatusBadge status={anomaly.status} />
-          <span className="text-xs text-gray-600 capitalize">
-            {anomaly.type.replace(/_/g, ' ')}
-          </span>
-        </div>
-
-        <p className="text-gray-900 mb-2">{anomaly.description}</p>
-
-        <div className="flex items-center gap-4 text-xs text-gray-600">
-          <span>
-            Detected: {new Date(anomaly.detected_at).toLocaleString()}
-          </span>
-          {anomaly.user_id && (
-            <span>User ID: {anomaly.user_id.slice(0, 8)}...</span>
-          )}
-          {anomaly.assigned_to && (
-            <span>Assigned to: {anomaly.assigned_to.slice(0, 8)}...</span>
-          )}
-        </div>
-
-        {anomaly.resolution_notes && (
-          <div className="mt-2 p-2 bg-gray-100 rounded text-sm">
-            <span className="font-medium">Resolution:</span> {anomaly.resolution_notes}
+  <Card className={`border ${anomaly.severity === 'critical' ? 'border-danger-500' : anomaly.severity === 'high' ? 'border-warning-500' : ''}`}>
+    <div className="card-body">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
+            <SeverityBadge severity={anomaly.severity} />
+            <StatusBadge status={anomaly.status} />
+            <span className="text-xs text-gray-400 capitalize">
+              {anomaly.type.replace(/_/g, ' ')}
+            </span>
           </div>
+
+          <p className="text-white mb-2">{anomaly.description}</p>
+
+          <div className="flex items-center gap-4 text-xs text-gray-400">
+            <span>
+              Detected: {new Date(anomaly.detected_at).toLocaleString()}
+            </span>
+            <span>
+              Confidence: {Math.round(anomaly.confidence_score * 100)}%
+            </span>
+          </div>
+        </div>
+
+        {anomaly.status === 'open' && (
+          <Button onClick={onAssign} size="sm" variant="secondary">
+            Assign
+          </Button>
         )}
       </div>
-
-      {anomaly.status === 'open' && (
-        <Button onClick={onAssign} size="sm" variant="secondary">
-          Assign
-        </Button>
-      )}
     </div>
   </Card>
 );
 
 const SeverityBadge: React.FC<{ severity: string }> = ({ severity }) => {
-  const colors: Record<string, string> = {
-    critical: 'bg-red-100 text-red-800',
-    high: 'bg-orange-100 text-orange-800',
-    medium: 'bg-yellow-100 text-yellow-800',
-    low: 'bg-blue-100 text-blue-800',
+  const variants: Record<string, 'danger' | 'warning' | 'success' | 'neutral'> = {
+    critical: 'danger',
+    high: 'danger',
+    medium: 'warning',
+    low: 'neutral',
   };
 
   return (
-    <Badge className={colors[severity] || colors.low}>
+    <Badge variant={variants[severity] || 'neutral'}>
       {severity.toUpperCase()}
     </Badge>
   );
 };
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
-  const colors: Record<string, string> = {
-    open: 'bg-red-100 text-red-800',
-    investigating: 'bg-yellow-100 text-yellow-800',
-    resolved: 'bg-green-100 text-green-800',
-    false_positive: 'bg-gray-100 text-gray-800',
-    ignored: 'bg-gray-200 text-gray-600',
+  const variants: Record<string, 'danger' | 'warning' | 'success' | 'neutral'> = {
+    open: 'danger',
+    investigating: 'warning',
+    resolved: 'success',
+    false_positive: 'neutral',
+    ignored: 'neutral',
   };
 
   return (
-    <Badge className={colors[status] || colors.open}>
+    <Badge variant={variants[status] || 'danger'}>
       {status.replace('_', ' ').toUpperCase()}
     </Badge>
   );
