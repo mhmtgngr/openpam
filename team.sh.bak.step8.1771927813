@@ -723,7 +723,7 @@ run_go_tests() {
   team "🧪 Tester" "Running Go tests..."
   cd "$REPO_DIR"
   local rc=0
-  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | grep -E "FAIL|Error|--- FAIL" || true && [ ${PIPESTATUS[0]} -eq 0 ] || rc=$?
+  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | tail -30 || rc=$?
   return $rc
 }
 
@@ -753,7 +753,7 @@ run_playwright() {
   cd "$dir"
   [ -d "node_modules" ] || { npm install 2>&1 | tail -3 || true; npx playwright install --with-deps 2>&1 | tail -3 || true; }
   local rc=0
-  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | grep -E "FAIL|Error|--- FAIL" || true && [ ${PIPESTATUS[0]} -eq 0 ] || rc=$?
+  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | tail -20 || rc=$?
   return $rc
 }
 

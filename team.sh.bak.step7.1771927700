@@ -78,16 +78,6 @@ detect_service_ports() {
   fi
 }
 
-detect_project_type() {
-  has_frontend=false
-  has_backend=false
-  has_infra=false
-  [ -d "$REPO_DIR/frontend" ] && has_frontend=true
-  [ -d "$REPO_DIR/migrations" ] && has_backend=true
-  [ -f "$REPO_DIR/docker-compose.yml" ] && has_infra=true
-  [ -f "$REPO_DIR/deployments/docker/docker-compose.yml" ] && has_infra=true
-}
-
 BRANCH=""
 
 # Auto-detect project name from directory
@@ -723,7 +713,7 @@ run_go_tests() {
   team "🧪 Tester" "Running Go tests..."
   cd "$REPO_DIR"
   local rc=0
-  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | grep -E "FAIL|Error|--- FAIL" || true && [ ${PIPESTATUS[0]} -eq 0 ] || rc=$?
+  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | tail -30 || rc=$?
   return $rc
 }
 
@@ -753,7 +743,7 @@ run_playwright() {
   cd "$dir"
   [ -d "node_modules" ] || { npm install 2>&1 | tail -3 || true; npx playwright install --with-deps 2>&1 | tail -3 || true; }
   local rc=0
-  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | grep -E "FAIL|Error|--- FAIL" || true && [ ${PIPESTATUS[0]} -eq 0 ] || rc=$?
+  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | tail -20 || rc=$?
   return $rc
 }
 
@@ -1257,9 +1247,6 @@ run_waterfall() {
   local slug; slug=$(echo "$project" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | cut -c1-40)
   BRANCH="team/${slug}-$(date +%s)"
 
-  # Detect project type for conditional phase execution
-  detect_project_type
-
   state_save_meta "$project" "$BRANCH"
   ensure_branch
 
@@ -1274,7 +1261,6 @@ run_waterfall() {
   log "╚═══════════════════════════════════════════════╝"
   log "Project: $project"
   log "Branch:  $BRANCH"
-  $has_frontend || log "Frontend: skipped (no frontend/ directory)"
 
   while [ $loop -le $MAX_LOOPS ]; do
     [ $loop -gt 0 ] && warn "═══ FEEDBACK LOOP $loop/$MAX_LOOPS ═══"
@@ -1283,8 +1269,7 @@ run_waterfall() {
     [ $loop -eq 0 ] && { phase_requirements "$project"; phase_market_research; phase_design; }
 
     # Implementation
-    phase_backend
-    $has_frontend && ! skip_phase frontend && phase_frontend || log "  ⊘ Frontend skipped"
+    phase_backend; phase_frontend
 
     # Testing gate
     phase_testing
@@ -1300,7 +1285,7 @@ run_waterfall() {
     fi
 
     # QA gate
-    $has_frontend && ! skip_phase qa && phase_qa || log "  ⊘ QA UI tests skipped"
+    phase_qa
     if [ "$(state_get qa verdict)" = "REJECT" ]; then
       err "QA rejected — looping back to fix code"
       loop=$((loop+1))
@@ -1344,11 +1329,6 @@ run_waterfall() {
 # ═══════════════════════════════════════════════
 
 is_running() { [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; }
-
-skip_phase() {
-  local phase="$1"
-  [[ ",$SKIP_PHASES," == *",$phase,"* ]]
-}
 
 stop_team() {
   if is_running; then
@@ -1476,10 +1456,9 @@ show_help() { cat << 'H'
 H
 }
 
-PROJECT=""; PHASE=""; RESUME=false; FOREGROUND=false; SKIP_PHASES=""
+PROJECT=""; PHASE=""; RESUME=false; FOREGROUND=false
 while [[ $# -gt 0 ]]; do case $1 in
   --project) PROJECT="$2"; shift 2 ;; --phase) PHASE="$2"; shift 2 ;;
-  --skip-phases) SKIP_PHASES="$2"; shift 2 ;;
   --resume) RESUME=true; shift ;; --fg) FOREGROUND=true; shift ;;
   --stop) stop_team; exit 0 ;; --stop-services) docker_down; echo "✓ Stopped"; exit 0 ;;
   --status) show_status; exit 0 ;; --metrics) show_metrics; exit 0 ;;

@@ -78,16 +78,6 @@ detect_service_ports() {
   fi
 }
 
-detect_project_type() {
-  has_frontend=false
-  has_backend=false
-  has_infra=false
-  [ -d "$REPO_DIR/frontend" ] && has_frontend=true
-  [ -d "$REPO_DIR/migrations" ] && has_backend=true
-  [ -f "$REPO_DIR/docker-compose.yml" ] && has_infra=true
-  [ -f "$REPO_DIR/deployments/docker/docker-compose.yml" ] && has_infra=true
-}
-
 BRANCH=""
 
 # Auto-detect project name from directory
@@ -196,41 +186,6 @@ if errors:
 # ═══════════════════════════════════════════════
 # STATE MANAGEMENT
 # ═══════════════════════════════════════════════
-
-# Wrapper to track phase timing
-run_phase_timed() {
-  local phase="$1" status="$2"
-  local start_ts end_ts
-  start_ts=$(date +%s%3N)  # milliseconds
-
-  # Run the state_set command
-  state_set "$phase" status "$status"
-
-  end_ts=$(date +%s%3N)
-  local duration_ms=$((end_ts - start_ts))
-
-  # Record timing for this phase status change
-  python3 - "$STATE_FILE" "$phase" "$status" "$duration_ms" << 'PYEOF'
-import json, os, sys
-from datetime import datetime
-f, phase, status, duration_ms = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
-d = json.load(open(f)) if os.path.exists(f) else {"phases": {}}
-p = d.setdefault("phases", {}).setdefault(phase, {})
-# Track timing per status transition
-if "timing" not in p:
-    p["timing"] = {"start_time": None, "end_time": None, "duration_ms": 0, "status_durations": {}}
-if status == "running" and p.get("timing", {}).get("start_time") is None:
-    p["timing"]["start_time"] = datetime.now().isoformat()
-elif status == "done":
-    p["timing"]["end_time"] = datetime.now().isoformat()
-    if p["timing"].get("start_time"):
-        start = datetime.fromisoformat(p["timing"]["start_time"]).timestamp()
-        end = datetime.now().timestamp()
-        p["timing"]["duration_ms"] = int((end - start) * 1000)
-p["timing"]["status_durations"][f"{status}_at"] = datetime.now().isoformat()
-json.dump(d, open(f, "w"), indent=2)
-PYEOF
-}
 
 state_set() {
   python3 - "$STATE_FILE" "$1" "$2" "$3" << 'PYEOF'
@@ -461,46 +416,6 @@ PYEOF
   return 0
 }
 
-# ═══════════════════════════════════════════════
-# RETRY WITH BACKOFF
-# ═══════════════════════════════════════════════
-
-# retry_with_backoff: Execute command with exponential backoff retry
-# Args: command max_attempts base_delay
-# Returns: exit code of last attempt, or 1 if all attempts fail
-# Special: Command can output "SKIP_RETRY" to immediately fail without retry
-retry_with_backoff() {
-  local cmd="$1" max_attempts="${2:-3}" base_delay="${3:-2}"
-  local attempt=1 exit_code=0
-
-  while [ $attempt -le $max_attempts ]; do
-    [ $attempt -gt 1 ] && warn "  ↻ Attempt $attempt/$max_attempts"
-
-    # Execute command and capture output for SKIP_RETRY check
-    local output
-    output=$(eval "$cmd" 2>&1)
-    exit_code=$?
-
-    # Check for SKIP_RETRY pattern (fatal errors like OOM)
-    if echo "$output" | grep -q "SKIP_RETRY"; then
-      warn "  🚫 SKIP_RETRY detected — aborting retries"
-      return $exit_code
-    fi
-
-    # Success
-    if [ $exit_code -eq 0 ]; then
-      return 0
-    fi
-
-    # Calculate exponential backoff delay: base_delay * 2^(attempt-1)
-    local delay=$((base_delay * (2 ** (attempt - 1))))
-    [ $attempt -lt $max_attempts ] && sleep "$delay"
-    attempt=$((attempt + 1))
-  done
-
-  return $exit_code
-}
-
 market_research() {
   local out_file="$1" reqs_file="$2"
   team "🔍 Research" "Starting market analysis..."
@@ -606,12 +521,10 @@ claude_do() {
 [TRUNCATED — original was ${prompt_len} chars. Focus on the most important parts above.]"
   fi
 
-  # Use retry_with_backoff for the claude command
-  local attempt=1 max_attempts=3 base_delay=5
-  local ok=false exit_code=0
-
-  while [ $attempt -le $max_attempts ]; do
-    [ $attempt -gt 1 ] && warn "  ↻ Attempt $attempt/$max_attempts"
+  local attempt=0 ok=false exit_code=0
+  while [ $attempt -lt 3 ]; do
+    attempt=$((attempt + 1))
+    [ $attempt -gt 1 ] && warn "  ↻ Attempt $attempt/3"
 
     # Run with timeout
     if timeout "$timeout" claude -p --model "$CLAUDE_MODEL" --dangerously-skip-permissions \
@@ -625,18 +538,12 @@ claude_do() {
       warn "  ⏰ Timeout after ${timeout}s"
     elif [ $exit_code -ge 137 ]; then
       warn "  💀 Killed (exit $exit_code) — likely OOM or rate limit"
-      # Fatal error - use SKIP_RETRY pattern
-      warn "  🚫 SKIP_RETRY: OOM detected — aborting retries"
-      record_error "$role_name" "claude_oom" "OOM on attempt $attempt - aborting"
-      break
-    fi
+      # Reduce prompt further on kill
+      prompt="${prompt:0:6000}
 
-    # Exponential backoff delay
-    if [ $attempt -lt $max_attempts ]; then
-      local delay=$((base_delay * (2 ** (attempt - 1))))
-      sleep "$delay"
+[REDUCED — Claude was killed. Simplified prompt.]"
     fi
-    attempt=$((attempt + 1))
+    sleep 5
   done
 
   if [ "$ok" = true ]; then
@@ -647,8 +554,8 @@ claude_do() {
     team "$role_name" "✓ Committed"
     return 0
   fi
-  team "$role_name" "✗ Failed after $((attempt-1)) attempts"
-  record_error "$role_name" "claude_terminated" "Failed after $((attempt-1)) attempts, last exit: $exit_code"
+  team "$role_name" "✗ Failed after $attempt attempts"
+  record_error "$role_name" "claude_terminated" "Failed after $attempt attempts, last exit: $exit_code"
   return 1
 }
 
@@ -723,7 +630,7 @@ run_go_tests() {
   team "🧪 Tester" "Running Go tests..."
   cd "$REPO_DIR"
   local rc=0
-  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | grep -E "FAIL|Error|--- FAIL" || true && [ ${PIPESTATUS[0]} -eq 0 ] || rc=$?
+  go test ./... -count=1 -timeout 180s -v 2>&1 | tee "$PHASE_LOGS/go_test.log" | tail -30 || rc=$?
   return $rc
 }
 
@@ -753,7 +660,7 @@ run_playwright() {
   cd "$dir"
   [ -d "node_modules" ] || { npm install 2>&1 | tail -3 || true; npx playwright install --with-deps 2>&1 | tail -3 || true; }
   local rc=0
-  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | grep -E "FAIL|Error|--- FAIL" || true && [ ${PIPESTATUS[0]} -eq 0 ] || rc=$?
+  npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright.log" | tail -20 || rc=$?
   return $rc
 }
 
@@ -807,7 +714,7 @@ phase_requirements() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 1: REQUIREMENTS — 🧑‍💼 PM"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed requirements status running
+  state_set requirements status running
 
   cat > "$TEAM_DIR/tmp_sys.txt" << 'PROMPT'
 You are a Senior Project Manager. Read the project's CLAUDE.md for context about the tech stack, architecture, and conventions.
@@ -828,7 +735,7 @@ Create comprehensive requirements.
 PROMPT
 
   ai_think "🧑‍💼 PM" "$TEAM_DIR/tmp_sys.txt" "$TEAM_DIR/tmp_usr.txt" "$ARTIFACTS/01_requirements.json"
-  run_phase_timed requirements status done
+  state_set requirements status done
   log "✅ Requirements done"
 }
 
@@ -839,7 +746,7 @@ phase_market_research() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 1.5: MARKET RESEARCH — 🔍 Researcher"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed market_research status running
+  state_set market_research status running
 
   market_research "$ARTIFACTS/03_market_analysis.json" "$ARTIFACTS/01_requirements.json"
 
@@ -888,7 +795,7 @@ except Exception as e:
     print(f"Warning: Could not enrich requirements: {e}")
 PYEOF
 
-  run_phase_timed market_research status done
+  state_set market_research status done
   log "✅ Market research done"
 }
 
@@ -899,11 +806,11 @@ phase_design() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 2: DESIGN — 🏗️  Architect"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed design status running
+  state_set design status running
 
   cd "$REPO_DIR"
   local reqs; reqs=$(summarize_artifact "$ARTIFACTS/01_requirements.json" 4000)
-  local files; files=$(find internal frontend/src -name "*.go" -o -name "*.tsx" 2>/dev/null | grep -v _test 2>/dev/null || true | grep -v node_modules 2>/dev/null || true | sort 2>/dev/null || true | head -50 2>/dev/null || true)
+  local files; files=$(find internal frontend/src -name "*.go" -o -name "*.tsx" 2>/dev/null | grep -v _test | grep -v node_modules | sort | head -50 || true)
   local market; market=$(summarize_artifact "$ARTIFACTS/03_market_analysis.json" 2000)
 
   cat > "$TEAM_DIR/tmp_sys.txt" << 'PROMPT'
@@ -932,7 +839,7 @@ Design the complete solution. Include market-driven features where priority is c
 PROMPT
 
   ai_think "🏗️  Architect" "$TEAM_DIR/tmp_sys.txt" "$TEAM_DIR/tmp_usr.txt" "$ARTIFACTS/02_design.json"
-  run_phase_timed design status done
+  state_set design status done
   log "✅ Design done"
 }
 
@@ -943,7 +850,7 @@ phase_backend() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 3: BACKEND — ⚙️  Backend Dev"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed backend status running; ensure_branch
+  state_set backend status running; ensure_branch
 
   local design; design=$(summarize_artifact "$ARTIFACTS/02_design.json" 4000)
   local reqs; reqs=$(summarize_artifact "$ARTIFACTS/01_requirements.json" 2000)
@@ -972,7 +879,7 @@ ${past:+$past
 }Fix ALL errors. Run 'go build ./...' to verify." "$PHASE_LOGS/03_compile_fix.log" 600
   fi
 
-  run_phase_timed backend status done; log "✅ Backend done"
+  state_set backend status done; log "✅ Backend done"
 }
 
 # ──────────────────────────────
@@ -982,7 +889,7 @@ phase_frontend() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 4: FRONTEND — 🎨 Frontend Dev"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed frontend status running; ensure_branch
+  state_set frontend status running; ensure_branch
 
   local design; design=$(summarize_artifact "$ARTIFACTS/02_design.json" 4000)
   local reqs; reqs=$(summarize_artifact "$ARTIFACTS/01_requirements.json" 2000)
@@ -1011,7 +918,7 @@ Run 'cd frontend && npx tsc --noEmit' to verify." "$PHASE_LOGS/04_ts_fix.log" 60
     fi
   fi
 
-  run_phase_timed frontend status done; log "✅ Frontend done"
+  state_set frontend status done; log "✅ Frontend done"
 }
 
 # ──────────────────────────────
@@ -1021,7 +928,7 @@ phase_testing() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 5: TESTING — 🧪 Tester"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed testing status running; ensure_branch
+  state_set testing status running; ensure_branch
 
   local design; design=$(summarize_artifact "$ARTIFACTS/02_design.json" 3000)
 
@@ -1073,7 +980,7 @@ Write comprehensive tests for ALL new files following CLAUDE.md conventions. Wri
   fi
 
   cd "$REPO_DIR"; git add -A && git commit -m "[Tester] tests" 2>/dev/null || true
-  run_phase_timed testing status done; log "✅ Testing done"
+  state_set testing status done; log "✅ Testing done"
 }
 
 # ──────────────────────────────
@@ -1083,7 +990,7 @@ phase_qa() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 6: QA — 📋 QA Controller"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed qa status running
+  state_set qa status running
 
   cd "$REPO_DIR"
   local diff; diff=$(git diff main --stat 2>/dev/null | tail -15 || true)
@@ -1124,7 +1031,7 @@ $fixes
 Fix ALL blocking/critical. Run 'go test ./...'." "$PHASE_LOGS/06_qa_fix.log"
   fi
 
-  state_set qa verdict "$verdict"; run_phase_timed qa status done; log "✅ QA: $verdict"
+  state_set qa verdict "$verdict"; state_set qa status done; log "✅ QA: $verdict"
 }
 
 # ──────────────────────────────
@@ -1134,7 +1041,7 @@ phase_security() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 7: SECURITY — 🔒 Security Auditor"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed security status running
+  state_set security status running
 
   cd "$REPO_DIR"
   local auth=""; for f in $(find internal -name "*.go" 2>/dev/null | xargs grep -l "auth\|token\|password\|jwt\|session" 2>/dev/null | head -10 || true); do
@@ -1175,7 +1082,7 @@ Fix ALL critical/high vulnerabilities. Run 'go test ./...'." "$PHASE_LOGS/07_sec
     run_go_tests || { fix_go_tests; run_go_tests || true; }
   fi
 
-  state_set security verdict "$verdict"; run_phase_timed security status done; log "✅ Security: $verdict"
+  state_set security verdict "$verdict"; state_set security status done; log "✅ Security: $verdict"
 }
 
 # ──────────────────────────────
@@ -1185,7 +1092,7 @@ phase_deploy() {
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   log "PHASE 8: DEPLOY — 🐳 DevOps"
   log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  run_phase_timed deploy status running
+  state_set deploy status running
 
   if ! ls "$REPO_DIR/deployments/docker/Dockerfile."* >/dev/null 2>&1; then
     claude_do "🐳 DevOps" \
@@ -1210,42 +1117,22 @@ Follow the service names and ports defined in CLAUDE.md." \
   if [ "$ok" = false ]; then
     local logs=""
     for cname in $(podman ps -a --format '{{.Names}}' 2>/dev/null | grep "$PROJECT_NAME" | head -10 || true); do
-      local l; l=$(podman logs "$cname" 2>&1 | grep -E 'ERROR|FAIL|panic|fatal' | tail -10 || true); [ -n "$l" ] && logs="$logs
+      local l; l=$(podman logs "$cname" 2>&1 | tail -15 || true); [ -n "$l" ] && logs="$logs
 === $cname ===
 $l"
     done
-    [ -z "$logs" ] && logs=$(for cname in $(podman ps -a --format '{{.Names}}' 2>/dev/null | grep "$PROJECT_NAME" | head -5 || true); do
-      local l; l=$(podman logs "$cname" 2>&1 | tail -5 || true); [ -n "$l" ] && echo "=== $cname ===" && echo "$l"; done | head -100)
     claude_do "🐳 DevOps" "Fix startup failures:
-$(echo "$logs" | head -100)" "$PHASE_LOGS/08_fix.log"
+$logs" "$PHASE_LOGS/08_fix.log"
     docker_build_all || true; docker_down; docker_up
   fi
 
-  # Run E2E tests, capture only failures
-  local e2e_result="pass"
-  if [ -d "$REPO_DIR/frontend" ]; then
-    team "🧪 Tester" "Running E2E..."
-    cd "$REPO_DIR/frontend"
-    npx playwright test --reporter=list 2>&1 | tee "$PHASE_LOGS/playwright_deploy.log" | tail -5 || e2e_result="fail"
-    local failures; failures=$(grep -E 'FAIL|ERROR|TimeoutError|expect|Received' "$PHASE_LOGS/playwright_deploy.log" 2>/dev/null | head -50 || true)
-    if [ -n "$failures" ]; then
-      local summary; summary=$(echo "$failures" | head -200)
-      claude_do "🎨 Frontend" "Read CLAUDE.md. Fix E2E failures:
-$(echo "$summary" | head -100)
-Verify: cd frontend && npx playwright test" "$PHASE_LOGS/08_e2e_fix.log" 300
-    fi
-  fi
+  [ -d "$REPO_DIR/frontend" ] && { run_playwright || true; }
 
   cd "$REPO_DIR"; git add -A && git commit -m "[DevOps] deploy ready" 2>/dev/null || true
   merge_to_main
 
-  # Create deploy summary artifact (capped)
-  cat > "$ARTIFACTS/08_deploy.json" << EOF
-{"status":"deployed","services":"$SERVICE_PORTS","e2e_result":"$e2e_result","branch":"$BRANCH"}
-EOF
-
   log "  🟢 Services running. Stop: ./team.sh --stop-services"
-  run_phase_timed deploy status done; log "✅ Deploy done"
+  state_set deploy status done; log "✅ Deploy done"
 }
 
 # ═══════════════════════════════════════════════
@@ -1256,9 +1143,6 @@ run_waterfall() {
   local project="$1"
   local slug; slug=$(echo "$project" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | tr -cd 'a-z0-9-' | cut -c1-40)
   BRANCH="team/${slug}-$(date +%s)"
-
-  # Detect project type for conditional phase execution
-  detect_project_type
 
   state_save_meta "$project" "$BRANCH"
   ensure_branch
@@ -1274,7 +1158,6 @@ run_waterfall() {
   log "╚═══════════════════════════════════════════════╝"
   log "Project: $project"
   log "Branch:  $BRANCH"
-  $has_frontend || log "Frontend: skipped (no frontend/ directory)"
 
   while [ $loop -le $MAX_LOOPS ]; do
     [ $loop -gt 0 ] && warn "═══ FEEDBACK LOOP $loop/$MAX_LOOPS ═══"
@@ -1283,8 +1166,7 @@ run_waterfall() {
     [ $loop -eq 0 ] && { phase_requirements "$project"; phase_market_research; phase_design; }
 
     # Implementation
-    phase_backend
-    $has_frontend && ! skip_phase frontend && phase_frontend || log "  ⊘ Frontend skipped"
+    phase_backend; phase_frontend
 
     # Testing gate
     phase_testing
@@ -1300,7 +1182,7 @@ run_waterfall() {
     fi
 
     # QA gate
-    $has_frontend && ! skip_phase qa && phase_qa || log "  ⊘ QA UI tests skipped"
+    phase_qa
     if [ "$(state_get qa verdict)" = "REJECT" ]; then
       err "QA rejected — looping back to fix code"
       loop=$((loop+1))
@@ -1344,11 +1226,6 @@ run_waterfall() {
 # ═══════════════════════════════════════════════
 
 is_running() { [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null; }
-
-skip_phase() {
-  local phase="$1"
-  [[ ",$SKIP_PHASES," == *",$phase,"* ]]
-}
 
 stop_team() {
   if is_running; then
@@ -1409,48 +1286,6 @@ PYEOF
   echo ""
 }
 
-show_metrics() {
-  echo ""; echo "  ═══ Phase Metrics ═══"; echo ""
-  [ -f "$STATE_FILE" ] && python3 - "$STATE_FILE" << 'PYEOF'
-import json, sys
-from datetime import datetime
-
-d = json.load(open(sys.argv[1]))
-phases = d.get("phases", {})
-
-# Collect completed phases with duration_ms
-completed = []
-total_ms = 0
-for p, data in phases.items():
-    timing = data.get("timing", {})
-    duration_ms = timing.get("duration_ms", 0)
-    if duration_ms > 0:
-        completed.append((p, duration_ms))
-        total_ms += duration_ms
-
-if not completed:
-    print("  No completed phases with timing data yet.")
-    print("  Run phases first to see metrics.")
-else:
-    # Sort by duration
-    completed.sort(key=lambda x: x[1])
-    fastest = completed[0]
-    slowest = completed[-1]
-
-    print(f"  Total Time: {total_ms/1000:.1f}s")
-    print(f"  Fastest Phase: {fastest[0]} ({fastest[1]/1000:.1f}s)")
-    print(f"  Slowest Phase: {slowest[0]} ({slowest[1]/1000:.1f}s)")
-    print()
-    print("  Time per Phase (trend):")
-    for phase, ms in completed:
-        sec = ms / 1000
-        bar_len = int(sec / 2)  # 2 chars per second
-        bar = "█" * min(bar_len, 40)
-        print(f"    {phase:20s} {sec:6.1f}s {bar}")
-PYEOF
-  echo ""
-}
-
 show_help() { cat << 'H'
 
   ╔══════════════════════════════════════╗
@@ -1462,7 +1297,6 @@ show_help() { cat << 'H'
   USAGE:
     ./team.sh --project "description"    # Full waterfall (background)
     ./team.sh --status                   # Progress
-    ./team.sh --metrics                  # Phase timing metrics (fastest/slowest)
     ./team.sh --resume                   # Continue
     ./team.sh --stop                     # Stop
     ./team.sh --phase backend            # Single phase
@@ -1476,14 +1310,12 @@ show_help() { cat << 'H'
 H
 }
 
-PROJECT=""; PHASE=""; RESUME=false; FOREGROUND=false; SKIP_PHASES=""
+PROJECT=""; PHASE=""; RESUME=false; FOREGROUND=false
 while [[ $# -gt 0 ]]; do case $1 in
   --project) PROJECT="$2"; shift 2 ;; --phase) PHASE="$2"; shift 2 ;;
-  --skip-phases) SKIP_PHASES="$2"; shift 2 ;;
   --resume) RESUME=true; shift ;; --fg) FOREGROUND=true; shift ;;
   --stop) stop_team; exit 0 ;; --stop-services) docker_down; echo "✓ Stopped"; exit 0 ;;
-  --status) show_status; exit 0 ;; --metrics) show_metrics; exit 0 ;;
-  --reset) stop_team 2>/dev/null; rm -rf "$TEAM_DIR"; echo "✓ Reset"; exit 0 ;;
+  --status) show_status; exit 0 ;; --reset) stop_team 2>/dev/null; rm -rf "$TEAM_DIR"; echo "✓ Reset"; exit 0 ;;
   -h|--help) show_help; exit 0 ;; *) err "Unknown: $1"; show_help; exit 1 ;;
 esac; done
 
