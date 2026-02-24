@@ -19,12 +19,11 @@ export class AuditPage {
       page.locator('table')
     );
     this.emptyMessage = page.getByText('No audit events found');
-    this.outcomeFilter = page.locator('select').or(
-      page.getByRole('combobox', { name: /outcome/i })
-    );
-    this.resourceFilter = page.locator('select').or(
-      page.getByRole('combobox', { name: /resource/i })
-    );
+    // Use more specific selectors for filters to avoid strict mode violations
+    this.outcomeFilter = page.getByRole('combobox', { name: /outcome/i })
+      .or(page.locator('select').nth(0));
+    this.resourceFilter = page.getByRole('combobox', { name: /resource/i })
+      .or(page.locator('select').nth(1));
   }
 
   async goto() {

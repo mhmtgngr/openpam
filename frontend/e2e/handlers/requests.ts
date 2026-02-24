@@ -20,8 +20,26 @@ export const mockRequestRoutes = async (route: Route) => {
     return;
   }
 
-  // GET /api/v1/approvals/pending
-  if (url.includes('/api/v1/approvals') || url.includes('/approvals/pending')) {
+  // GET /api/v1/requests/pending-approvals (pending approvals for current user)
+  // GET /api/v1/requests/pending (used in some tests)
+  if (url.includes('/requests/pending-approvals') || url.includes('/requests/pending')) {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: [],
+        pagination: {
+          total: 0,
+          offset: 0,
+          limit: 20,
+        },
+      }),
+    });
+    return;
+  }
+
+  // GET /api/v1/approvals/* (legacy approval routes)
+  if (url.includes('/api/v1/approvals/') || url.includes('/approvals/pending')) {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

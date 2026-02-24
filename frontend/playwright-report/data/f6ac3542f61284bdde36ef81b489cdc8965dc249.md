@@ -1,0 +1,194 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Audit Logs" [ref=e60] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e61]
+          - generic [ref=e64]: Audit Logs
+        - link "Settings" [ref=e65] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e66]
+          - generic [ref=e69]: Settings
+      - generic [ref=e71]:
+        - generic [ref=e72]: TU
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: Test User
+          - paragraph [ref=e75]: test@example.com
+    - generic [ref=e76]:
+      - banner [ref=e77]:
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - textbox "Search targets, credentials, users..." [ref=e83]
+        - generic [ref=e84]:
+          - button "Refresh data" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+          - button [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "TU test@example.com" [ref=e97] [cursor=pointer]:
+            - generic [ref=e98]: TU
+            - generic [ref=e99]: test@example.com
+            - img [ref=e100]
+      - main [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - link "Back" [ref=e105] [cursor=pointer]:
+              - /url: /targets
+              - button "Back" [ref=e106]:
+                - img [ref=e108]
+                - text: Back
+            - generic [ref=e110]:
+              - heading "Add New Target" [level=1] [ref=e111]
+              - paragraph [ref=e112]: Configure a new target system for privileged access management
+          - generic [ref=e113]:
+            - generic [ref=e116]:
+              - heading "Basic Information" [level=3] [ref=e117]
+              - generic [ref=e118]:
+                - generic [ref=e120]:
+                  - generic [ref=e121]: Target Name
+                  - textbox "Target Name" [active] [ref=e123]:
+                    - /placeholder: e.g., Production Database Server
+                - generic [ref=e125]:
+                  - generic [ref=e126]: Target Type
+                  - combobox "Target Type" [ref=e127]:
+                    - option "SSH" [selected]
+                    - option "RDP"
+                    - option "Database"
+                    - option "Kubernetes"
+                    - option "Web"
+                    - option "API"
+                - generic [ref=e129]:
+                  - generic [ref=e130]: Environment
+                  - combobox "Environment" [ref=e131]:
+                    - option "Production"
+                    - option "Staging"
+                    - option "Development" [selected]
+                    - option "Test"
+                - generic [ref=e133]:
+                  - generic [ref=e134]: Hostname / IP Address
+                  - textbox "Hostname / IP Address" [ref=e136]:
+                    - /placeholder: e.g., db.example.com or 192.168.1.100
+                - generic [ref=e138]:
+                  - generic [ref=e139]: Port
+                  - spinbutton "Port" [ref=e141]: "22"
+                - generic [ref=e143]:
+                  - generic [ref=e144]: Sensitivity Level
+                  - combobox "Sensitivity Level" [ref=e145]:
+                    - option "High"
+                    - option "Medium" [selected]
+                    - option "Low"
+                - generic [ref=e147]:
+                  - generic [ref=e148]: Description
+                  - textbox "Description" [ref=e149]:
+                    - /placeholder: Optional description of this target...
+                - generic [ref=e151]:
+                  - generic [ref=e152]: Folder
+                  - combobox "Folder" [ref=e153]:
+                    - option "No Folder" [selected]
+            - generic [ref=e156]:
+              - heading "Connection Settings" [level=3] [ref=e157]
+              - generic [ref=e158]:
+                - generic [ref=e160]:
+                  - generic [ref=e161]: Platform / OS
+                  - textbox "Platform / OS" [ref=e163]:
+                    - /placeholder: e.g., Ubuntu 22.04, Windows Server 2019
+                - generic [ref=e165]:
+                  - generic [ref=e166]: OS Version
+                  - textbox "OS Version" [ref=e168]:
+                    - /placeholder: e.g., 22.04, 2019
+                - generic [ref=e170]:
+                  - generic [ref=e171]: Connection Timeout (seconds)
+                  - spinbutton "Connection Timeout (seconds)" [ref=e173]: "30"
+                - generic [ref=e175]:
+                  - generic [ref=e176]: Max Session Duration (minutes)
+                  - spinbutton "Max Session Duration (minutes)" [ref=e178]: "60"
+            - generic [ref=e181]:
+              - heading "Access Control" [level=3] [ref=e182]
+              - generic [ref=e183]:
+                - generic [ref=e184]:
+                  - switch [ref=e185] [cursor=pointer]
+                  - generic [ref=e186]:
+                    - generic [ref=e187]: Require Approval
+                    - generic [ref=e188]: Access requests for this target require approval
+                - generic [ref=e189]:
+                  - switch [ref=e190] [cursor=pointer]
+                  - generic [ref=e191]:
+                    - generic [ref=e192]: Require Reason
+                    - generic [ref=e193]: Users must provide a reason when requesting access
+                - generic [ref=e194]:
+                  - switch [checked] [ref=e195] [cursor=pointer]
+                  - generic [ref=e196]:
+                    - generic [ref=e197]: Require MFA
+                    - generic [ref=e198]: Multi-factor authentication required for session access
+                - generic [ref=e199]:
+                  - switch [checked] [ref=e200] [cursor=pointer]
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: Allow Recording
+                    - generic [ref=e203]: Record sessions for audit and compliance
+                - generic [ref=e204]:
+                  - switch [ref=e205] [cursor=pointer]
+                  - generic [ref=e206]:
+                    - generic [ref=e207]: Auto-rotate Credentials
+                    - generic [ref=e208]: Automatically rotate credentials after use
+            - generic [ref=e211]:
+              - heading "Tags" [level=3] [ref=e212]
+              - generic [ref=e213]:
+                - textbox "Add a tag..." [ref=e216]
+                - button "Add" [ref=e217] [cursor=pointer]
+              - paragraph [ref=e219]: No tags added
+            - generic [ref=e220]:
+              - link "Cancel" [ref=e221] [cursor=pointer]:
+                - /url: /targets
+                - button "Cancel" [ref=e222]
+              - button "Create Target" [ref=e223] [cursor=pointer]:
+                - img [ref=e225]
+                - text: Create Target
+  - generic:
+    - status [ref=e234]: An error occurred
+    - status [ref=e240]: An error occurred
+    - status [ref=e246]: An error occurred
+    - status [ref=e252]: An error occurred
+    - status [ref=e258]: An error occurred
+    - status [ref=e264]: An error occurred
+```

@@ -23,10 +23,11 @@ export class ApprovalsPage {
     this.approveButton = page.getByRole('button', { name: /Approve/i }).first();
     this.denyButton = page.getByRole('button', { name: /Deny/i }).first();
     this.emptyMessage = page.getByText('No pending approvals');
-    this.modalTitle = page.locator('.modal, [role="dialog"]').getByRole('heading');
-    this.modalTextarea = page.locator('.modal, [role="dialog"]').locator('textarea');
-    this.modalCancelButton = page.locator('.modal, [role="dialog"]').getByRole('button', { name: 'Cancel' });
-    this.modalConfirmButton = page.locator('.modal, [role="dialog"]').getByRole('button', { name: /Approve|Deny/ });
+    // Modal uses modal-backdrop and modal-content classes, not role="dialog"
+    this.modalTitle = page.locator('.modal-content').getByRole('heading');
+    this.modalTextarea = page.locator('.modal-content textarea');
+    this.modalCancelButton = page.locator('.modal-content').getByRole('button', { name: 'Cancel' });
+    this.modalConfirmButton = page.locator('.modal-content').getByRole('button', { name: /Approve|Deny/ });
   }
 
   async goto() {
@@ -70,7 +71,7 @@ export class ApprovalsPage {
   }
 
   async isModalOpen() {
-    const modal = this.page.locator('.modal, [role="dialog"]');
+    const modal = this.page.locator('.modal-backdrop');
     return await modal.isVisible();
   }
 

@@ -1,0 +1,124 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Audit Logs" [ref=e60] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e61]
+          - generic [ref=e64]: Audit Logs
+        - link "Settings" [ref=e65] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e66]
+          - generic [ref=e69]: Settings
+      - generic [ref=e71]:
+        - generic [ref=e72]: TU
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: Test User
+          - paragraph [ref=e75]: test@example.com
+    - generic [ref=e76]:
+      - banner [ref=e77]:
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - textbox "Search targets, credentials, users..." [ref=e83]
+        - generic [ref=e84]:
+          - button "Refresh data" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+          - button [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "TU test@example.com" [ref=e97] [cursor=pointer]:
+            - generic [ref=e98]: TU
+            - generic [ref=e99]: test@example.com
+            - img [ref=e100]
+      - main [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - button [ref=e105] [cursor=pointer]:
+              - img [ref=e106]
+            - generic [ref=e108]:
+              - heading "Edit User" [level=1] [ref=e109]
+              - paragraph [ref=e110]: Update user information and permissions
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - heading "Personal Information" [level=3] [ref=e114]
+              - paragraph [ref=e115]: Basic information about the user
+            - generic [ref=e116]:
+              - generic [ref=e117]:
+                - generic [ref=e118]: First Name
+                - textbox "First Name" [ref=e120]
+              - generic [ref=e121]:
+                - generic [ref=e122]: Last Name
+                - textbox "Last Name" [ref=e124]
+            - generic [ref=e125]:
+              - generic [ref=e126]: Email Address
+              - textbox "Email Address" [disabled] [ref=e128]
+            - generic [ref=e129]:
+              - heading "Role & Status" [level=3] [ref=e130]
+              - paragraph [ref=e131]: Define user permissions and account status
+            - generic [ref=e132]:
+              - generic [ref=e133]: Role
+              - combobox "Role" [ref=e134]:
+                - option "Select a role" [disabled]
+                - option "Super Admin"
+                - option "Admin"
+                - option "Operator"
+                - option "Auditor"
+                - option "Requester"
+                - option "User" [selected]
+            - generic [ref=e135]:
+              - generic [ref=e136]: Status
+              - combobox "Status" [ref=e137]:
+                - option "Select status" [disabled]
+                - option "Active" [selected]
+                - option "Suspended"
+                - option "Locked"
+                - option "Pending"
+            - generic [ref=e138]:
+              - button "Cancel" [ref=e139] [cursor=pointer]
+              - button "Save Changes" [ref=e140] [cursor=pointer]:
+                - img [ref=e142]
+                - text: Save Changes
+  - generic:
+    - status [ref=e151]: An error occurred
+    - status [ref=e157]: An error occurred
+```

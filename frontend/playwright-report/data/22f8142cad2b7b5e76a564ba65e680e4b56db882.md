@@ -1,0 +1,131 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: OpenPAM
+      - button [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - link "Dashboard" [ref=e15] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e16]
+        - generic [ref=e21]: Dashboard
+      - link "Users" [ref=e22] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e23]
+        - generic [ref=e28]: Users
+      - link "Roles" [ref=e29] [cursor=pointer]:
+        - /url: /roles
+        - img [ref=e30]
+        - generic [ref=e32]: Roles
+      - link "Targets" [ref=e33] [cursor=pointer]:
+        - /url: /targets
+        - img [ref=e34]
+        - generic [ref=e37]: Targets
+      - link "Credentials" [ref=e38] [cursor=pointer]:
+        - /url: /credentials
+        - img [ref=e39]
+        - generic [ref=e43]: Credentials
+      - link "My Requests" [ref=e44] [cursor=pointer]:
+        - /url: /requests/my
+        - img [ref=e45]
+        - generic [ref=e50]: My Requests
+      - link "Approvals" [ref=e51] [cursor=pointer]:
+        - /url: /approvals
+        - img [ref=e52]
+        - generic [ref=e55]: Approvals
+      - link "Sessions" [ref=e56] [cursor=pointer]:
+        - /url: /sessions
+        - img [ref=e57]
+        - generic [ref=e59]: Sessions
+      - link "Audit Logs" [ref=e60] [cursor=pointer]:
+        - /url: /audit
+        - img [ref=e61]
+        - generic [ref=e64]: Audit Logs
+      - link "Settings" [ref=e65] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e66]
+        - generic [ref=e69]: Settings
+    - generic [ref=e71]:
+      - generic [ref=e72]: TU
+      - generic [ref=e73]:
+        - paragraph [ref=e74]: Test User
+        - paragraph [ref=e75]: test@example.com
+  - generic [ref=e76]:
+    - banner [ref=e77]:
+      - generic [ref=e79]:
+        - img [ref=e80]
+        - textbox "Search targets, credentials, users..." [ref=e83]
+      - generic [ref=e84]:
+        - button "Refresh data" [ref=e85] [cursor=pointer]:
+          - img [ref=e86]
+        - button [ref=e92] [cursor=pointer]:
+          - img [ref=e93]
+        - button "TU test@example.com" [ref=e97] [cursor=pointer]:
+          - generic [ref=e98]: TU
+          - generic [ref=e99]: test@example.com
+          - img [ref=e100]
+    - main [ref=e102]:
+      - generic [ref=e103]:
+        - generic [ref=e104]:
+          - heading "Welcome back, Test!" [level=1] [ref=e105]
+          - paragraph [ref=e106]: Here's what's happening with your privileged access management today.
+        - generic [ref=e107]:
+          - link "Total Users 156" [ref=e108] [cursor=pointer]:
+            - /url: /users
+            - generic [ref=e111]:
+              - generic [ref=e112]:
+                - paragraph [ref=e113]: Total Users
+                - paragraph [ref=e114]: "156"
+              - img [ref=e116]
+          - link "Active Targets 42/48" [ref=e121] [cursor=pointer]:
+            - /url: /targets
+            - generic [ref=e124]:
+              - generic [ref=e125]:
+                - paragraph [ref=e126]: Active Targets
+                - paragraph [ref=e127]: 42/48
+              - img [ref=e129]
+          - link "Active Sessions 23" [ref=e132] [cursor=pointer]:
+            - /url: /sessions
+            - generic [ref=e135]:
+              - generic [ref=e136]:
+                - paragraph [ref=e137]: Active Sessions
+                - paragraph [ref=e138]: "23"
+              - img [ref=e140]
+          - link "Pending Requests 7" [ref=e142] [cursor=pointer]:
+            - /url: /approvals
+            - generic [ref=e145]:
+              - generic [ref=e146]:
+                - paragraph [ref=e147]: Pending Requests
+                - paragraph [ref=e148]: "7"
+              - img [ref=e150]
+        - generic [ref=e153]:
+          - generic [ref=e155]:
+            - heading "Recent Activity" [level=3] [ref=e158]
+            - generic [ref=e159]:
+              - generic [ref=e160]:
+                - paragraph [ref=e161]: User john.doe@example.com accessed target production-db
+                - paragraph [ref=e162]: 2/24/2026, 8:18:34 AM
+              - generic [ref=e163]:
+                - paragraph [ref=e164]: New user jane.smith@example.com created
+                - paragraph [ref=e165]: 2/24/2026, 7:18:34 AM
+              - generic [ref=e166]:
+                - paragraph [ref=e167]: Credential rotation completed for target api-server
+                - paragraph [ref=e168]: 2/24/2026, 6:18:34 AM
+          - generic [ref=e170]:
+            - generic [ref=e171]:
+              - generic [ref=e172]:
+                - heading "Expiring Credentials" [level=3] [ref=e173]
+                - paragraph [ref=e174]: 12 credentials expiring soon
+              - link "View all" [ref=e176] [cursor=pointer]:
+                - /url: /credentials?status=expiring
+                - text: View all
+                - img [ref=e177]
+            - generic [ref=e179]:
+              - img [ref=e180]
+              - paragraph [ref=e182]: Some credentials are expiring soon. Consider rotating them to maintain security.
+```

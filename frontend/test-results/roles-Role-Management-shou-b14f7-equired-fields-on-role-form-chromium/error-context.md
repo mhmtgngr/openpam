@@ -1,0 +1,113 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Audit Logs" [ref=e60] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e61]
+          - generic [ref=e64]: Audit Logs
+        - link "Settings" [ref=e65] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e66]
+          - generic [ref=e69]: Settings
+      - generic [ref=e71]:
+        - generic [ref=e72]: TU
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: Test User
+          - paragraph [ref=e75]: test@example.com
+    - generic [ref=e76]:
+      - banner [ref=e77]:
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - textbox "Search targets, credentials, users..." [ref=e83]
+        - generic [ref=e84]:
+          - button "Refresh data" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+          - button [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "TU test@example.com" [ref=e97] [cursor=pointer]:
+            - generic [ref=e98]: TU
+            - generic [ref=e99]: test@example.com
+            - img [ref=e100]
+      - main [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - link "Back" [ref=e105] [cursor=pointer]:
+              - /url: /roles
+              - button "Back" [ref=e106]:
+                - img [ref=e108]
+                - text: Back
+            - generic [ref=e110]:
+              - img [ref=e112]
+              - generic [ref=e114]:
+                - heading "Create Role" [level=1] [ref=e115]
+                - paragraph [ref=e116]: Define a new role with specific permissions
+          - generic [ref=e117]:
+            - generic [ref=e120]:
+              - heading "Basic Information" [level=3] [ref=e121]
+              - generic [ref=e122]:
+                - generic [ref=e124]:
+                  - generic [ref=e125]: Role Name
+                  - textbox "Role Name" [active] [ref=e127]:
+                    - /placeholder: e.g., Database Administrator
+                - generic [ref=e129]:
+                  - generic [ref=e130]: Description
+                  - textbox "Description" [ref=e131]:
+                    - /placeholder: Optional description of this role...
+            - generic [ref=e135]:
+              - heading "Permissions" [level=3] [ref=e136]
+              - generic [ref=e137]: 0 permissions selected
+            - generic [ref=e138]:
+              - link "Cancel" [ref=e139] [cursor=pointer]:
+                - /url: /roles
+                - button "Cancel" [ref=e140]
+              - button "Create Role" [ref=e141] [cursor=pointer]:
+                - img [ref=e143]
+                - text: Create Role
+  - generic:
+    - status [ref=e152]: An error occurred
+    - status [ref=e158]: An error occurred
+    - status [ref=e164]: An error occurred
+    - status [ref=e170]: An error occurred
+```

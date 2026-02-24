@@ -1,0 +1,189 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Audit Logs" [ref=e60] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e61]
+          - generic [ref=e64]: Audit Logs
+        - link "Settings" [ref=e65] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e66]
+          - generic [ref=e69]: Settings
+      - generic [ref=e71]:
+        - generic [ref=e72]: TU
+        - generic [ref=e73]:
+          - paragraph [ref=e74]: Test User
+          - paragraph [ref=e75]: test@example.com
+    - generic [ref=e76]:
+      - banner [ref=e77]:
+        - generic [ref=e79]:
+          - img [ref=e80]
+          - textbox "Search targets, credentials, users..." [ref=e83]
+        - generic [ref=e84]:
+          - button "Refresh data" [ref=e85] [cursor=pointer]:
+            - img [ref=e86]
+          - button [ref=e92] [cursor=pointer]:
+            - img [ref=e93]
+          - button "TU test@example.com" [ref=e97] [cursor=pointer]:
+            - generic [ref=e98]: TU
+            - generic [ref=e99]: test@example.com
+            - img [ref=e100]
+      - main [ref=e102]:
+        - generic [ref=e103]:
+          - generic [ref=e104]:
+            - link "Back" [ref=e105] [cursor=pointer]:
+              - /url: /credentials
+              - button "Back" [ref=e106]:
+                - img [ref=e108]
+                - text: Back
+            - generic [ref=e110]:
+              - img [ref=e112]
+              - generic [ref=e116]:
+                - heading "Add New Credential" [level=1] [ref=e117]
+                - paragraph [ref=e118]: Securely store a new credential in the vault
+          - generic [ref=e119]:
+            - generic [ref=e122]:
+              - heading "Basic Information" [level=3] [ref=e123]
+              - generic [ref=e124]:
+                - generic [ref=e126]:
+                  - generic [ref=e127]: Credential Name
+                  - textbox "Credential Name" [active] [ref=e129]:
+                    - /placeholder: e.g., Production DB Admin
+                - generic [ref=e131]:
+                  - generic [ref=e132]: Credential Type
+                  - combobox "Credential Type" [ref=e133]:
+                    - option "Password" [selected]
+                    - option "SSH Key"
+                    - option "API Key"
+                    - option "Certificate"
+                    - option "Database"
+                    - option "Service Account"
+                - generic [ref=e135]:
+                  - generic [ref=e136]: Associated Target
+                  - combobox "Associated Target" [ref=e137]:
+                    - option "No Target" [selected]
+                - generic [ref=e139]:
+                  - generic [ref=e140]: Folder
+                  - combobox "Folder" [ref=e141]:
+                    - option "No Folder" [selected]
+                - generic [ref=e143]:
+                  - generic [ref=e144]: Description
+                  - textbox "Description" [ref=e145]:
+                    - /placeholder: Optional description of this credential...
+            - generic [ref=e148]:
+              - heading "Credential Details" [level=3] [ref=e149]
+              - generic [ref=e150]:
+                - generic [ref=e152]:
+                  - generic [ref=e153]: Username / Account
+                  - textbox "Username / Account" [ref=e155]:
+                    - /placeholder: e.g., admin, root, service-account
+                - generic [ref=e157]:
+                  - generic [ref=e159]:
+                    - generic [ref=e160]: Password
+                    - textbox "Password" [ref=e162]:
+                      - /placeholder: Enter password...
+                  - button "Generate" [ref=e163] [cursor=pointer]:
+                    - img [ref=e165]
+                    - text: Generate
+            - generic [ref=e172]:
+              - heading "Rotation Policy" [level=3] [ref=e173]
+              - generic [ref=e176]:
+                - generic [ref=e177]: Rotation Policy
+                - combobox "Rotation Policy" [ref=e178]:
+                  - option "Manual" [selected]
+                  - option "Daily"
+                  - option "Weekly"
+                  - option "Monthly"
+                  - option "On Check-in"
+                  - option "On Expiry"
+            - generic [ref=e181]:
+              - heading "Checkout Settings" [level=3] [ref=e182]
+              - generic [ref=e183]:
+                - generic [ref=e184]:
+                  - switch [checked] [ref=e185] [cursor=pointer]
+                  - generic [ref=e186]:
+                    - generic [ref=e187]: Enable Checkout
+                    - generic [ref=e188]: Allow users to check out this credential
+                - generic [ref=e190]:
+                  - generic [ref=e191]: Max Checkout Duration (minutes)
+                  - spinbutton "Max Checkout Duration (minutes)" [ref=e193]: "60"
+                - generic [ref=e194]:
+                  - switch [ref=e195] [cursor=pointer]
+                  - generic [ref=e196]:
+                    - generic [ref=e197]: Auto Check-in
+                    - generic [ref=e198]: Automatically check in credentials when session ends
+                - generic [ref=e199]:
+                  - switch [ref=e200] [cursor=pointer]
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: Require Approval
+                    - generic [ref=e203]: Checkout requests require approval
+            - generic [ref=e206]:
+              - heading "Tags" [level=3] [ref=e207]
+              - generic [ref=e208]:
+                - textbox "Add a tag..." [ref=e211]
+                - button "Add" [ref=e212] [cursor=pointer]
+              - paragraph [ref=e214]: No tags added
+            - generic [ref=e218]:
+              - img [ref=e219]
+              - generic [ref=e223]:
+                - heading "Security Notice" [level=4] [ref=e224]
+                - paragraph [ref=e225]: Credentials will be encrypted using AES-256-GCM envelope encryption before storage. The secret value is only shown once during creation and cannot be retrieved later.
+            - generic [ref=e226]:
+              - link "Cancel" [ref=e227] [cursor=pointer]:
+                - /url: /credentials
+                - button "Cancel" [ref=e228]
+              - button "Create Credential" [ref=e229] [cursor=pointer]:
+                - img [ref=e231]
+                - text: Create Credential
+  - generic:
+    - status [ref=e240]: An error occurred
+    - status [ref=e246]: An error occurred
+    - status [ref=e252]: An error occurred
+    - status [ref=e258]: An error occurred
+    - status [ref=e264]: An error occurred
+    - status [ref=e270]: An error occurred
+    - status [ref=e276]: An error occurred
+    - status [ref=e282]: An error occurred
+```
