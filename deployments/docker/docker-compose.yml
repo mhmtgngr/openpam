@@ -303,6 +303,35 @@ services:
       - NET_RAW
       - NET_ADMIN
 
+  analytics-service:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile.analytics-service
+    container_name: openpam-analytics-service
+    ports:
+      - "8507:8507"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: openpam
+      DB_PASSWORD: openpam_dev
+      DB_NAME: openpam
+      DB_SSLMODE: disable
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_DB: 0
+      PORT: 8507
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - openpam-net
+    restart: unless-stopped
+
   # ============================================
   # Frontend (for development)
   # ============================================

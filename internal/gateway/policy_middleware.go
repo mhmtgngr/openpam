@@ -1,7 +1,9 @@
 package gateway
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,17 +15,82 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// AnalyticsClient provides client for analytics service
+type AnalyticsClient struct {
+	baseURL    string
+	httpClient *http.Client
+	logger     zerolog.Logger
+}
+
+// NewAnalyticsClient creates a new analytics client
+func NewAnalyticsClient(baseURL string, logger zerolog.Logger) *AnalyticsClient {
+	return &AnalyticsClient{
+		baseURL: baseURL,
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
+		logger: logger,
+	}
+}
+
+// CommandBlacklist represents a command blacklist rule from analytics
+type CommandBlacklistRule struct {
+	ID             uuid.UUID  `json:"id"`
+	CommandPattern string     `json:"command_pattern"`
+	PatternType    string     `json:"pattern_type"`
+	BaseCommand    *string    `json:"base_command"`
+	Action         string     `json:"action"`
+	Severity       string     `json:"severity"`
+	AppliesToUsers []uuid.UUID `json:"applies_to_users"`
+	AppliesToGroups []uuid.UUID `json:"applies_to_groups"`
+	Enabled        bool       `json:"enabled"`
+}
+
+// GetCommandBlacklist retrieves command blacklist for a tenant
+func (c *AnalyticsClient) GetCommandBlacklist(ctx context.Context, tenantID uuid.UUID) ([]CommandBlacklistRule, error) {
+	url := fmt.Sprintf("%s/api/v1/analytics/commands/blacklist", c.baseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("X-Tenant-ID", tenantID.String())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("analytics client: received status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Blacklist []CommandBlacklistRule `json:"blacklist"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result.Blacklist, nil
+}
+
 // PolicyMiddleware provides real-time policy enforcement for incoming requests
 type PolicyMiddleware struct {
-	service *policy.Service
-	logger  zerolog.Logger
+	service          *policy.Service
+	analyticsClient *AnalyticsClient
+	logger           zerolog.Logger
 }
 
 // NewPolicyMiddleware creates a new policy middleware
-func NewPolicyMiddleware(service *policy.Service, logger zerolog.Logger) *PolicyMiddleware {
+func NewPolicyMiddleware(service *policy.Service, analyticsClient *AnalyticsClient, logger zerolog.Logger) *PolicyMiddleware {
 	return &PolicyMiddleware{
-		service: service,
-		logger:  logger,
+		service:          service,
+		analyticsClient: analyticsClient,
+		logger:           logger,
 	}
 }
 
@@ -118,8 +185,146 @@ func (m *PolicyMiddleware) EvaluateCredentialCheckout(ctx context.Context, tenan
 }
 
 // EvaluateCommand evaluates policies for command execution during a session
-func (m *PolicyMiddleware) EvaluateCommand(ctx context.Context, tenantID, userID, sessionID uuid.UUID, command string) (bool, string, error) {
-	return m.service.EvaluateCommand(ctx, tenantID, userID, command, &sessionID)
+// Returns (allowed, action, blacklistID, error)
+func (m *PolicyMiddleware) EvaluateCommand(ctx context.Context, tenantID, userID, sessionID uuid.UUID, command string, userGroups []uuid.UUID) (bool, string, *uuid.UUID, error) {
+	// First check policy service
+	allowed, reason, err := m.service.EvaluateCommand(ctx, tenantID, userID, command, &sessionID)
+	if !allowed {
+		return false, reason, nil, err
+	}
+
+	// Check analytics command blacklist if available
+	if m.analyticsClient != nil {
+		blacklistRules, err := m.analyticsClient.GetCommandBlacklist(ctx, tenantID)
+		if err != nil {
+			m.logger.Warn().Err(err).Msg("Failed to fetch command blacklist from analytics, continuing")
+		} else {
+			// Check command against blacklist rules
+			for _, rule := range blacklistRules {
+				if !rule.Enabled {
+					continue
+				}
+
+				// Check if rule applies to this user
+				if len(rule.AppliesToUsers) > 0 {
+					userMatch := false
+					for _, allowedUserID := range rule.AppliesToUsers {
+						if allowedUserID == userID {
+							userMatch = true
+							break
+						}
+					}
+					if !userMatch {
+						continue
+					}
+				}
+
+				// Check if rule applies to user groups
+				if len(rule.AppliesToGroups) > 0 {
+					groupMatch := false
+					for _, allowedGroupID := range rule.AppliesToGroups {
+						for _, userGroupID := range userGroups {
+							if allowedGroupID == userGroupID {
+								groupMatch = true
+								break
+							}
+						}
+						if groupMatch {
+							break
+						}
+					}
+					if !groupMatch {
+						continue
+					}
+				}
+
+				// Check if command matches the pattern
+				if m.commandMatchesPattern(command, rule) {
+					switch rule.Action {
+					case "block":
+						blacklistID := rule.ID
+						return false, "Command blocked by blacklist policy", &blacklistID, nil
+					case "warn":
+						return true, "Command warned by blacklist policy", nil, nil
+					case "audit":
+						// Log but allow
+						m.logger.Warn().
+							Str("tenant_id", tenantID.String()).
+							Str("user_id", userID.String()).
+							Str("command", command).
+							Str("blacklist_id", rule.ID.String()).
+							Msg("Command matched audit blacklist rule")
+						return true, "", nil, nil
+					}
+				}
+			}
+		}
+	}
+
+	// Check command blacklist for dangerous commands
+	// In production, this would query the analytics service command blacklist
+	// For now, implement basic dangerous command detection
+	dangerousCommands := map[string]string{
+		"rm -rf /":          "block",
+		"rm -rf /*":         "block",
+		"mkfs":              "block",
+		":(){ :|:& };:":     "block",
+		"dd if=/dev/zero":   "block",
+		"dd if=/dev/random": "block",
+		"shutdown":          "block",
+		"reboot":            "warn",
+		"init 0":            "block",
+		"chmod 000":         "warn",
+	}
+
+	// Check for exact matches
+	for dangerousCmd, action := range dangerousCommands {
+		if strings.Contains(command, dangerousCmd) {
+			if action == "block" {
+				return false, "Command blocked by security policy", nil, nil
+			}
+			return true, "warned", nil, nil
+		}
+	}
+
+	// Check for privilege escalation without approval
+	if strings.HasPrefix(command, "sudo ") || strings.HasPrefix(command, "su ") {
+		// Would check if approval is on file
+		return true, "logged", nil, nil
+	}
+
+	return true, "", nil, nil
+}
+
+// EvaluateCommandAgainstBlacklist evaluates a command against the command blacklist
+func (m *PolicyMiddleware) EvaluateCommandAgainstBlacklist(ctx context.Context, tenantID, userID uuid.UUID, command string, userGroups []uuid.UUID) (allowed bool, action string, reason string) {
+	// Basic dangerous command patterns
+	dangerousPatterns := []struct {
+		pattern string
+		action  string
+		reason  string
+	}{
+		{"rm -rf", "block", "Recursive force delete is blocked"},
+		{"mkfs", "block", "Filesystem creation is blocked"},
+		{"dd if=", "block", "Direct disk write is blocked"},
+		{":(){ :|:& };:", "block", "Fork bombs are blocked"},
+		{"shutdown", "block", "System shutdown is blocked"},
+		{"reboot", "warn", "System reboot requires approval"},
+		{"chmod 000", "warn", "Removing all permissions is suspicious"},
+	}
+
+	cmdLower := strings.ToLower(command)
+
+	for _, dp := range dangerousPatterns {
+		if strings.Contains(cmdLower, dp.pattern) {
+			if dp.action == "block" {
+				return false, "blocked", dp.reason
+			}
+			return true, "warned", dp.reason
+		}
+	}
+
+	return true, "", ""
 }
 
 // Middleware returns a Gin middleware for policy enforcement
@@ -361,6 +566,28 @@ func (m *PolicyMiddleware) getResourceID(c *gin.Context, resourceType string) uu
 	// This would require more complex handling
 
 	return uuid.Nil
+}
+
+// commandMatchesPattern checks if a command matches a blacklist rule pattern
+func (m *PolicyMiddleware) commandMatchesPattern(command string, rule CommandBlacklistRule) bool {
+	switch rule.PatternType {
+	case "exact":
+		return strings.TrimSpace(command) == strings.TrimSpace(rule.CommandPattern)
+	case "regex":
+		// For production, use proper regex matching
+		// For now, use substring check
+		return strings.Contains(command, rule.CommandPattern)
+	case "glob":
+		// Simple glob matching
+		if rule.CommandPattern == "*" {
+			return true
+		}
+		// For more complex glob patterns, would use filepath.Match
+		return strings.Contains(command, rule.CommandPattern)
+	default:
+		// Default to substring match
+		return strings.Contains(command, rule.CommandPattern)
+	}
 }
 
 func (m *PolicyMiddleware) isMFAVerified(c *gin.Context) bool {

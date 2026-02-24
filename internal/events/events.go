@@ -273,6 +273,85 @@ func (p *Publisher) PublishAlertTriggered(ctx context.Context, tenantID, alertID
 	})
 }
 
+// Analytics event types
+const (
+	EventTypeAnalyticsSessionStarted   = "analytics.session.started"
+	EventTypeAnalyticsSessionEnded     = "analytics.session.ended"
+	EventTypeAnalyticsCommandExecuted = "analytics.command.executed"
+	EventTypeAnalyticsUserActivity    = "analytics.user.activity"
+	EventTypeAnalyticsAnomalyDetected = "analytics.anomaly.detected"
+)
+
+// PublishAnalyticsSessionStarted publishes an analytics session started event
+func (p *Publisher) PublishAnalyticsSessionStarted(ctx context.Context, tenantID, userID, sessionID, targetHost string, targetPort int, sessionType string) error {
+	return p.bus.Publish(ctx, Event{
+		Type:     EventTypeAnalyticsSessionStarted,
+		TenantID: tenantID,
+		ActorID:  userID,
+		Action:   "start",
+		Resource: "session_analytics",
+		Data: map[string]interface{}{
+			"session_id":  sessionID,
+			"target_host": targetHost,
+			"target_port": targetPort,
+			"type":        sessionType,
+		},
+	})
+}
+
+// PublishAnalyticsSessionEnded publishes an analytics session ended event
+func (p *Publisher) PublishAnalyticsSessionEnded(ctx context.Context, tenantID, userID, sessionID string, duration time.Duration, sessionType string) error {
+	return p.bus.Publish(ctx, Event{
+		Type:     EventTypeAnalyticsSessionEnded,
+		TenantID: tenantID,
+		ActorID:  userID,
+		Action:   "end",
+		Resource: "session_analytics",
+		Data: map[string]interface{}{
+			"session_id": sessionID,
+			"duration":   duration.String(),
+			"type":       sessionType,
+		},
+	})
+}
+
+// PublishAnalyticsCommandExecuted publishes an analytics command executed event
+func (p *Publisher) PublishAnalyticsCommandExecuted(ctx context.Context, tenantID, userID, sessionID, command, targetHost string, exitCode *int) error {
+	data := map[string]interface{}{
+		"session_id":  sessionID,
+		"command":     command,
+		"target_host": targetHost,
+	}
+	if exitCode != nil {
+		data["exit_code"] = *exitCode
+	}
+
+	return p.bus.Publish(ctx, Event{
+		Type:     EventTypeAnalyticsCommandExecuted,
+		TenantID: tenantID,
+		ActorID:  userID,
+		Action:   "execute",
+		Resource: "command",
+		Data:      data,
+	})
+}
+
+// PublishAnalyticsAnomalyDetected publishes an analytics anomaly detected event
+func (p *Publisher) PublishAnalyticsAnomalyDetected(ctx context.Context, tenantID string, anomalyID uuid.UUID, anomalyType string, score float64, details map[string]interface{}) error {
+	return p.bus.Publish(ctx, Event{
+		Type:     EventTypeAnalyticsAnomalyDetected,
+		TenantID: tenantID,
+		Action:   "detect",
+		Resource: "anomaly",
+		Data: map[string]interface{}{
+			"anomaly_id":   anomalyID.String(),
+			"anomaly_type": anomalyType,
+			"risk_score":   score,
+			"details":      details,
+		},
+	})
+}
+
 // Webhook delivers events to external webhooks
 type Webhook struct {
 	client   *http.Client

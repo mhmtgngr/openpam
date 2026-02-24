@@ -302,6 +302,11 @@ func (s *Service) StartSession(ctx context.Context, session *Session) error {
 		session.UserID.String(), session.ID.String(),
 		session.TargetHost, session.TargetPort)
 
+	// Publish analytics event with session type
+	_ = s.publisher.PublishAnalyticsSessionStarted(ctx, session.TenantID.String(),
+		session.UserID.String(), session.ID.String(),
+		session.TargetHost, session.TargetPort, string(session.Type))
+
 	s.logger.Info().
 		Str("session_id", session.ID.String()).
 		Str("user_id", session.UserID.String()).
@@ -357,6 +362,10 @@ func (s *Service) EndSession(ctx context.Context, sessionID uuid.UUID, terminate
 	duration := now.Sub(active.Session.StartedAt)
 	_ = s.publisher.PublishSessionEnded(ctx, active.Session.TenantID.String(),
 		active.Session.UserID.String(), sessionID.String(), duration)
+
+	// Publish analytics event
+	_ = s.publisher.PublishAnalyticsSessionEnded(ctx, active.Session.TenantID.String(),
+		active.Session.UserID.String(), sessionID.String(), duration, string(active.Session.Type))
 
 	s.logger.Info().
 		Str("session_id", sessionID.String()).
