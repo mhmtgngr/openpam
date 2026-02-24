@@ -60,7 +60,7 @@ func (m *mockComplianceRepository) GetSessionAnalytics(ctx context.Context, tena
 	return nil, nil
 }
 func (m *mockComplianceRepository) ListSessionAnalytics(ctx context.Context, filter SessionAnalyticsFilter, limit, offset int) ([]SessionAnalytics, error) {
-	return nil, nil
+	return []SessionAnalytics{}, nil
 }
 func (m *mockComplianceRepository) CreateUserActivity(ctx context.Context, activity *UserActivity) error { return nil }
 func (m *mockComplianceRepository) UpdateUserActivity(ctx context.Context, activity *UserActivity) error { return nil }
@@ -68,36 +68,36 @@ func (m *mockComplianceRepository) GetUserActivity(ctx context.Context, tenantID
 	return nil, nil
 }
 func (m *mockComplianceRepository) ListUserActivity(ctx context.Context, filter UserActivityFilter, limit, offset int) ([]UserActivity, error) {
-	return nil, nil
+	return []UserActivity{}, nil
 }
 func (m *mockComplianceRepository) RecordCommand(ctx context.Context, cmd *CommandFrequency) error { return nil }
 func (m *mockComplianceRepository) ListCommandFrequency(ctx context.Context, filter CommandFrequencyFilter, limit, offset int) ([]CommandFrequency, error) {
-	return nil, nil
+	return []CommandFrequency{}, nil
 }
 func (m *mockComplianceRepository) GetTopCommands(ctx context.Context, tenantID uuid.UUID, dateFrom, dateTo time.Time, limit int) ([]CommandRank, error) {
-	return nil, nil
+	return []CommandRank{}, nil
 }
 func (m *mockComplianceRepository) CreateAnomalyDetection(ctx context.Context, anomaly *AnomalyDetection) error { return nil }
 func (m *mockComplianceRepository) GetAnomalyDetection(ctx context.Context, id uuid.UUID) (*AnomalyDetection, error) { return nil, nil }
 func (m *mockComplianceRepository) ListAnomalyDetections(ctx context.Context, filter AnomalyFilter, limit, offset int) ([]AnomalyDetection, error) {
-	return nil, nil
+	return []AnomalyDetection{}, nil
 }
 func (m *mockComplianceRepository) UpdateAnomalyDetection(ctx context.Context, anomaly *AnomalyDetection) error { return nil }
 func (m *mockComplianceRepository) CreateRansomwareEvent(ctx context.Context, event *RansomwareEvent) error { return nil }
 func (m *mockComplianceRepository) GetRansomwareEvent(ctx context.Context, id uuid.UUID) (*RansomwareEvent, error) { return nil, nil }
 func (m *mockComplianceRepository) ListRansomwareEvents(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]RansomwareEvent, error) {
-	return nil, nil
+	return []RansomwareEvent{}, nil
 }
 func (m *mockComplianceRepository) UpdateRansomwareEvent(ctx context.Context, event *RansomwareEvent) error { return nil }
 func (m *mockComplianceRepository) CreateCommandBlacklist(ctx context.Context, blacklist *CommandBlacklist) error { return nil }
 func (m *mockComplianceRepository) GetCommandBlacklist(ctx context.Context, id uuid.UUID) (*CommandBlacklist, error) { return nil, nil }
 func (m *mockComplianceRepository) ListCommandBlacklist(ctx context.Context, tenantID *uuid.UUID) ([]CommandBlacklist, error) {
-	return nil, nil
+	return []CommandBlacklist{}, nil
 }
 func (m *mockComplianceRepository) UpdateCommandBlacklist(ctx context.Context, blacklist *CommandBlacklist) error { return nil }
 func (m *mockComplianceRepository) DeleteCommandBlacklist(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mockComplianceRepository) FindMatchingBlacklist(ctx context.Context, tenantID uuid.UUID, command string, userIDs, groupIDs []uuid.UUID) ([]CommandBlacklist, error) {
-	return nil, nil
+	return []CommandBlacklist{}, nil
 }
 func (m *mockComplianceRepository) CreateSSHKeyAnalytics(ctx context.Context, analytics *SSHKeyAnalytics) error { return nil }
 func (m *mockComplianceRepository) UpdateSSHKeyAnalytics(ctx context.Context, analytics *SSHKeyAnalytics) error { return nil }
@@ -105,7 +105,7 @@ func (m *mockComplianceRepository) GetSSHKeyAnalytics(ctx context.Context, tenan
 	return nil, nil
 }
 func (m *mockComplianceRepository) ListSSHKeyAnalytics(ctx context.Context, tenantID, sshKeyID uuid.UUID, dateFrom, dateTo time.Time) ([]SSHKeyAnalytics, error) {
-	return nil, nil
+	return []SSHKeyAnalytics{}, nil
 }
 func (m *mockComplianceRepository) GetDashboardMetrics(ctx context.Context, tenantID uuid.UUID) (*DashboardMetrics, error) { return nil, nil }
 func (m *mockComplianceRepository) GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, date time.Time, hour int) (*SessionAnalytics, error) {

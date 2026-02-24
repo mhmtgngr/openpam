@@ -30,6 +30,9 @@ func (m *mockAnomalyRepository) CreateAnomalyDetection(ctx context.Context, anom
 }
 
 func (m *mockAnomalyRepository) GetAnomalyDetection(ctx context.Context, id uuid.UUID) (*AnomalyDetection, error) {
+	if m.anomalies == nil {
+		return nil, nil
+	}
 	for _, a := range m.anomalies {
 		if a.ID == id {
 			return &a, nil
@@ -39,6 +42,9 @@ func (m *mockAnomalyRepository) GetAnomalyDetection(ctx context.Context, id uuid
 }
 
 func (m *mockAnomalyRepository) ListAnomalyDetections(ctx context.Context, filter AnomalyFilter, limit, offset int) ([]AnomalyDetection, error) {
+	if m.anomalies == nil {
+		return []AnomalyDetection{}, nil
+	}
 	return m.anomalies, nil
 }
 
@@ -67,6 +73,9 @@ func (m *mockAnomalyRepository) GetRansomwareEvent(ctx context.Context, id uuid.
 }
 
 func (m *mockAnomalyRepository) ListRansomwareEvents(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]RansomwareEvent, error) {
+	if m.ransomware == nil {
+		return []RansomwareEvent{}, nil
+	}
 	return m.ransomware, nil
 }
 
@@ -81,6 +90,9 @@ func (m *mockAnomalyRepository) UpdateRansomwareEvent(ctx context.Context, event
 }
 
 func (m *mockAnomalyRepository) ListUserActivity(ctx context.Context, filter UserActivityFilter, limit, offset int) ([]UserActivity, error) {
+	if m.activities == nil {
+		return []UserActivity{}, nil
+	}
 	return m.activities, nil
 }
 
@@ -96,7 +108,7 @@ func (m *mockAnomalyRepository) GetSessionAnalytics(ctx context.Context, tenantI
 	return nil, nil
 }
 func (m *mockAnomalyRepository) ListSessionAnalytics(ctx context.Context, filter SessionAnalyticsFilter, limit, offset int) ([]SessionAnalytics, error) {
-	return nil, nil
+	return []SessionAnalytics{}, nil
 }
 func (m *mockAnomalyRepository) CreateUserActivity(ctx context.Context, activity *UserActivity) error { return nil }
 func (m *mockAnomalyRepository) UpdateUserActivity(ctx context.Context, activity *UserActivity) error { return nil }
@@ -104,6 +116,9 @@ func (m *mockAnomalyRepository) GetUserActivity(ctx context.Context, tenantID, u
 	return nil, nil
 }
 func (m *mockAnomalyRepository) ListCommandFrequency(ctx context.Context, filter CommandFrequencyFilter, limit, offset int) ([]CommandFrequency, error) {
+	if m.commands == nil {
+		return []CommandFrequency{}, nil
+	}
 	return m.commands, nil
 }
 func (m *mockAnomalyRepository) GetTopCommands(ctx context.Context, tenantID uuid.UUID, dateFrom, dateTo time.Time, limit int) ([]CommandRank, error) {
@@ -112,25 +127,25 @@ func (m *mockAnomalyRepository) GetTopCommands(ctx context.Context, tenantID uui
 func (m *mockAnomalyRepository) CreateComplianceReport(ctx context.Context, report *ComplianceReport) error { return nil }
 func (m *mockAnomalyRepository) GetComplianceReport(ctx context.Context, id uuid.UUID) (*ComplianceReport, error) { return nil, nil }
 func (m *mockAnomalyRepository) ListComplianceReports(ctx context.Context, filter ComplianceFilter, limit, offset int) ([]ComplianceReport, error) {
-	return nil, nil
+	return []ComplianceReport{}, nil
 }
 func (m *mockAnomalyRepository) CreateControlEvaluation(ctx context.Context, evaluation *ComplianceControlEvaluation) error { return nil }
 func (m *mockAnomalyRepository) ListControlEvaluations(ctx context.Context, reportID uuid.UUID) ([]ComplianceControlEvaluation, error) {
-	return nil, nil
+	return []ComplianceControlEvaluation{}, nil
 }
 func (m *mockAnomalyRepository) CreateComplianceException(ctx context.Context, exception *ComplianceException) error { return nil }
 func (m *mockAnomalyRepository) ListComplianceExceptions(ctx context.Context, tenantID uuid.UUID) ([]ComplianceException, error) {
-	return nil, nil
+	return []ComplianceException{}, nil
 }
 func (m *mockAnomalyRepository) CreateCommandBlacklist(ctx context.Context, blacklist *CommandBlacklist) error { return nil }
 func (m *mockAnomalyRepository) GetCommandBlacklist(ctx context.Context, id uuid.UUID) (*CommandBlacklist, error) { return nil, nil }
 func (m *mockAnomalyRepository) ListCommandBlacklist(ctx context.Context, tenantID *uuid.UUID) ([]CommandBlacklist, error) {
-	return nil, nil
+	return []CommandBlacklist{}, nil
 }
 func (m *mockAnomalyRepository) UpdateCommandBlacklist(ctx context.Context, blacklist *CommandBlacklist) error { return nil }
 func (m *mockAnomalyRepository) DeleteCommandBlacklist(ctx context.Context, id uuid.UUID) error { return nil }
 func (m *mockAnomalyRepository) FindMatchingBlacklist(ctx context.Context, tenantID uuid.UUID, command string, userIDs, groupIDs []uuid.UUID) ([]CommandBlacklist, error) {
-	return nil, nil
+	return []CommandBlacklist{}, nil
 }
 func (m *mockAnomalyRepository) CreateSSHKeyAnalytics(ctx context.Context, analytics *SSHKeyAnalytics) error { return nil }
 func (m *mockAnomalyRepository) UpdateSSHKeyAnalytics(ctx context.Context, analytics *SSHKeyAnalytics) error { return nil }
@@ -138,7 +153,7 @@ func (m *mockAnomalyRepository) GetSSHKeyAnalytics(ctx context.Context, tenantID
 	return nil, nil
 }
 func (m *mockAnomalyRepository) ListSSHKeyAnalytics(ctx context.Context, tenantID, sshKeyID uuid.UUID, dateFrom, dateTo time.Time) ([]SSHKeyAnalytics, error) {
-	return nil, nil
+	return []SSHKeyAnalytics{}, nil
 }
 func (m *mockAnomalyRepository) GetDashboardMetrics(ctx context.Context, tenantID uuid.UUID) (*DashboardMetrics, error) { return nil, nil }
 func (m *mockAnomalyRepository) GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, date time.Time, hour int) (*SessionAnalytics, error) {
@@ -169,7 +184,8 @@ func TestAnomalyDetector_RunDetection(t *testing.T) {
 
 	// Should not error even with empty data
 	assert.NoError(t, err)
-	// detections can be empty or nil - that's fine
+	// detections returns empty slice when no anomalies found
+	// The mock repo is not a PostgresRepository so detection methods return nil/empty
 	assert.NotNil(t, detections)
 	assert.IsType(t, []AnomalyDetection{}, detections)
 }
@@ -401,14 +417,29 @@ func TestAnomalyDetector_GetUserAnomalyHistory(t *testing.T) {
 	ctx := context.Background()
 	tenantID := uuid.New()
 
-	repo := &mockAnomalyRepository{}
+	// Add some anomalies to the mock repo
+	userID := uuid.New()
+	anomalies := []AnomalyDetection{
+		{
+			ID:          uuid.New(),
+			TenantID:    tenantID,
+			UserID:      &userID,
+			AnomalyType: "behavioral",
+			Severity:    "high",
+			Title:       "Test Anomaly",
+			Status:      "open",
+		},
+	}
+
+	repo := &mockAnomalyRepository{anomalies: anomalies}
 	detector := NewAnomalyDetector(repo, nil, 75.0, logger)
 
-	history, err := detector.GetUserAnomalyHistory(ctx, tenantID, uuid.New(), 10)
+	history, err := detector.GetUserAnomalyHistory(ctx, tenantID, userID, 10)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, history)
-	assert.IsType(t, []AnomalyDetection{}, history)
+	// The mock returns the anomalies directly
+	assert.Len(t, history, 1)
 }
 
 func TestCalculateBehavioralConfidence(t *testing.T) {

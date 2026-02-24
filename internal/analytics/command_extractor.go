@@ -225,35 +225,91 @@ func (e *CommandExtractor) AssessRisk(command *ParsedCommand) string {
 func (e *CommandExtractor) assessRiskInternal(baseCommand, original string) string {
 	originalLower := strings.ToLower(original)
 
-	// Check against dangerous patterns
-	for pattern, risk := range dangerousPatterns {
-		if strings.Contains(originalLower, pattern) {
-			return risk
-		}
+	// Check against dangerous patterns in order of specificity (longer patterns first)
+	// This ensures "rm -rf" is checked before "rm -r"
+	dangerousPatternsOrdered := []struct {
+		pattern string
+		risk    string
+	}{
+		{":(){ :|:& };:", "critical"},         // Fork bomb - most specific
+		{"rm -rf", "critical"},                // Recursive force delete
+		{"rm -r", "high"},                     // Recursive delete
+		{"rm -f", "high"},                     // Force delete
+		{"mkfs", "critical"},                  // Filesystem creation
+		{"dd if=", "critical"},                // Direct disk write
+		{"chmod 000", "high"},                 // Remove all permissions
+		{"chown", "medium"},                   // Change owner
+		{"nc -l", "high"},                     // Netcat listener
+		{"base64 -d", "high"},                 // Base64 decode
+		{"killall", "high"},                   // Kill all
+		{"shutdown", "critical"},              // System shutdown
+		{"reboot", "high"},                    // System reboot
+		{"init 0", "critical"},                // System halt
+		{"systemctl stop", "high"},            // Stop service
+		{"systemctl disable", "high"},         // Disable service
+		{"iptables -f", "high"},               // Flush iptables (lowercase for matching)
+		{"echo.*>.*\\s*\\/", "high"},          // Writing to system files
 	}
 
-	// Check against risk categories
-	for _, category := range riskCategories {
-		for _, cmd := range category.commands {
-			if baseCommand == cmd {
-				return category.risk
+	// Check for pipe chains FIRST - these are most dangerous
+	// Commands like "curl | bash" should be high risk even if curl alone is medium
+	if strings.Contains(original, "|") {
+		parts := strings.Split(original, "|")
+		if len(parts) > 1 {
+			// Any pipe chain involving network commands or eval is high risk
+			for _, part := range parts {
+				partLower := strings.ToLower(strings.TrimSpace(part))
+				// Check if this part contains a network command or eval
+				if strings.Contains(partLower, "curl") ||
+					strings.Contains(partLower, "wget") ||
+					strings.Contains(partLower, "eval") ||
+					strings.Contains(partLower, "sh") ||
+					strings.Contains(partLower, "bash") {
+					return string(RiskLevelHigh)
+				}
 			}
 		}
 	}
 
-	// Check for specific dangerous combinations
+	// Then check specific dangerous patterns
+	for _, dp := range dangerousPatternsOrdered {
+		if strings.Contains(originalLower, dp.pattern) {
+			return dp.risk
+		}
+	}
+
+	// Check for specific dangerous combinations BEFORE checking risk categories
+	// This ensures combinations like "chmod +x file && ./file" are caught
 	if e.hasDangerousCombination(originalLower) {
 		return string(RiskLevelHigh)
 	}
 
-	// Check for pipe chains with dangerous commands
-	if strings.Contains(original, "|") {
-		parts := strings.Split(original, "|")
-		for _, part := range parts {
-			for pattern := range dangerousPatterns {
-				if strings.Contains(strings.ToLower(part), pattern) {
-					return string(RiskLevelHigh)
-				}
+	// Check general risk patterns (medium risk commands)
+	mediumRiskPatterns := []struct {
+		pattern string
+		risk    string
+	}{
+		{"wget", "medium"},
+		{"curl", "medium"},
+		{"ssh-keygen", "medium"},
+		{"eval", "medium"},
+		{"exec", "medium"},
+		{"kill -9", "medium"},
+		{"crontab", "medium"},
+		{"at now", "medium"},
+	}
+
+	for _, dp := range mediumRiskPatterns {
+		if strings.Contains(originalLower, dp.pattern) {
+			return dp.risk
+		}
+	}
+
+	// Check against risk categories (after combinations check)
+	for _, category := range riskCategories {
+		for _, cmd := range category.commands {
+			if baseCommand == cmd {
+				return category.risk
 			}
 		}
 	}
@@ -344,6 +400,12 @@ func (e *CommandExtractor) ExtractCommandsFromRecording(recordingData []byte) []
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		// Strip shell prompt
+		trimmed = e.stripPrompt(trimmed)
 		if trimmed == "" {
 			continue
 		}

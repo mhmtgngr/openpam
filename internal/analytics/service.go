@@ -409,6 +409,9 @@ func (s *Service) UpdateAnomalyStatus(ctx context.Context, id uuid.UUID, status 
 	if err != nil {
 		return err
 	}
+	if anomaly == nil {
+		return fmt.Errorf("anomaly not found")
+	}
 
 	anomaly.Status = string(status)
 	anomaly.AssignedTo = assignedTo
@@ -496,7 +499,7 @@ func (s *Service) RecordSSHKeyUsage(ctx context.Context, tenantID, sshKeyID, use
 	date := time.Now().Truncate(24 * time.Hour)
 
 	analytics, err := s.repo.GetSSHKeyAnalytics(ctx, tenantID, sshKeyID, date)
-	if err != nil {
+	if err != nil || analytics == nil {
 		// Create new
 		analytics = &SSHKeyAnalytics{
 			ID:           uuid.New(),

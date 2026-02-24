@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/events"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -130,7 +129,7 @@ func (m *mockServiceRepository) ListSSHKeyAnalytics(ctx context.Context, tenantI
 	return []SSHKeyAnalytics{}, nil
 }
 func (m *mockServiceRepository) GetDashboardMetrics(ctx context.Context, tenantID uuid.UUID) (*DashboardMetrics, error) {
-	return nil, nil
+	return &DashboardMetrics{}, nil
 }
 func (m *mockServiceRepository) GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, date time.Time, hour int) (*SessionAnalytics, error) {
 	return nil, nil
@@ -139,7 +138,7 @@ func (m *mockServiceRepository) GetSessionMetrics(ctx context.Context, tenantID 
 func TestNewService(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -157,7 +156,7 @@ func TestNewService(t *testing.T) {
 func TestService_RecordSessionStart(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -184,7 +183,7 @@ func TestService_RecordSessionStart(t *testing.T) {
 
 	t.Run("handles create error", func(t *testing.T) {
 		repo := &mockServiceRepository{createSessionErr: assert.AnError}
-		redisCache := NewRedisCache(&cache.Cache{}, logger)
+		redisCache := NewRedisCache(nil, logger)
 		service := NewService(repo, redisCache, publisher, logger, config)
 
 		err := service.RecordSessionStart(ctx, tenantID, userID, "ssh", "server.example.com", 22)
@@ -195,7 +194,7 @@ func TestService_RecordSessionStart(t *testing.T) {
 func TestService_RecordSessionEnd(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -221,7 +220,7 @@ func TestService_RecordSessionEnd(t *testing.T) {
 func TestService_RecordCommand(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -257,7 +256,7 @@ func TestService_RecordCommand(t *testing.T) {
 func TestService_GetSessionMetrics(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -285,7 +284,7 @@ func TestService_GetSessionMetrics(t *testing.T) {
 func TestService_GetUserActivity(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -313,7 +312,7 @@ func TestService_GetUserActivity(t *testing.T) {
 func TestService_GetUserRiskScore(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -345,7 +344,7 @@ func TestService_GetUserRiskScore(t *testing.T) {
 func TestService_GetCommandFrequency(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -372,7 +371,7 @@ func TestService_GetCommandFrequency(t *testing.T) {
 func TestService_GetDashboardMetrics(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -391,7 +390,7 @@ func TestService_GetDashboardMetrics(t *testing.T) {
 func TestService_GetTimeSeriesData(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -419,7 +418,7 @@ func TestService_GetTimeSeriesData(t *testing.T) {
 func TestService_Compliance(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -487,7 +486,7 @@ func TestService_Compliance(t *testing.T) {
 func TestService_AnomalyDetection(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -529,7 +528,8 @@ func TestService_AnomalyDetection(t *testing.T) {
 		resolvedBy := uuid.New()
 
 		err := service.UpdateAnomalyStatus(ctx, anomalyID, AnomalyStatusResolved, nil, &notes, &resolvedBy)
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
 	})
 
 	t.Run("updates anomaly with assigned user", func(t *testing.T) {
@@ -537,14 +537,15 @@ func TestService_AnomalyDetection(t *testing.T) {
 		assignedTo := uuid.New()
 
 		err := service.UpdateAnomalyStatus(ctx, anomalyID, AnomalyStatusInvestigating, &assignedTo, nil, nil)
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
 	})
 }
 
 func TestService_Ransomware(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -580,7 +581,7 @@ func TestService_Ransomware(t *testing.T) {
 func TestService_CommandBlacklist(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -643,7 +644,7 @@ func TestService_CommandBlacklist(t *testing.T) {
 func TestService_SSHKeyAnalytics(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -676,7 +677,7 @@ func TestService_SSHKeyAnalytics(t *testing.T) {
 func TestService_CacheManagement(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -726,7 +727,7 @@ func TestService_CacheManagement(t *testing.T) {
 func TestService_EventHandlers(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()
@@ -797,7 +798,7 @@ func TestService_EventHandlers(t *testing.T) {
 func TestService_DisabledFeatures(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := ServiceConfig{
@@ -834,7 +835,7 @@ func TestService_DisabledFeatures(t *testing.T) {
 func TestService_isOffHour(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 	config := DefaultServiceConfig()
 	service := NewService(repo, redisCache, publisher, logger, config)
@@ -865,7 +866,7 @@ func TestService_isOffHour(t *testing.T) {
 func TestService_ExportAnalyticsData(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := &mockServiceRepository{}
-	redisCache := NewRedisCache(&cache.Cache{}, logger)
+	redisCache := NewRedisCache(nil, logger)
 	publisher := &events.Publisher{}
 
 	config := DefaultServiceConfig()

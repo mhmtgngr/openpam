@@ -261,7 +261,7 @@ func setupTestMiddlewareRouter(service *policy.Service, config Config) *gin.Engi
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	// Add middleware to set test context
 	router.Use(func(c *gin.Context) {
@@ -306,7 +306,7 @@ func setupTestMiddlewareRouter(service *policy.Service, config Config) *gin.Engi
 // TestPolicyMiddleware_NewPolicyMiddleware tests middleware creation
 func TestPolicyMiddleware_NewPolicyMiddleware(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	assert.NotNil(t, middleware)
 	assert.NotNil(t, middleware.service)
@@ -329,7 +329,7 @@ func TestPolicyMiddleware_DefaultConfig(t *testing.T) {
 // TestPolicyMiddleware_ShouldSkipPath tests path skipping logic
 func TestPolicyMiddleware_ShouldSkipPath(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	tests := []struct {
 		name       string
@@ -441,7 +441,7 @@ func TestPolicyMiddleware_Middleware_Deny(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	// Add middleware to set test context
 	router.Use(func(c *gin.Context) {
@@ -500,7 +500,7 @@ func TestPolicyMiddleware_Middleware_SkipPaths(t *testing.T) {
 // TestPolicyMiddleware_EvaluateAction tests action evaluation
 func TestPolicyMiddleware_EvaluateAction(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	ctx := context.Background()
 	tenantID := uuid.New()
@@ -527,13 +527,13 @@ func TestPolicyMiddleware_EvaluateAction(t *testing.T) {
 // TestPolicyMiddleware_EvaluateSessionAccess tests session access evaluation
 func TestPolicyMiddleware_EvaluateSessionAccess(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	ctx := context.Background()
 	tenantID := uuid.New()
 	userID := uuid.New()
 
-	// Create an allow policy
+	// Create an allow policy with a rule that allows all session access
 	allowPolicy := &policy.Policy{
 		TenantID: tenantID,
 		Name:     "Allow Session",
@@ -541,6 +541,24 @@ func TestPolicyMiddleware_EvaluateSessionAccess(t *testing.T) {
 		Effect:   policy.PolicyEffectAllow,
 		Enabled:  true,
 		Priority: 100,
+		Rules: []policy.Rule{
+			{
+				ID:      uuid.New(),
+				Name:    "Allow All Sessions",
+				Type:    policy.RuleTypeIPRestriction,
+				Enabled: true,
+				Operator: policy.LogicalOperatorOR,
+				Conditions: []policy.Condition{
+					{
+						ID:   uuid.New(),
+						Type: policy.ConditionTypeIP,
+						IPData: &policy.IPCondition{
+							CIDRs: []string{"0.0.0.0/0"}, // Match all IPs
+						},
+					},
+				},
+			},
+		},
 	}
 	require.NoError(t, service.CreatePolicy(ctx, allowPolicy, userID))
 
@@ -553,14 +571,14 @@ func TestPolicyMiddleware_EvaluateSessionAccess(t *testing.T) {
 // TestPolicyMiddleware_EvaluateCredentialCheckout tests credential checkout evaluation
 func TestPolicyMiddleware_EvaluateCredentialCheckout(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	ctx := context.Background()
 	tenantID := uuid.New()
 	userID := uuid.New()
 	credentialID := uuid.New()
 
-	// Create an allow policy
+	// Create an allow policy with a rule that allows all credential access
 	allowPolicy := &policy.Policy{
 		TenantID: tenantID,
 		Name:     "Allow Checkout",
@@ -568,6 +586,24 @@ func TestPolicyMiddleware_EvaluateCredentialCheckout(t *testing.T) {
 		Effect:   policy.PolicyEffectAllow,
 		Enabled:  true,
 		Priority: 100,
+		Rules: []policy.Rule{
+			{
+				ID:      uuid.New(),
+				Name:    "Allow All Credentials",
+				Type:    policy.RuleTypeIPRestriction,
+				Enabled: true,
+				Operator: policy.LogicalOperatorOR,
+				Conditions: []policy.Condition{
+					{
+						ID:   uuid.New(),
+						Type: policy.ConditionTypeIP,
+						IPData: &policy.IPCondition{
+							CIDRs: []string{"0.0.0.0/0"}, // Match all IPs
+						},
+					},
+				},
+			},
+		},
 	}
 	require.NoError(t, service.CreatePolicy(ctx, allowPolicy, userID))
 
@@ -599,7 +635,7 @@ func TestPolicyMiddleware_EvaluateCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := createTestService()
-			middleware := NewPolicyMiddleware(service, zerolog.Nop())
+			middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 			ctx := context.Background()
 			tenantID := uuid.New()
@@ -618,6 +654,7 @@ func TestPolicyMiddleware_EvaluateCommand(t *testing.T) {
 					Rules: []policy.Rule{
 						{
 							ID:      uuid.New(),
+							Name:    "Block Dangerous Commands Rule",
 							Type:    policy.RuleTypeCommandFilter,
 							Enabled: true,
 							Conditions: []policy.Condition{
@@ -632,7 +669,7 @@ func TestPolicyMiddleware_EvaluateCommand(t *testing.T) {
 				require.NoError(t, service.CreatePolicy(ctx, denyPolicy, userID))
 			}
 
-			allowed, reason, err := middleware.EvaluateCommand(ctx, tenantID, userID, sessionID, tt.command)
+			allowed, reason, _, err := middleware.EvaluateCommand(ctx, tenantID, userID, sessionID, tt.command, nil)
 
 			require.NoError(t, err)
 			if tt.createDenyCmd {
@@ -650,7 +687,7 @@ func TestPolicyMiddleware_EvaluateCommand(t *testing.T) {
 // TestPolicyMiddleware_MapRequestToAction tests request to action mapping
 func TestPolicyMiddleware_MapRequestToAction(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	tests := []struct {
 		name                 string
@@ -719,7 +756,7 @@ func TestPolicyMiddleware_MapRequestToAction(t *testing.T) {
 // TestPolicyMiddleware_GetResourceID tests resource ID extraction
 func TestPolicyMiddleware_GetResourceID(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	t.Run("valid UUID in path param", func(t *testing.T) {
 		testUUID := uuid.New()
@@ -745,7 +782,7 @@ func TestPolicyMiddleware_GetResourceID(t *testing.T) {
 // TestPolicyMiddleware_GetUserRoles tests user role extraction
 func TestPolicyMiddleware_GetUserRoles(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	roleID := uuid.New()
 
@@ -784,7 +821,7 @@ func TestPolicyMiddleware_GetUserRoles(t *testing.T) {
 // TestPolicyMiddleware_GetUserGroups tests user group extraction
 func TestPolicyMiddleware_GetUserGroups(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	groupID := uuid.New()
 
@@ -823,7 +860,7 @@ func TestPolicyMiddleware_GetUserGroups(t *testing.T) {
 // TestPolicyMiddleware_IsMFAVerified tests MFA verification check
 func TestPolicyMiddleware_IsMFAVerified(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	t.Run("MFA verified", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/v1/credentials", nil)
@@ -858,7 +895,7 @@ func TestPolicyMiddleware_IsMFAVerified(t *testing.T) {
 // TestPolicyMiddleware_GetDeviceTrust tests device trust extraction
 func TestPolicyMiddleware_GetDeviceTrust(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	t.Run("device trust as int", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/api/v1/credentials", nil)
@@ -893,15 +930,47 @@ func TestPolicyMiddleware_GetDeviceTrust(t *testing.T) {
 // TestPolicyMiddleware_SessionMiddleware tests session-specific middleware
 func TestPolicyMiddleware_SessionMiddleware(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
+	// Fixed tenant/user IDs for policy creation
+	tenantID, _ := uuid.Parse("00000000-0000-0000-0000-000000000001")
+	userID, _ := uuid.Parse("00000000-0000-0000-0000-000000000002")
+
+	// Create an allow policy for session access
+	ctx := context.Background()
+	allowPolicy := &policy.Policy{
+		TenantID: tenantID,
+		Name:     "Allow Session Access",
+		Type:     policy.PolicyTypeSession,
+		Effect:   policy.PolicyEffectAllow,
+		Enabled:  true,
+		Priority: 100,
+		Rules: []policy.Rule{
+			{
+				ID:      uuid.New(),
+				Name:    "Allow All Sessions",
+				Type:    policy.RuleTypeIPRestriction,
+				Enabled: true,
+				Operator: policy.LogicalOperatorOR,
+				Conditions: []policy.Condition{
+					{
+						ID:   uuid.New(),
+						Type: policy.ConditionTypeIP,
+						IPData: &policy.IPCondition{
+							CIDRs: []string{"0.0.0.0/0"},
+						},
+					},
+				},
+			},
+		},
+	}
+	_ = service.CreatePolicy(ctx, allowPolicy, userID)
+
 	// Add middleware to set test context
 	router.Use(func(c *gin.Context) {
-		tenantID := uuid.New()
-		userID := uuid.New()
 		c.Set("tenant_id", tenantID.String())
 		c.Set("user_id", userID.String())
 		c.Set("user_roles", []uuid.UUID{})
@@ -924,22 +993,54 @@ func TestPolicyMiddleware_SessionMiddleware(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Should succeed since no deny policies
+	// Should succeed since allow policy is in place
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 // TestPolicyMiddleware_CredentialMiddleware tests credential-specific middleware
 func TestPolicyMiddleware_CredentialMiddleware(t *testing.T) {
 	service := createTestService()
-	middleware := NewPolicyMiddleware(service, zerolog.Nop())
+	middleware := NewPolicyMiddleware(service, nil, zerolog.Nop())
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 
+	// Fixed tenant/user IDs for policy creation
+	tenantID, _ := uuid.Parse("00000000-0000-0000-0000-000000000001")
+	userID, _ := uuid.Parse("00000000-0000-0000-0000-000000000002")
+
+	// Create an allow policy for credential access
+	ctx := context.Background()
+	allowPolicy := &policy.Policy{
+		TenantID: tenantID,
+		Name:     "Allow Credential Access",
+		Type:     policy.PolicyTypeCredential,
+		Effect:   policy.PolicyEffectAllow,
+		Enabled:  true,
+		Priority: 100,
+		Rules: []policy.Rule{
+			{
+				ID:      uuid.New(),
+				Name:    "Allow All Credentials",
+				Type:    policy.RuleTypeIPRestriction,
+				Enabled: true,
+				Operator: policy.LogicalOperatorOR,
+				Conditions: []policy.Condition{
+					{
+						ID:   uuid.New(),
+						Type: policy.ConditionTypeIP,
+						IPData: &policy.IPCondition{
+							CIDRs: []string{"0.0.0.0/0"},
+						},
+					},
+				},
+			},
+		},
+	}
+	_ = service.CreatePolicy(ctx, allowPolicy, userID)
+
 	// Add middleware to set test context
 	router.Use(func(c *gin.Context) {
-		tenantID := uuid.New()
-		userID := uuid.New()
 		c.Set("tenant_id", tenantID.String())
 		c.Set("user_id", userID.String())
 		c.Set("user_roles", []uuid.UUID{})
@@ -963,6 +1064,6 @@ func TestPolicyMiddleware_CredentialMiddleware(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	// Should succeed since no deny policies
+	// Should succeed since allow policy is in place
 	assert.Equal(t, http.StatusOK, w.Code)
 }

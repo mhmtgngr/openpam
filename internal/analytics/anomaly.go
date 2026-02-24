@@ -41,7 +41,7 @@ type AnomalyPattern struct {
 
 // RunDetection runs anomaly detection for a tenant
 func (d *AnomalyDetector) RunDetection(ctx context.Context, tenantID uuid.UUID) ([]AnomalyDetection, error) {
-	var detections []AnomalyDetection
+	detections := make([]AnomalyDetection, 0)
 
 	// Run different detection strategies
 	if behavioral, err := d.detectBehavioralAnomalies(ctx, tenantID); err == nil {
@@ -496,7 +496,7 @@ func (d *AnomalyDetector) detectRansomwareIndicators(ctx context.Context, tenant
 
 // EvaluateUser evaluates a specific user for anomalies
 func (d *AnomalyDetector) EvaluateUser(ctx context.Context, tenantID, userID uuid.UUID) ([]AnomalyDetection, error) {
-	var detections []AnomalyDetection
+	detections := make([]AnomalyDetection, 0)
 
 	// Get user activity for the past 7 days
 	filter := UserActivityFilter{

@@ -75,7 +75,7 @@ func TestHelperFunctions_Integration(t *testing.T) {
 
 		require.NotNil(t, result)
 		assert.Equal(t, s, *result)
-		assert.Equal(t, 12, len(*result)) // byte length, not rune count
+		assert.Equal(t, 17, len(*result)) // byte length: "Hello" (5) + " " (1) + "世界" (6) + " " (1) + "🌍" (4) = 17
 	})
 
 	t.Run("nil checks", func(t *testing.T) {

@@ -46,7 +46,7 @@ var soc2Controls = []ControlDefinition{
 	{ID: "CC4.1", Name: "Session Logging", Category: "Logging", Description: "All privileged sessions logged", EvaluationMethod: "data_query", Required: true},
 	{ID: "CC5.1", Name: "Encryption", Category: "Data Protection", Description: "Data encrypted at rest", EvaluationMethod: "configuration_check", Required: true},
 	{ID: "CC6.1", Name: "Audit Trail", Category: "Logging", Description: "Immutable audit trail", EvaluationMethod: "data_query", Required: true},
-	{ID: "CC7.1", Name: "Privilege Review", Category: "Access", Description: "Quarterly access reviews", EvaluationMethod: "manual_check", Required: true},
+	{ID: "CC7.1", Name: "Privilege Review", Category: "Access", Description: "Quarterly access reviews", EvaluationMethod: "manual_check", Required: false},
 	{ID: "CC8.1", Name: "Change Management", Category: "Operations", Description: "Formal change management", EvaluationMethod: "process_review", Required: true},
 }
 

@@ -62,18 +62,24 @@ func TestCachedRepository_Wrap(t *testing.T) {
 	assert.Nil(t, cachedRepo.cache) // nil cache is acceptable
 	assert.NotNil(t, cachedRepo.logger)
 
-	// These should not panic and just return empty results
+	// These should not panic and just return empty results from the mock
 	sessions, err := cachedRepo.ListSessionAnalytics(ctx, SessionAnalyticsFilter{}, 10, 0)
 	assert.NoError(t, err)
+	// Mock returns empty slice - this is expected for the mock implementation
 	assert.NotNil(t, sessions)
+	assert.Empty(t, sessions)
 
 	activities, err := cachedRepo.ListUserActivity(ctx, UserActivityFilter{}, 10, 0)
 	assert.NoError(t, err)
+	// Mock returns empty slice - this is expected for the mock implementation
 	assert.NotNil(t, activities)
+	assert.Empty(t, activities)
 
 	commands, err := cachedRepo.ListCommandFrequency(ctx, CommandFrequencyFilter{}, 10, 0)
 	assert.NoError(t, err)
+	// Mock returns empty slice - this is expected for the mock implementation
 	assert.NotNil(t, commands)
+	assert.Empty(t, commands)
 }
 
 func TestCachedRepository_SessionAnalytics(t *testing.T) {
