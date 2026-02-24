@@ -297,3 +297,20 @@ func (m *MockCache) Close() error {
 func (m *MockCache) Health(ctx context.Context) error {
 	return nil
 }
+
+// Increment increments a counter and returns the new value
+func (m *MockCache) Increment(ctx context.Context, key string, delta int64) (int64, error) {
+	currentVal, ok := m.data[key]
+	if !ok {
+		m.data[key] = fmt.Sprintf("%d", delta)
+		return delta, nil
+	}
+	var current int64
+	_, err := fmt.Sscanf(currentVal, "%d", &current)
+	if err != nil {
+		return 0, fmt.Errorf("invalid counter value: %w", err)
+	}
+	newVal := current + delta
+	m.data[key] = fmt.Sprintf("%d", newVal)
+	return newVal, nil
+}

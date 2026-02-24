@@ -12,6 +12,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	// ErrorCodeRateLimitExceeded is the error code for rate limiting (1308)
+	ErrorCodeRateLimitExceeded = "RATE_LIMIT_EXCEEDED"
+)
+
 // RateLimitConfig holds rate limiting configuration
 type RateLimitConfig struct {
 	// Requests per time window
@@ -71,8 +76,8 @@ func (rl *RateLimiter) RateLimit(config RateLimitConfig) gin.HandlerFunc {
 		ctx := c.Request.Context()
 		key := rl.getKey(c, config)
 
-		// Get current count
-		count, err := rl.incrementRequest(ctx, key, config.TimeWindowSeconds)
+		// Get current count and window info
+		count, _, windowEnd, err := rl.getRequestCount(ctx, key, config.TimeWindowSeconds)
 		if err != nil {
 			rl.logger.Error().Err(err).Str("key", key).Msg("Rate limit check failed")
 			// Fail open - allow request if rate limit check fails
@@ -91,14 +96,29 @@ func (rl *RateLimiter) RateLimit(config RateLimitConfig) gin.HandlerFunc {
 				Str("path", c.Request.URL.Path).
 				Msg("Rate limit exceeded")
 
+			// Calculate seconds until window resets
+			retryAfterSeconds := int(time.Until(windowEnd).Seconds())
+			if retryAfterSeconds < 1 {
+				retryAfterSeconds = 1
+			}
+
+			// Set standard HTTP 429 Retry-After header
+			c.Header("Retry-After", strconv.Itoa(retryAfterSeconds))
+
+			// Add rate limit info headers even when exceeded
+			c.Header("X-RateLimit-Limit", strconv.Itoa(config.RequestLimit))
+			c.Header("X-RateLimit-Used", strconv.Itoa(count))
+			c.Header("X-RateLimit-Remaining", "0")
+			c.Header("X-RateLimit-Reset", windowEnd.Format(time.RFC3339))
+
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": gin.H{
-					"code":    "RATE_LIMIT_EXCEEDED",
-					"message": "Too many requests. Please try again later.",
+					"code":    ErrorCodeRateLimitExceeded,
+					"message": "Rate limit exceeded. Please retry after the specified time.",
 					"details": gin.H{
-						"limit":          config.RequestLimit,
-						"window_seconds": config.TimeWindowSeconds,
-						"retry_after":    config.TimeWindowSeconds,
+						"limit":     config.RequestLimit,
+						"used":     count,
+						"resets_at": windowEnd.Format(time.RFC3339),
 					},
 				},
 			})
@@ -106,10 +126,11 @@ func (rl *RateLimiter) RateLimit(config RateLimitConfig) gin.HandlerFunc {
 			return
 		}
 
-		// Add rate limit headers
+		// Add rate limit headers for successful requests
 		c.Header("X-RateLimit-Limit", strconv.Itoa(config.RequestLimit))
+		c.Header("X-RateLimit-Used", strconv.Itoa(count))
 		c.Header("X-RateLimit-Remaining", strconv.Itoa(max(0, config.RequestLimit-count)))
-		c.Header("X-RateLimit-Reset", strconv.Itoa(config.TimeWindowSeconds))
+		c.Header("X-RateLimit-Reset", windowEnd.Format(time.RFC3339))
 
 		c.Next()
 	}
@@ -135,7 +156,29 @@ func (rl *RateLimiter) getKey(c *gin.Context, config RateLimitConfig) string {
 	return fmt.Sprintf("ratelimit:ip:%s", c.ClientIP())
 }
 
+// getRequestCount gets the current request count and window boundaries for a key
+func (rl *RateLimiter) getRequestCount(ctx context.Context, key string, windowSeconds int) (count int, windowStart, windowEnd time.Time, err error) {
+	now := time.Now()
+	windowStart = now.Truncate(time.Duration(windowSeconds) * time.Second)
+	windowEnd = windowStart.Add(time.Duration(windowSeconds) * time.Second)
+
+	cacheKey := fmt.Sprintf("%s:%d", key, windowStart.Unix())
+
+	// Try to increment existing counter
+	currentVal, err := rl.cache.Increment(ctx, cacheKey, 1)
+	if err != nil {
+		// Key doesn't exist, create it
+		if err := rl.cache.Set(ctx, cacheKey, 1, time.Duration(windowSeconds)*time.Second); err != nil {
+			return 0, windowStart, windowEnd, err
+		}
+		return 1, windowStart, windowEnd, nil
+	}
+
+	return int(currentVal), windowStart, windowEnd, nil
+}
+
 // incrementRequest increments the request counter for a key
+// Deprecated: Use getRequestCount for better window tracking
 func (rl *RateLimiter) incrementRequest(ctx context.Context, key string, windowSeconds int) (int, error) {
 	cacheKey := fmt.Sprintf("%s:%d", key, time.Now().Unix()/int64(windowSeconds))
 
@@ -216,7 +259,7 @@ func (rl *RateLimiter) SlidingWindowRateLimit(config RateLimitConfig) gin.Handle
 		// In a real implementation, you'd store timestamps in Redis sorted set
 		// For simplicity, we'll use a basic counter approach here
 
-		count, err := rl.incrementRequest(ctx, key, config.TimeWindowSeconds)
+		count, _, windowEnd, err := rl.getRequestCount(ctx, key, config.TimeWindowSeconds)
 		if err != nil {
 			rl.logger.Error().Err(err).Str("key", key).Msg("Sliding window rate limit check failed")
 			c.Next()
@@ -224,15 +267,41 @@ func (rl *RateLimiter) SlidingWindowRateLimit(config RateLimitConfig) gin.Handle
 		}
 
 		if count > config.RequestLimit {
+			// Calculate seconds until window resets
+			retryAfterSeconds := int(time.Until(windowEnd).Seconds())
+			if retryAfterSeconds < 1 {
+				retryAfterSeconds = 1
+			}
+
+			// Set standard HTTP 429 Retry-After header
+			c.Header("Retry-After", strconv.Itoa(retryAfterSeconds))
+
+			// Add rate limit info headers even when exceeded
+			c.Header("X-RateLimit-Limit", strconv.Itoa(config.RequestLimit))
+			c.Header("X-RateLimit-Used", strconv.Itoa(count))
+			c.Header("X-RateLimit-Remaining", "0")
+			c.Header("X-RateLimit-Reset", windowEnd.Format(time.RFC3339))
+
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": gin.H{
-					"code":    "RATE_LIMIT_EXCEEDED",
-					"message": "Too many requests. Please try again later.",
+					"code":    ErrorCodeRateLimitExceeded,
+					"message": "Rate limit exceeded. Please retry after the specified time.",
+					"details": gin.H{
+						"limit":     config.RequestLimit,
+						"used":     count,
+						"resets_at": windowEnd.Format(time.RFC3339),
+					},
 				},
 			})
 			c.Abort()
 			return
 		}
+
+		// Add rate limit headers for successful requests
+		c.Header("X-RateLimit-Limit", strconv.Itoa(config.RequestLimit))
+		c.Header("X-RateLimit-Used", strconv.Itoa(count))
+		c.Header("X-RateLimit-Remaining", strconv.Itoa(max(0, config.RequestLimit-count)))
+		c.Header("X-RateLimit-Reset", windowEnd.Format(time.RFC3339))
 
 		c.Next()
 	}
