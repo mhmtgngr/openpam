@@ -1,0 +1,700 @@
+package analytics
+
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// PeriodType represents the aggregation period type
+type PeriodType string
+
+const (
+	PeriodHour  PeriodType = "hour"
+	PeriodDay   PeriodType = "day"
+	PeriodWeek  PeriodType = "week"
+	PeriodMonth PeriodType = "month"
+)
+
+// Severity represents alert severity
+type Severity string
+
+const (
+	SeverityLow      Severity = "low"
+	SeverityMedium   Severity = "medium"
+	SeverityHigh     Severity = "high"
+	SeverityCritical Severity = "critical"
+)
+
+// AlertType represents the type of alert
+type AlertType string
+
+const (
+	AlertTypeThreshold AlertType = "threshold"
+	AlertTypeAnomaly   AlertType = "anomaly"
+	AlertTypePattern   AlertType = "pattern"
+	AlertTypeCompliance AlertType = "compliance"
+)
+
+// ReportType represents the type of report
+type ReportType string
+
+const (
+	ReportTypeSessionSummary ReportType = "session_summary"
+	ReportTypeAccessPatterns ReportType = "access_patterns"
+	ReportTypeCompliance     ReportType = "compliance"
+	ReportTypeUserActivity   ReportType = "user_activity"
+	ReportTypeRiskAnalysis   ReportType = "risk_analysis"
+)
+
+// ScheduleType represents report schedule type
+type ScheduleType string
+
+const (
+	ScheduleDaily   ScheduleType = "daily"
+	ScheduleWeekly  ScheduleType = "weekly"
+	ScheduleMonthly ScheduleType = "monthly"
+)
+
+// RiskLevel represents risk level
+type RiskLevel string
+
+const (
+	RiskLevelLow      RiskLevel = "low"
+	RiskLevelMedium   RiskLevel = "medium"
+	RiskLevelHigh     RiskLevel = "high"
+	RiskLevelCritical RiskLevel = "critical"
+)
+
+// EntityType represents entity type for risk scoring
+type EntityType string
+
+const (
+	EntityUser       EntityType = "user"
+	EntityTarget     EntityType = "target"
+	EntityCredential EntityType = "credential"
+)
+
+// MetricType represents metric type
+type MetricType string
+
+const (
+	MetricTypeGauge    MetricType = "gauge"
+	MetricTypeCounter  MetricType = "counter"
+	MetricTypeHistogram MetricType = "histogram"
+	MetricTypeSummary  MetricType = "summary"
+)
+
+// WidgetType represents widget type
+type WidgetType string
+
+const (
+	WidgetTypeLineChart  WidgetType = "line_chart"
+	WidgetTypeBarChart   WidgetType = "bar_chart"
+	WidgetTypePieChart   WidgetType = "pie_chart"
+	WidgetTypeStatCard   WidgetType = "stat_card"
+	WidgetTypeTable      WidgetType = "table"
+	WidgetTypeHeatmap    WidgetType = "heatmap"
+	WidgetTypeGauge      WidgetType = "gauge"
+)
+
+// DataSource represents data source for widgets
+type DataSource string
+
+const (
+	DataSourceSessions   DataSource = "sessions"
+	DataSourceEvents     DataSource = "events"
+	DataSourceCredentials DataSource = "credentials"
+	DataSourceUsers      DataSource = "users"
+	DataSourceRisks      DataSource = "risks"
+)
+
+// SessionAnalytics represents session analytics aggregation
+type SessionAnalytics struct {
+	ID              uuid.UUID      `db:"id" json:"id"`
+	TenantID        uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	PeriodType      PeriodType     `db:"period_type" json:"period_type"`
+	PeriodStart     time.Time      `db:"period_start" json:"period_start"`
+	PeriodEnd       time.Time      `db:"period_end" json:"period_end"`
+
+	// Session counts
+	TotalSessions      int    `db:"total_sessions" json:"total_sessions"`
+	ActiveSessions     int    `db:"active_sessions" json:"active_sessions"`
+	CompletedSessions  int    `db:"completed_sessions" json:"completed_sessions"`
+	FailedSessions     int    `db:"failed_sessions" json:"failed_sessions"`
+	TerminatedSessions int    `db:"terminated_sessions" json:"terminated_sessions"`
+
+	// Duration stats (seconds)
+	AvgDurationSeconds *int    `db:"avg_duration_seconds" json:"avg_duration_seconds,omitempty"`
+	MinDurationSeconds *int    `db:"min_duration_seconds" json:"min_duration_seconds,omitempty"`
+	MaxDurationSeconds *int    `db:"max_duration_seconds" json:"max_duration_seconds,omitempty"`
+	P50DurationSeconds *int    `db:"p50_duration_seconds" json:"p50_duration_seconds,omitempty"`
+	P95DurationSeconds *int    `db:"p95_duration_seconds" json:"p95_duration_seconds,omitempty"`
+	P99DurationSeconds *int    `db:"p99_duration_seconds" json:"p99_duration_seconds,omitempty"`
+
+	// User breakdown
+	UniqueUsers int `db:"unique_users" json:"unique_users"`
+
+	// Protocol breakdown
+	ProtocolBreakdown json.RawMessage `db:"protocol_breakdown" json:"protocol_breakdown,omitempty"`
+
+	// Metadata
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// EventAnalytics represents event analytics aggregation
+type EventAnalytics struct {
+	ID          uuid.UUID      `db:"id" json:"id"`
+	TenantID    uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	PeriodType  PeriodType     `db:"period_type" json:"period_type"`
+	PeriodStart time.Time      `db:"period_start" json:"period_start"`
+	PeriodEnd   time.Time      `db:"period_end" json:"period_end"`
+
+	// Event counts by outcome
+	TotalEvents     int `db:"total_events" json:"total_events"`
+	SuccessfulEvents int `db:"successful_events" json:"successful_events"`
+	FailedEvents    int `db:"failed_events" json:"failed_events"`
+	DeniedEvents    int `db:"denied_events" json:"denied_events"`
+
+	// Event counts by action type
+	ActionBreakdown json.RawMessage `db:"action_breakdown" json:"action_breakdown,omitempty"`
+
+	// Top users and resources
+	TopUsers     json.RawMessage `db:"top_users" json:"top_users,omitempty"`
+	TopResources json.RawMessage `db:"top_resources" json:"top_resources,omitempty"`
+
+	// Failed authentication
+	FailedAuthCount  int `db:"failed_auth_count" json:"failed_auth_count"`
+	UniqueFailedUsers int `db:"unique_failed_users" json:"unique_failed_users"`
+
+	// Metadata
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// Report represents an analytics report
+type Report struct {
+	ID              uuid.UUID   `db:"id" json:"id"`
+	TenantID        uuid.UUID   `db:"tenant_id" json:"tenant_id"`
+	Name            string      `db:"name" json:"name"`
+	Description     string      `db:"description" json:"description,omitempty"`
+	ReportType      ReportType  `db:"report_type" json:"report_type"`
+
+	// Report configuration
+	Config json.RawMessage `db:"config" json:"config"`
+
+	// Schedule
+	ScheduleEnabled    bool             `db:"schedule_enabled" json:"schedule_enabled"`
+	ScheduleType       *ScheduleType    `db:"schedule_type" json:"schedule_type,omitempty"`
+	ScheduleDayOfWeek  *int             `db:"schedule_day_of_week" json:"schedule_day_of_week,omitempty"`
+	ScheduleDayOfMonth *int             `db:"schedule_day_of_month" json:"schedule_day_of_month,omitempty"`
+	ScheduleHour       *int             `db:"schedule_hour" json:"schedule_hour,omitempty"`
+	ScheduleTimezone   string           `db:"schedule_timezone" json:"schedule_timezone"`
+
+	// Delivery
+	DeliveryMethods json.RawMessage `db:"delivery_methods" json:"delivery_methods,omitempty"`
+
+	// Status
+	LastRunAt   *time.Time `db:"last_run_at" json:"last_run_at,omitempty"`
+	NextRunAt   *time.Time `db:"next_run_at" json:"next_run_at,omitempty"`
+	LastStatus  *string    `db:"last_status" json:"last_status,omitempty"`
+	LastError   *string    `db:"last_error" json:"last_error,omitempty"`
+
+	// Metadata
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	Tags     json.RawMessage `db:"tags" json:"tags,omitempty"`
+
+	// Audit
+	CreatedBy uuid.UUID  `db:"created_by" json:"created_by"`
+	UpdatedBy *uuid.UUID `db:"updated_by" json:"updated_by,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+}
+
+// ReportSnapshot represents a generated report snapshot
+type ReportSnapshot struct {
+	ID           uuid.UUID  `db:"id" json:"id"`
+	ReportID     uuid.UUID  `db:"report_id" json:"report_id"`
+	TenantID     uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	PeriodStart  time.Time  `db:"period_start" json:"period_start"`
+	PeriodEnd    time.Time  `db:"period_end" json:"period_end"`
+
+	// Report data
+	Data    json.RawMessage `db:"data" json:"data"`
+	Summary json.RawMessage `db:"summary" json:"summary,omitempty"`
+
+	// File storage
+	FileURL       *string `db:"file_url" json:"file_url,omitempty"`
+	FileFormat    *string `db:"file_format" json:"file_format,omitempty"`
+	FileSizeBytes *int64  `db:"file_size_bytes" json:"file_size_bytes,omitempty"`
+
+	// Status
+	Status        string     `db:"status" json:"status"` // pending, generating, completed, failed
+	GeneratedAt   *time.Time `db:"generated_at" json:"generated_at,omitempty"`
+	ErrorMessage  *string    `db:"error_message" json:"error_message,omitempty"`
+
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+// Dashboard represents an analytics dashboard
+type Dashboard struct {
+	ID          uuid.UUID  `db:"id" json:"id"`
+	TenantID    uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	Name        string     `db:"name" json:"name"`
+	Description string     `db:"description" json:"description,omitempty"`
+	IsDefault   bool       `db:"is_default" json:"is_default"`
+	IsPublic    bool       `db:"is_public" json:"is_public"`
+
+	// Layout configuration
+	Layout         json.RawMessage `db:"layout" json:"layout"`
+	GlobalFilters  json.RawMessage `db:"global_filters" json:"global_filters,omitempty"`
+
+	// Metadata
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	Tags     json.RawMessage `db:"tags" json:"tags,omitempty"`
+
+	// Audit
+	CreatedBy uuid.UUID  `db:"created_by" json:"created_by"`
+	UpdatedBy *uuid.UUID `db:"updated_by" json:"updated_by,omitempty"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time  `db:"updated_at" json:"updated_at"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+
+	// Widgets (loaded separately)
+	Widgets []Widget `json:"widgets,omitempty"`
+}
+
+// Widget represents a dashboard widget
+type Widget struct {
+	ID          uuid.UUID  `db:"id" json:"id"`
+	DashboardID uuid.UUID  `db:"dashboard_id" json:"dashboard_id"`
+	TenantID    uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	Name        string     `db:"name" json:"name"`
+	WidgetType  WidgetType `db:"widget_type" json:"widget_type"`
+
+	// Position and size
+	PositionX int `db:"position_x" json:"position_x"`
+	PositionY int `db:"position_y" json:"position_y"`
+	Width     int `db:"width" json:"width"`
+	Height    int `db:"height" json:"height"`
+
+	// Data source
+	DataSource    DataSource      `db:"data_source" json:"data_source"`
+	QueryConfig   json.RawMessage `db:"query_config" json:"query_config"`
+
+	// Display configuration
+	DisplayConfig json.RawMessage `db:"display_config" json:"display_config"`
+
+	// Refresh settings
+	RefreshIntervalSeconds int `db:"refresh_interval_seconds" json:"refresh_interval_seconds"`
+
+	// Metadata
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+
+	// Audit
+	CreatedBy uuid.UUID `db:"created_by" json:"created_by"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// Alert represents an analytics alert
+type Alert struct {
+	ID          uuid.UUID  `db:"id" json:"id"`
+	TenantID    uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	Name        string     `db:"name" json:"name"`
+	Description string     `db:"description" json:"description,omitempty"`
+	AlertType   AlertType  `db:"alert_type" json:"alert_type"`
+	Severity    Severity   `db:"severity" json:"severity"`
+
+	// Alert conditions
+	Conditions json.RawMessage `db:"conditions" json:"conditions"`
+
+	// Evaluation schedule
+	EvaluationIntervalMinutes int `db:"evaluation_interval_minutes" json:"evaluation_interval_minutes"`
+
+	// Notification
+	NotificationMethods json.RawMessage `db:"notification_methods" json:"notification_methods"`
+
+	// Status
+	Enabled          bool       `db:"enabled" json:"enabled"`
+	LastTriggeredAt  *time.Time `db:"last_triggered_at" json:"last_triggered_at,omitempty"`
+	LastEvaluatedAt  *time.Time `db:"last_evaluated_at" json:"last_evaluated_at,omitempty"`
+	TriggerCount     int        `db:"trigger_count" json:"trigger_count"`
+
+	// Cooldown
+	CooldownMinutes int        `db:"cooldown_minutes" json:"cooldown_minutes"`
+	NextTriggerAt   *time.Time `db:"next_trigger_at" json:"next_trigger_at,omitempty"`
+
+	// Metadata
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	Tags     json.RawMessage `db:"tags" json:"tags,omitempty"`
+
+	// Audit
+	CreatedBy uuid.UUID  `db:"created_by" json:"created_by"`
+	UpdatedBy *uuid.UUID `db:"updated_by" json:"updated_by,omitempty"`
+	CreatedAt time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time  `db:"updated_at" json:"updated_at"`
+	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
+}
+
+// AlertTrigger represents an alert trigger history
+type AlertTrigger struct {
+	ID              uuid.UUID  `db:"id" json:"id"`
+	AlertID         uuid.UUID  `db:"alert_id" json:"alert_id"`
+	TenantID        uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	TriggeredAt     time.Time  `db:"triggered_at" json:"triggered_at"`
+	Severity        Severity   `db:"severity" json:"severity"`
+	TriggerData     json.RawMessage `db:"trigger_data" json:"trigger_data"`
+
+	// Resolution
+	ResolvedAt      *time.Time `db:"resolved_at" json:"resolved_at,omitempty"`
+	ResolvedBy      *uuid.UUID `db:"resolved_by" json:"resolved_by,omitempty"`
+	ResolutionNotes *string    `db:"resolution_notes" json:"resolution_notes,omitempty"`
+
+	// Notifications
+	NotificationsSent json.RawMessage `db:"notifications_sent" json:"notifications_sent,omitempty"`
+
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+}
+
+// Metric represents a metric data point
+type Metric struct {
+	ID         uuid.UUID      `db:"id" json:"id"`
+	TenantID   uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	MetricName string         `db:"metric_name" json:"metric_name"`
+	MetricType MetricType     `db:"metric_type" json:"metric_type"`
+	Value      float64        `db:"value" json:"value"`
+	Labels     json.RawMessage `db:"labels" json:"labels,omitempty"`
+	RecordedAt time.Time      `db:"recorded_at" json:"recorded_at"`
+	Metadata   json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+}
+
+// UserActivity represents user activity analytics
+type UserActivity struct {
+	ID              uuid.UUID  `db:"id" json:"id"`
+	TenantID        uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	UserID          uuid.UUID  `db:"user_id" json:"user_id"`
+	PeriodType      PeriodType `db:"period_type" json:"period_type"`
+	PeriodStart     time.Time  `db:"period_start" json:"period_start"`
+
+	// Activity counts
+	SessionsCreated    int `db:"sessions_created" json:"sessions_created"`
+	CredentialsAccessed int `db:"credentials_accessed" json:"credentials_accessed"`
+	ApprovalsRequested int `db:"approvals_requested" json:"approvals_requested"`
+	ApprovalsGranted   int `db:"approvals_granted" json:"approvals_granted"`
+
+	// Time-based stats
+	TotalActiveSeconds int64  `db:"total_active_seconds" json:"total_active_seconds"`
+	AvgDailySeconds    *int   `db:"avg_daily_seconds" json:"avg_daily_seconds,omitempty"`
+
+	// Risk indicators
+	HighRiskSessions  int     `db:"high_risk_sessions" json:"high_risk_sessions"`
+	PolicyViolations  int     `db:"policy_violations" json:"policy_violations"`
+	FailedAuthAttempts int    `db:"failed_auth_attempts" json:"failed_auth_attempts"`
+
+	// Unusual activity flags
+	IsAnomaly    bool    `db:"is_anomaly" json:"is_anomaly"`
+	AnomalyScore *float64 `db:"anomaly_score" json:"anomaly_score,omitempty"`
+
+	// Access patterns
+	OffHoursAccess bool      `db:"off_hours_access" json:"off_hours_access"`
+	FirstAccessTime *time.Time `db:"first_access_time" json:"first_access_time,omitempty"`
+	LastAccessTime  *time.Time `db:"last_access_time" json:"last_access_time,omitempty"`
+
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// RiskScore represents entity risk score
+type RiskScore struct {
+	ID                uuid.UUID  `db:"id" json:"id"`
+	TenantID          uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	EntityType        EntityType `db:"entity_type" json:"entity_type"`
+	EntityID          uuid.UUID  `db:"entity_id" json:"entity_id"`
+	CalculatedAt      time.Time  `db:"calculated_at" json:"calculated_at"`
+
+	// Risk components (0-100 each)
+	AccessFrequencyScore *float64 `db:"access_frequency_score" json:"access_frequency_score,omitempty"`
+	TimePatternScore     *float64 `db:"time_pattern_score" json:"time_pattern_score,omitempty"`
+	GeographyScore       *float64 `db:"geography_score" json:"geography_score,omitempty"`
+	BehaviorDriftScore   *float64 `db:"behavior_drift_score" json:"behavior_drift_score,omitempty"`
+	ComplianceScore      *float64 `db:"compliance_score" json:"compliance_score,omitempty"`
+
+	// Overall risk
+	OverallRiskScore float64  `db:"overall_risk_score" json:"overall_risk_score"`
+	RiskLevel        RiskLevel `db:"risk_level" json:"risk_level"`
+
+	// Contributing factors
+	Factors json.RawMessage `db:"factors" json:"factors,omitempty"`
+
+	// Trend
+	PreviousScore *float64 `db:"previous_score" json:"previous_score,omitempty"`
+	ScoreChange   *float64 `db:"score_change" json:"score_change,omitempty"`
+
+	Metadata json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+}
+
+// FilterOptions represents common filter options for analytics queries
+type FilterOptions struct {
+	TenantID     uuid.UUID     `json:"tenant_id"`
+	StartDate    *time.Time    `json:"start_date,omitempty"`
+	EndDate      *time.Time    `json:"end_date,omitempty"`
+	PeriodType   *PeriodType   `json:"period_type,omitempty"`
+	UserID       *uuid.UUID    `json:"user_id,omitempty"`
+	TargetID     *uuid.UUID    `json:"target_id,omitempty"`
+	CredentialID *uuid.UUID    `json:"credential_id,omitempty"`
+	Protocol     *string       `json:"protocol,omitempty"`
+	Outcome      *string       `json:"outcome,omitempty"`
+	Action       *string       `json:"action,omitempty"`
+	Limit        int           `json:"limit,omitempty"`
+	Offset       int           `json:"offset,omitempty"`
+}
+
+// DashboardFilter represents filter options for dashboard queries
+type DashboardFilter struct {
+	TenantID  uuid.UUID `json:"tenant_id"`
+	IsDefault *bool     `json:"is_default,omitempty"`
+	IsPublic  *bool     `json:"is_public,omitempty"`
+	CreatedBy *uuid.UUID `json:"created_by,omitempty"`
+	Search    string    `json:"search,omitempty"`
+	Tags      []string  `json:"tags,omitempty"`
+	Limit     int       `json:"limit,omitempty"`
+	Offset    int       `json:"offset,omitempty"`
+}
+
+// ReportFilter represents filter options for report queries
+type ReportFilter struct {
+	TenantID   uuid.UUID    `json:"tenant_id"`
+	ReportType *ReportType `json:"report_type,omitempty"`
+	Search     string      `json:"search,omitempty"`
+	Tags       []string    `json:"tags,omitempty"`
+	Limit      int         `json:"limit,omitempty"`
+	Offset     int         `json:"offset,omitempty"`
+}
+
+// AlertFilter represents filter options for alert queries
+type AlertFilter struct {
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	AlertType *AlertType `json:"alert_type,omitempty"`
+	Severity  *Severity  `json:"severity,omitempty"`
+	Enabled   *bool      `json:"enabled,omitempty"`
+	Search    string     `json:"search,omitempty"`
+	Tags      []string   `json:"tags,omitempty"`
+	Limit     int        `json:"limit,omitempty"`
+	Offset    int        `json:"offset,omitempty"`
+}
+
+// SessionStats represents session statistics
+type SessionStats struct {
+	Total      int64     `json:"total"`
+	Active     int64     `json:"active"`
+	Completed  int64     `json:"completed"`
+	Failed     int64     `json:"failed"`
+	Terminated int64     `json:"terminated"`
+	AvgDuration int      `json:"avg_duration"`
+	MaxDuration int      `json:"max_duration"`
+	ByProtocol  map[string]int64 `json:"by_protocol"`
+	ByUser      map[string]int64 `json:"by_user"`
+}
+
+// EventStats represents event statistics
+type EventStats struct {
+	Total       int64            `json:"total"`
+	Successful  int64            `json:"successful"`
+	Failed      int64            `json:"failed"`
+	Denied      int64            `json:"denied"`
+	ByAction    map[string]int64 `json:"by_action"`
+	ByUser      map[string]int64 `json:"by_user"`
+	ByResource  map[string]int64 `json:"by_resource"`
+}
+
+// TopUser represents top user by activity
+type TopUser struct {
+	UserID       uuid.UUID `json:"user_id"`
+	Username     string    `json:"username"`
+	SessionCount int       `json:"session_count"`
+	TotalSeconds int64     `json:"total_seconds"`
+	LastSeen     time.Time `json:"last_seen"`
+}
+
+// AccessPattern represents access pattern data
+type AccessPattern struct {
+	HourOfDay         int     `json:"hour_of_day"`
+	DayOfWeek         int     `json:"day_of_week"`
+	SessionCount      int     `json:"session_count"`
+	UniqueUsers       int     `json:"unique_users"`
+	AvgDuration       int     `json:"avg_duration"`
+	IsOutsideBusiness bool    `json:"is_outside_business"`
+}
+
+// TimeSeriesDataPoint represents a time series data point
+type TimeSeriesDataPoint struct {
+	Timestamp time.Time `json:"timestamp"`
+	Value     float64   `json:"value"`
+	Label     string    `json:"label,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// ComplianceStatus represents compliance status
+type ComplianceStatus struct {
+	OverallPercentage float64            `json:"overall_percentage"`
+	PassedChecks      int                `json:"passed_checks"`
+	TotalChecks       int                `json:"total_checks"`
+	Violations        []ComplianceViolation `json:"violations,omitempty"`
+	ByPolicy          map[string]CompliancePolicyStatus `json:"by_policy,omitempty"`
+}
+
+// ComplianceViolation represents a compliance violation
+type ComplianceViolation struct {
+	PolicyID      uuid.UUID `json:"policy_id"`
+	PolicyName    string    `json:"policy_name"`
+	ViolationType string    `json:"violation_type"`
+	Severity      string    `json:"severity"`
+	Description   string    `json:"description"`
+	Count         int       `json:"count"`
+	FirstSeen     time.Time `json:"first_seen"`
+	LastSeen      time.Time `json:"last_seen"`
+}
+
+// CompliancePolicyStatus represents status for a specific policy
+type CompliancePolicyStatus struct {
+	PolicyID          uuid.UUID `json:"policy_id"`
+	PolicyName        string    `json:"policy_name"`
+	ComplianceRate    float64   `json:"compliance_rate"`
+	TotalEvaluations  int       `json:"total_evaluations"`
+	PassedEvaluations int       `json:"passed_evaluations"`
+}
+
+// CreateReportRequest represents a request to create a report
+type CreateReportRequest struct {
+	Name            string          `json:"name" binding:"required"`
+	Description     string          `json:"description"`
+	ReportType      ReportType      `json:"report_type" binding:"required"`
+	Config          json.RawMessage `json:"config"`
+	ScheduleEnabled bool            `json:"schedule_enabled"`
+	ScheduleType    *ScheduleType   `json:"schedule_type"`
+	ScheduleDayOfWeek *int          `json:"schedule_day_of_week"`
+	ScheduleDayOfMonth *int         `json:"schedule_day_of_month"`
+	ScheduleHour    *int            `json:"schedule_hour"`
+	DeliveryMethods json.RawMessage `json:"delivery_methods"`
+	Metadata        json.RawMessage `json:"metadata"`
+	Tags            json.RawMessage `json:"tags"`
+}
+
+// UpdateReportRequest represents a request to update a report
+type UpdateReportRequest struct {
+	Name            *string          `json:"name"`
+	Description     *string          `json:"description"`
+	Config          json.RawMessage `json:"config"`
+	ScheduleEnabled *bool            `json:"schedule_enabled"`
+	ScheduleType    *ScheduleType    `json:"schedule_type"`
+	ScheduleDayOfWeek *int           `json:"schedule_day_of_week"`
+	ScheduleDayOfMonth *int          `json:"schedule_day_of_month"`
+	ScheduleHour    *int             `json:"schedule_hour"`
+	DeliveryMethods json.RawMessage  `json:"delivery_methods"`
+	Metadata        json.RawMessage  `json:"metadata"`
+	Tags            json.RawMessage  `json:"tags"`
+}
+
+// CreateDashboardRequest represents a request to create a dashboard
+type CreateDashboardRequest struct {
+	Name           string          `json:"name" binding:"required"`
+	Description    string          `json:"description"`
+	IsDefault      bool            `json:"is_default"`
+	IsPublic       bool            `json:"is_public"`
+	Layout         json.RawMessage `json:"layout" binding:"required"`
+	GlobalFilters  json.RawMessage `json:"global_filters"`
+	Metadata       json.RawMessage `json:"metadata"`
+	Tags           json.RawMessage `json:"tags"`
+	Widgets        []CreateWidgetRequest `json:"widgets"`
+}
+
+// UpdateDashboardRequest represents a request to update a dashboard
+type UpdateDashboardRequest struct {
+	Name          *string         `json:"name"`
+	Description   *string         `json:"description"`
+	IsDefault     *bool           `json:"is_default"`
+	IsPublic      *bool           `json:"is_public"`
+	Layout        json.RawMessage `json:"layout"`
+	GlobalFilters json.RawMessage `json:"global_filters"`
+	Metadata      json.RawMessage `json:"metadata"`
+	Tags          json.RawMessage `json:"tags"`
+}
+
+// CreateWidgetRequest represents a request to create a widget
+type CreateWidgetRequest struct {
+	Name                  string          `json:"name" binding:"required"`
+	WidgetType            WidgetType      `json:"widget_type" binding:"required"`
+	PositionX             int             `json:"position_x" binding:"required"`
+	PositionY             int             `json:"position_y" binding:"required"`
+	Width                 int             `json:"width" binding:"required,min=1"`
+	Height                int             `json:"height" binding:"required,min=1"`
+	DataSource            DataSource      `json:"data_source" binding:"required"`
+	QueryConfig           json.RawMessage `json:"query_config" binding:"required"`
+	DisplayConfig         json.RawMessage `json:"display_config"`
+	RefreshIntervalSeconds *int            `json:"refresh_interval_seconds"`
+	Metadata              json.RawMessage `json:"metadata"`
+}
+
+// UpdateWidgetRequest represents a request to update a widget
+type UpdateWidgetRequest struct {
+	Name                  *string         `json:"name"`
+	PositionX             *int            `json:"position_x"`
+	PositionY             *int            `json:"position_y"`
+	Width                 *int            `json:"width"`
+	Height                *int            `json:"height"`
+	QueryConfig           json.RawMessage `json:"query_config"`
+	DisplayConfig         json.RawMessage `json:"display_config"`
+	RefreshIntervalSeconds *int            `json:"refresh_interval_seconds"`
+	Metadata              json.RawMessage `json:"metadata"`
+}
+
+// CreateAlertRequest represents a request to create an alert
+type CreateAlertRequest struct {
+	Name                       string          `json:"name" binding:"required"`
+	Description                string          `json:"description"`
+	AlertType                  AlertType       `json:"alert_type" binding:"required"`
+	Severity                   Severity        `json:"severity" binding:"required,oneof=low medium high critical"`
+	Conditions                 json.RawMessage `json:"conditions" binding:"required"`
+	EvaluationIntervalMinutes  int             `json:"evaluation_interval_minutes" binding:"required,min=1"`
+	NotificationMethods        json.RawMessage `json:"notification_methods" binding:"required"`
+	CooldownMinutes            int             `json:"cooldown_minutes"`
+	Metadata                   json.RawMessage `json:"metadata"`
+	Tags                       json.RawMessage `json:"tags"`
+}
+
+// UpdateAlertRequest represents a request to update an alert
+type UpdateAlertRequest struct {
+	Name                       *string         `json:"name"`
+	Description                *string         `json:"description"`
+	Severity                   *Severity       `json:"severity"`
+	Conditions                 json.RawMessage `json:"conditions"`
+	EvaluationIntervalMinutes  *int            `json:"evaluation_interval_minutes"`
+	NotificationMethods        json.RawMessage `json:"notification_methods"`
+	Enabled                    *bool           `json:"enabled"`
+	CooldownMinutes            *int            `json:"cooldown_minutes"`
+	Metadata                   json.RawMessage `json:"metadata"`
+	Tags                       json.RawMessage `json:"tags"`
+}
+
+// GenerateReportRequest represents a request to generate a report
+type GenerateReportRequest struct {
+	StartDate time.Time `json:"start_date" binding:"required"`
+	EndDate   time.Time `json:"end_date" binding:"required"`
+	Format    string    `json:"format" binding:"omitempty,oneof=pdf csv xlsx json"`
+}
+
+// WidgetDataResponse represents widget data response
+type WidgetDataResponse struct {
+	WidgetID   uuid.UUID          `json:"widget_id"`
+	DataSource DataSource         `json:"data_source"`
+	Data       interface{}        `json:"data"`
+	GeneratedAt time.Time         `json:"generated_at"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+}
