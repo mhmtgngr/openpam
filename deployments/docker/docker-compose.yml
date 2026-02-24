@@ -94,6 +94,7 @@ services:
       # Service
       PORT: 8500
       LOG_LEVEL: debug
+      ENVIRONMENT: development
 
       # JWT (in production, mount keys as volume)
       JWT_PRIVATE_KEY_PATH: /etc/openpam/jwt/private.pem
@@ -116,7 +117,7 @@ services:
       minio:
         condition: service_healthy
     volumes:
-      - ./jwt-keys:/etc/openpam/jwt:ro
+      - ./jwt-keys:/etc/openpam/jwt
     networks:
       - openpam-net
     restart: unless-stopped
