@@ -29,6 +29,9 @@ import { PasswordPolicyListPage } from '@/pages/policies/PasswordPolicyListPage'
 import { PasswordPolicyFormPage } from '@/pages/policies/PasswordPolicyFormPage';
 import { SessionPolicyListPage } from '@/pages/policies/SessionPolicyListPage';
 import { SessionPolicyFormPage } from '@/pages/policies/SessionPolicyFormPage';
+import { AccessPolicyListPage } from '@/pages/policies/AccessPolicyListPage';
+import { AccessPolicyFormPage } from '@/pages/policies/AccessPolicyFormPage';
+import { PolicyTestPage } from '@/pages/policies/PolicyTestPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -234,6 +237,40 @@ const AppRoutes: React.FC = () => {
 
         {/* MFA Setup */}
         <Route path="/mfa/setup" element={<MFASetup onComplete={() => window.location.reload()} />} />
+
+        {/* Access Policies */}
+        <Route
+          path="/policies/access"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <AccessPolicyListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/access/new"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <AccessPolicyFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/access/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <AccessPolicyFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/access/test"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <PolicyTestPage />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Default redirect */}

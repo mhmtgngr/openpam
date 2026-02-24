@@ -434,7 +434,33 @@ export type NotificationType =
   | 'mfa_enabled_required'
   | 'account_locked';
 
-// Policies
+// Policies - exported from policy.ts
+export type {
+  PolicyEffect,
+  PolicyStatus,
+  ConditionType,
+  ConditionOperator,
+  LogicalOperator,
+  PolicyCondition,
+  PolicyRule,
+  AccessPolicy,
+  PolicyEvaluationRequest,
+  PolicyEvaluationResult,
+  PolicyEvaluationDetails,
+  PolicyEvaluationLog,
+  PolicyValidationResult,
+  PolicyValidationError,
+  AccessPolicyListFilter,
+  CreateAccessPolicyData,
+  UpdateAccessPolicyData,
+  TestPolicyRequest,
+  TestScenario,
+  TestPolicyResult,
+  ConditionTemplate,
+  ConditionFieldTemplate,
+  RuleTemplate,
+} from './policy';
+
 export interface PasswordPolicy {
   id: string;
   name: string;

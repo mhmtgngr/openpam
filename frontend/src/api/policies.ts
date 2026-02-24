@@ -1,5 +1,21 @@
 import { api } from './client';
-import type { PasswordPolicy, SessionPolicy, PaginatedResponse } from '@/types';
+import type {
+  PasswordPolicy,
+  SessionPolicy,
+  PaginatedResponse,
+} from '@/types';
+import type {
+  AccessPolicy,
+  AccessPolicyListFilter,
+  CreateAccessPolicyData,
+  UpdateAccessPolicyData,
+  PolicyEvaluationRequest,
+  PolicyEvaluationResult,
+  PolicyEvaluationLog,
+  PolicyValidationResult,
+  TestPolicyRequest,
+  TestPolicyResult,
+} from '@/types/policy';
 
 export interface PasswordPolicyListParams {
   limit?: number;
@@ -83,7 +99,70 @@ export const sessionPoliciesApi = {
   setDefault: (id: string) => api.post<SessionPolicy>(`/policies/session/${id}/default`, {}),
 };
 
+// Access Policies (Policy Engine)
+export interface AccessPolicyListParams extends AccessPolicyListFilter {}
+
+export const accessPoliciesApi = {
+  // List access policies
+  list: (params?: AccessPolicyListParams) =>
+    api.get<PaginatedResponse<AccessPolicy>>('/policies/access', params),
+
+  // Get access policy by ID
+  get: (id: string) => api.get<AccessPolicy>(`/policies/access/${id}`),
+
+  // Create access policy
+  create: (data: CreateAccessPolicyData) =>
+    api.post<AccessPolicy>('/policies/access', data),
+
+  // Update access policy
+  update: (id: string, data: UpdateAccessPolicyData) =>
+    api.patch<AccessPolicy>(`/policies/access/${id}`, data),
+
+  // Delete access policy
+  delete: (id: string) => api.delete<void>(`/policies/access/${id}`),
+
+  // Validate policy before saving
+  validate: (data: CreateAccessPolicyData | UpdateAccessPolicyData) =>
+    api.post<PolicyValidationResult>('/policies/access/validate', data),
+
+  // Set as default
+  setDefault: (id: string) => api.post<AccessPolicy>(`/policies/access/${id}/default`, {}),
+
+  // Evaluate policy (test access)
+  evaluate: (request: PolicyEvaluationRequest) =>
+    api.post<PolicyEvaluationResult>('/policies/access/evaluate', request),
+
+  // Get evaluation logs (audit trail)
+  evaluationLogs: (params?: {
+    user_id?: string;
+    policy_id?: string;
+    resource?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+  }) =>
+    api.get<PaginatedResponse<PolicyEvaluationLog>>('/policies/access/evaluation-logs', params),
+
+  // Test policy with scenarios
+  test: (data: TestPolicyRequest) =>
+    api.post<TestPolicyResult[]>('/policies/access/test', data),
+
+  // Clone policy
+  clone: (id: string, name: string) =>
+    api.post<AccessPolicy>(`/policies/access/${id}/clone`, { name }),
+
+  // Bulk operations
+  bulkActivate: (ids: string[]) =>
+    api.post<{ success: string[]; failed: string[] }>('/policies/access/bulk/activate', { ids }),
+  bulkDeactivate: (ids: string[]) =>
+    api.post<{ success: string[]; failed: string[] }>('/policies/access/bulk/deactivate', { ids }),
+  bulkDelete: (ids: string[]) =>
+    api.post<{ success: string[]; failed: string[] }>('/policies/access/bulk/delete', { ids }),
+};
+
 export const policiesApi = {
   password: passwordPoliciesApi,
   session: sessionPoliciesApi,
+  access: accessPoliciesApi,
 };
