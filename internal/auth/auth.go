@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
+	"github.com/openpam/openpam/internal/crypto"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,10 +22,23 @@ type Service struct {
 	logger     zerolog.Logger
 	maxLoginAttempts int
 	lockDuration     time.Duration
+	mfaKeyEncryptor  *crypto.Encryptor // For encrypting MFA secrets at rest
 }
 
 // NewService creates a new auth service
-func NewService(db *sqlx.DB, jwt *JWTManager, mfa *MFAManager, c *cache.Cache, logger zerolog.Logger) *Service {
+func NewService(db *sqlx.DB, jwt *JWTManager, mfa *MFAManager, c *cache.Cache, logger zerolog.Logger, mfaEncryptionKey []byte) *Service {
+	var mfaEncryptor *crypto.Encryptor
+	var err error
+
+	if len(mfaEncryptionKey) == 32 {
+		mfaEncryptor, err = crypto.NewEncryptor(mfaEncryptionKey)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to create MFA encryptor, MFA secrets will not be encrypted at rest")
+		}
+	} else if len(mfaEncryptionKey) > 0 {
+		logger.Warn().Int("key_length", len(mfaEncryptionKey)).Msg("MFA encryption key must be 32 bytes, MFA secrets will not be encrypted at rest")
+	}
+
 	return &Service{
 		db:               db,
 		jwt:              jwt,
@@ -33,6 +47,7 @@ func NewService(db *sqlx.DB, jwt *JWTManager, mfa *MFAManager, c *cache.Cache, l
 		logger:           logger,
 		maxLoginAttempts: 5,
 		lockDuration:     30 * time.Minute,
+		mfaKeyEncryptor:  mfaEncryptor,
 	}
 }
 
@@ -127,8 +142,19 @@ func (s *Service) AuthenticateMFA(ctx context.Context, userID uuid.UUID, code, t
 		return nil, fmt.Errorf("auth.GetUser: %w", err)
 	}
 
+	// SECURITY FIX: Decrypt MFA secret before verification
+	secretToVerify := user.MFASecret
+	if s.mfaKeyEncryptor != nil && user.MFASecret != "" {
+		decryptedSecret, err := s.decryptMFASecret(user.MFASecret)
+		if err != nil {
+			s.logger.Error().Err(err).Str("user_id", userID.String()).Msg("Failed to decrypt MFA secret")
+			return nil, fmt.Errorf("auth: MFA verification failed")
+		}
+		secretToVerify = decryptedSecret
+	}
+
 	// Verify MFA code
-	if !s.mfa.Verify(ctx, user.ID.String(), "totp", user.MFASecret, code) {
+	if !s.mfa.Verify(ctx, user.ID.String(), "totp", secretToVerify, code) {
 		return nil, fmt.Errorf("auth: invalid MFA code")
 	}
 
@@ -215,6 +241,7 @@ func (s *Service) SetupMFA(ctx context.Context, userID uuid.UUID) (string, []byt
 }
 
 // VerifyAndEnableMFA verifies MFA setup and enables it
+// SECURITY FIX: Encrypts MFA secret before storing in database
 func (s *Service) VerifyAndEnableMFA(ctx context.Context, userID uuid.UUID, code string) error {
 	// Get temporary secret
 	cacheKey := fmt.Sprintf("mfa_setup:%s", userID)
@@ -240,7 +267,17 @@ func (s *Service) VerifyAndEnableMFA(ctx context.Context, userID uuid.UUID, code
 		return fmt.Errorf("auth.HashBackupCodes: %w", err)
 	}
 
-	// Enable MFA in database
+	// SECURITY FIX: Encrypt MFA secret before storing
+	secretToStore := secret
+	if s.mfaKeyEncryptor != nil {
+		encryptedSecret, err := s.encryptMFASecret(secret)
+		if err != nil {
+			return fmt.Errorf("auth.EncryptMFASecret: %w", err)
+		}
+		secretToStore = encryptedSecret
+	}
+
+	// Enable MFA in database with encrypted secret
 	query := `
 		UPDATE users SET
 			mfa_enabled = TRUE,
@@ -249,7 +286,7 @@ func (s *Service) VerifyAndEnableMFA(ctx context.Context, userID uuid.UUID, code
 			updated_at = NOW()
 		WHERE id = $1
 	`
-	_, err = s.db.ExecContext(ctx, query, userID, secret, hashedCodes)
+	_, err = s.db.ExecContext(ctx, query, userID, secretToStore, hashedCodes)
 	if err != nil {
 		return fmt.Errorf("auth.EnableMFA: %w", err)
 	}
@@ -257,7 +294,27 @@ func (s *Service) VerifyAndEnableMFA(ctx context.Context, userID uuid.UUID, code
 	// Clean up temporary secret
 	_ = s.cache.Delete(ctx, cacheKey)
 
+	s.logger.Info().
+		Str("user_id", userID.String()).
+		Msg("MFA enabled with encrypted secret")
+
 	return nil
+}
+
+// encryptMFASecret encrypts an MFA secret for storage
+func (s *Service) encryptMFASecret(secret string) (string, error) {
+	if s.mfaKeyEncryptor == nil {
+		return secret, nil
+	}
+	return s.mfaKeyEncryptor.EncryptString(secret)
+}
+
+// decryptMFASecret decrypts an MFA secret from storage
+func (s *Service) decryptMFASecret(encryptedSecret string) (string, error) {
+	if s.mfaKeyEncryptor == nil {
+		return encryptedSecret, nil
+	}
+	return s.mfaKeyEncryptor.DecryptString(encryptedSecret)
 }
 
 // Logout logs out a user by revoking their refresh token
@@ -577,4 +634,69 @@ func (s *Service) GetRoles(ctx context.Context, userID uuid.UUID) ([]string, err
 	}
 
 	return roles, nil
+}
+
+// DisableMFADisables MFA for a user
+func (s *Service) DisableMFA(ctx context.Context, userID uuid.UUID) error {
+	query := `
+		UPDATE users SET
+			mfa_enabled = FALSE,
+			mfa_secret = NULL,
+			backup_codes = NULL,
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	_, err := s.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("auth.DisableMFA: %w", err)
+	}
+
+	s.logger.Info().
+		Str("user_id", userID.String()).
+		Msg("MFA disabled")
+
+	return nil
+}
+
+// RegenerateBackupCodes regenerates backup codes for a user with MFA enabled
+func (s *Service) RegenerateBackupCodes(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	// Get user to verify MFA is enabled
+	user, err := s.getUserByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("auth.GetUser: %w", err)
+	}
+
+	if !user.MFAEnabled {
+		return nil, fmt.Errorf("auth: MFA not enabled for user")
+	}
+
+	// Generate new backup codes
+	backupCodes, err := s.mfa.totp.GenerateBackupCodes(10)
+	if err != nil {
+		return nil, fmt.Errorf("auth.GenerateBackupCodes: %w", err)
+	}
+
+	// Hash backup codes
+	hashedCodes, err := s.mfa.totp.HashBackupCodes(backupCodes)
+	if err != nil {
+		return nil, fmt.Errorf("auth.HashBackupCodes: %w", err)
+	}
+
+	// Update in database
+	query := `
+		UPDATE users SET
+			backup_codes = $2,
+			updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err = s.db.ExecContext(ctx, query, userID, hashedCodes)
+	if err != nil {
+		return nil, fmt.Errorf("auth.UpdateBackupCodes: %w", err)
+	}
+
+	s.logger.Info().
+		Str("user_id", userID.String()).
+		Msg("Backup codes regenerated")
+
+	return backupCodes, nil
 }

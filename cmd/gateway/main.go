@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -86,7 +87,22 @@ func main() {
 
 	mfaManager := auth.NewMFAManager(totpManager, nil, redisCache, logger)
 
-	authService := auth.NewService(db.DB, jwtManager, mfaManager, redisCache, logger)
+	// MFA encryption key for encrypting TOTP secrets at rest
+	// SECURITY: This key should be loaded from a secure KMS in production
+	mfaEncryptionKeyStr := getEnv("MFA_ENCRYPTION_KEY", "")
+	var mfaEncryptionKey []byte
+	if mfaEncryptionKeyStr != "" {
+		// Decode hex key
+		mfaEncryptionKey, err = hex.DecodeString(mfaEncryptionKeyStr)
+		if err != nil || len(mfaEncryptionKey) != 32 {
+			log.Warn().Err(err).Msg("Invalid MFA_ENCRYPTION_KEY, must be 64 hex characters (32 bytes). MFA secrets will not be encrypted at rest.")
+			mfaEncryptionKey = nil
+		}
+	} else {
+		log.Warn().Msg("MFA_ENCRYPTION_KEY not set. MFA secrets will be stored in plaintext. Set a 32-byte hex key for production.")
+	}
+
+	authService := auth.NewService(db.DB, jwtManager, mfaManager, redisCache, logger, mfaEncryptionKey)
 
 	// Initialize services
 	targetRepo := target.NewTargetRepository(db.DB, redisCache, logger)

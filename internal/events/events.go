@@ -375,6 +375,7 @@ func NewWebhook(endpoint, secret string, c *cache.Cache, logger zerolog.Logger) 
 }
 
 // Deliver sends an event to the webhook endpoint
+// SECURITY FIX: Includes timestamp in signature to prevent replay attacks
 func (w *Webhook) Deliver(ctx context.Context, event Event) error {
 	// Check rate limit
 	allowed, err := w.cache.RateLimiter().Allow(ctx, "webhook:"+w.endpoint, 100, time.Minute)
@@ -391,18 +392,21 @@ func (w *Webhook) Deliver(ctx context.Context, event Event) error {
 		return fmt.Errorf("webhook.Marshal: %w", err)
 	}
 
+	// Generate timestamp for this delivery
+	timestamp := time.Now().Unix()
+
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, "POST", w.endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("webhook.NewRequest: %w", err)
 	}
 
-	// Add signature header
-	signature := w.sign(payload)
+	// SECURITY FIX: Include timestamp in signature calculation
+	signature := w.sign(payload, timestamp)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-OpenPAM-Event", event.Type)
 	req.Header.Set("X-OpenPAM-Signature", signature)
-	req.Header.Set("X-OpenPAM-Timestamp", fmt.Sprintf("%d", time.Now().Unix()))
+	req.Header.Set("X-OpenPAM-Timestamp", fmt.Sprintf("%d", timestamp))
 
 	// Send request
 	resp, err := w.client.Do(req)
@@ -426,10 +430,30 @@ func (w *Webhook) Deliver(ctx context.Context, event Event) error {
 }
 
 // sign creates HMAC signature for webhook payload
-func (w *Webhook) sign(payload []byte) string {
+// SECURITY FIX: Include timestamp in signature to prevent replay attacks
+func (w *Webhook) sign(payload []byte, timestamp int64) string {
 	h := hmac.New(sha256.New, []byte(w.secret))
+	// Include timestamp in the signed data to prevent replay attacks
+	h.Write([]byte(fmt.Sprintf("%d", timestamp)))
 	h.Write(payload)
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+// verifySignature verifies the webhook signature
+// SECURITY FIX: Validates timestamp to prevent replay attacks
+func (w *Webhook) verifySignature(payload []byte, signature string, timestamp int64) bool {
+	// Check timestamp is within acceptable range (5 minutes)
+	now := time.Now().Unix()
+	maxAge := int64(300) // 5 minutes
+
+	if timestamp < now-maxAge || timestamp > now+maxAge {
+		return false
+	}
+
+	// Recreate signature with timestamp
+	expectedSignature := w.sign(payload, timestamp)
+
+	return hmac.Equal([]byte(signature), []byte(expectedSignature))
 }
 
 // DeliverWithRetry delivers an event with retry logic
@@ -445,4 +469,12 @@ func (w *Webhook) DeliverWithRetry(ctx context.Context, event Event, maxRetries 
 		}
 	}
 	return fmt.Errorf("webhook: failed after %d retries: %w", maxRetries, lastErr)
+}
+
+// VerifyWebhookSignature verifies an incoming webhook signature
+// This is used by webhook consumers to verify the authenticity of webhooks
+// SECURITY FIX: Includes timestamp verification to prevent replay attacks
+func VerifyWebhookSignature(payload []byte, signature string, timestamp int64, secret string) bool {
+	webhook := &Webhook{secret: secret}
+	return webhook.verifySignature(payload, signature, timestamp)
 }
