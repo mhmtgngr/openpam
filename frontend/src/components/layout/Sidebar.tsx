@@ -10,6 +10,7 @@ import {
   Clock,
   ClipboardList,
   Activity,
+  BarChart3,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { name: 'My Requests', path: '/requests/my', icon: FileKey },
   { name: 'Approvals', path: '/approvals', icon: Clock, roles: ['admin', 'super_admin', 'operator'] },
   { name: 'Sessions', path: '/sessions', icon: Activity },
+  { name: 'Analytics', path: '/analytics', icon: BarChart3, roles: ['admin', 'super_admin', 'auditor'] },
   { name: 'Audit Logs', path: '/audit', icon: ClipboardList, roles: ['admin', 'super_admin', 'auditor'] },
   { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin', 'super_admin'] },
 ];

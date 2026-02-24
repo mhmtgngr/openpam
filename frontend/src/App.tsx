@@ -32,6 +32,7 @@ import { SessionPolicyFormPage } from '@/pages/policies/SessionPolicyFormPage';
 import { AccessPolicyListPage } from '@/pages/policies/AccessPolicyListPage';
 import { AccessPolicyFormPage } from '@/pages/policies/AccessPolicyFormPage';
 import { PolicyTestPage } from '@/pages/policies/PolicyTestPage';
+import { AnalyticsPage } from '@/pages/analytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -268,6 +269,16 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
               <PolicyTestPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Analytics */}
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
+              <AnalyticsPage />
             </ProtectedRoute>
           }
         />

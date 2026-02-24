@@ -543,3 +543,170 @@ export interface SuccessResponse<T = unknown> {
   data: T;
   message?: string;
 }
+
+// Analytics & Compliance Types
+export interface SessionMetrics {
+  active_sessions: number;
+  peak_concurrent_sessions: number;
+  total_sessions_today: number;
+  total_sessions_week: number;
+  avg_session_duration_seconds: number;
+  total_session_duration_today_seconds: number;
+  sessions_by_type: Record<string, number>;
+  sessions_by_environment: Record<string, number>;
+  sessions_over_time: SessionTimeSeriesData[];
+}
+
+export interface SessionTimeSeriesData {
+  timestamp: string;
+  count: number;
+  duration_seconds: number;
+}
+
+export interface UserActivity {
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  total_sessions: number;
+  total_duration_seconds: number;
+  avg_session_duration_seconds: number;
+  last_activity_at: string;
+  most_used_targets: string[];
+  activity_heatmap: ActivityHeatmapData[];
+}
+
+export interface ActivityHeatmapData {
+  date: string;
+  hour: number;
+  session_count: number;
+}
+
+export interface CommandFrequency {
+  command: string;
+  count: number;
+  risk_level: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  first_seen_at: string;
+  last_seen_at: string;
+  users: Array<{ user_id: string; user_name: string; count: number }>;
+  targets: Array<{ target_id: string; target_name: string; count: number }>;
+}
+
+export interface CommandAnalysisParams {
+  start_date?: string;
+  end_date?: string;
+  user_id?: string;
+  target_id?: string;
+  risk_level?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ComplianceDashboard {
+  overall_score: number;
+  framework: ComplianceFramework;
+  controls: ComplianceControl[];
+  exceptions: ComplianceException[];
+  last_updated: string;
+}
+
+export type ComplianceFramework = 'soc2' | 'iso27001' | 'pci_dss' | 'hipaa' | 'gdpr' | 'custom';
+
+export interface ComplianceControl {
+  id: string;
+  name: string;
+  description: string;
+  status: 'compliant' | 'non_compliant' | 'partial' | 'not_applicable';
+  score: number;
+  evidence_count: number;
+  last_assessed_at: string;
+  category?: string;
+}
+
+export interface ComplianceException {
+  id: string;
+  control_id: string;
+  control_name: string;
+  reason: string;
+  approved_by: string;
+  approved_at: string;
+  expires_at?: string;
+  status: 'active' | 'expired' | 'revoked';
+}
+
+export interface ComplianceReportParams {
+  framework: ComplianceFramework;
+  period_start: string;
+  period_end: string;
+  include_details?: boolean;
+}
+
+export interface AnomalyDetection {
+  id: string;
+  type: AnomalyType;
+  severity: AnomalySeverity;
+  title: string;
+  description: string;
+  detected_at: string;
+  user_id?: string;
+  user_name?: string;
+  target_id?: string;
+  target_name?: string;
+  session_id?: string;
+  confidence_score: number;
+  indicators: AnomalyIndicator[];
+  status: 'open' | 'investigating' | 'resolved' | 'false_positive';
+  assigned_to?: string;
+  resolved_at?: string;
+  resolution_notes?: string;
+}
+
+export type AnomalyType =
+  | 'unusual_access_time'
+  | 'unusual_location'
+  | 'privileged_escalation'
+  | 'bulk_data_access'
+  | 'command_injection'
+  | 'ransomware_indicators'
+  | 'impossible_travel'
+  | 'account_takeover'
+  | 'credential_theft'
+  | 'excessive_failed_logins';
+
+export type AnomalySeverity = 'critical' | 'high' | 'medium' | 'low';
+
+export interface AnomalyIndicator {
+  type: string;
+  description: string;
+  value: number | string;
+  threshold?: number;
+  confidence: number;
+}
+
+export interface AnomalyListParams {
+  start_date?: string;
+  end_date?: string;
+  type?: AnomalyType;
+  severity?: AnomalySeverity;
+  status?: string;
+  user_id?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface DashboardTrends {
+  sessions: TrendData;
+  users: TrendData;
+  credentials: TrendData;
+  requests: TrendData;
+  period: string;
+}
+
+export interface TrendData {
+  current: number;
+  previous: number;
+  change_percent: number;
+  trend: 'up' | 'down' | 'stable';
+  data_points: Array<{ date: string; value: number }>;
+}
