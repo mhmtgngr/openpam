@@ -69,15 +69,17 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 		Str("actor_id", event.ActorID).
 		Msg("Publishing event")
 
-	// Publish to Redis pub/sub
-	channel := fmt.Sprintf("events:%s", event.Type)
-	if err := eb.cache.PubSub().Publish(ctx, channel, cache.Event{
-		Type:      event.Type,
-		TenantID:  event.TenantID,
-		Data:      event.Data,
-		Timestamp: event.Timestamp.Unix(),
-	}); err != nil {
-		return fmt.Errorf("events.Publish: %w", err)
+	// Publish to Redis pub/sub (if cache is available)
+	if eb.cache != nil && eb.cache.IsAvailable() {
+		channel := fmt.Sprintf("events:%s", event.Type)
+		if err := eb.cache.PubSub().Publish(ctx, channel, cache.Event{
+			Type:      event.Type,
+			TenantID:  event.TenantID,
+			Data:      event.Data,
+			Timestamp: event.Timestamp.Unix(),
+		}); err != nil {
+			return fmt.Errorf("events.Publish: %w", err)
+		}
 	}
 
 	// Call in-memory handlers
@@ -108,6 +110,11 @@ func (eb *EventBus) Subscribe(eventType string, handler Handler) {
 // startSubscriptionListener listens for events from Redis
 func (eb *EventBus) startSubscriptionListener() {
 	ctx := context.Background()
+
+	// Check if cache is available
+	if eb.cache == nil || !eb.cache.IsAvailable() {
+		return
+	}
 
 	// Subscribe to all event channels
 	pattern := "events:*"

@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -63,14 +64,19 @@ func NewPolicyCache(c *cache.Cache, logger zerolog.Logger) *PolicyCache {
 		logger: logger,
 	}
 
-	// Start invalidation listener
-	go pc.listenForInvalidations()
+	// Start invalidation listener only if cache is available
+	if c != nil {
+		go pc.listenForInvalidations()
+	}
 
 	return pc
 }
 
 // GetPolicy retrieves a policy from cache
 func (c *PolicyCache) GetPolicy(ctx context.Context, id uuid.UUID) (*Policy, error) {
+	if c.cache == nil {
+		return nil, errors.New("cache: not available")
+	}
 	key := c.policyKey(id)
 
 	var policy Policy
@@ -84,6 +90,9 @@ func (c *PolicyCache) GetPolicy(ctx context.Context, id uuid.UUID) (*Policy, err
 
 // SetPolicy stores a policy in cache
 func (c *PolicyCache) SetPolicy(ctx context.Context, policy *Policy, ttl time.Duration) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	key := c.policyKey(policy.ID)
 
 	if ttl == 0 {
@@ -95,6 +104,9 @@ func (c *PolicyCache) SetPolicy(ctx context.Context, policy *Policy, ttl time.Du
 
 // DeletePolicy removes a policy from cache
 func (c *PolicyCache) DeletePolicy(ctx context.Context, id uuid.UUID) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	key := c.policyKey(id)
 	return c.cache.Delete(ctx, key)
 }
@@ -137,6 +149,9 @@ func (c *PolicyCache) SetPolicyList(ctx context.Context, tenantID uuid.UUID, fil
 
 // InvalidatePolicyList removes policy lists for a tenant from cache
 func (c *PolicyCache) InvalidPolicyList(ctx context.Context, tenantID uuid.UUID) error {
+	if c.cache == nil {
+		return nil
+	}
 	pattern := c.policyListKey(tenantID, "*")
 	return c.cache.DeleteByPattern(ctx, pattern)
 }
@@ -167,6 +182,9 @@ func (c *PolicyCache) SetApplicablePolicies(ctx context.Context, tenantID, userI
 
 // InvalidateApplicablePolicies removes applicable policy caches for a tenant
 func (c *PolicyCache) InvalidateApplicablePolicies(ctx context.Context, tenantID uuid.UUID) error {
+	if c.cache == nil {
+		return nil
+	}
 	pattern := fmt.Sprintf("%s%s:*", applicablePoliciesPrefix, tenantID)
 	return c.cache.DeleteByPattern(ctx, pattern)
 }
@@ -254,6 +272,11 @@ func (c *PolicyCache) listenForInvalidations() {
 	ctx := context.Background()
 	pattern := "policies:*"
 
+	// Check if cache is available
+	if c.cache == nil || !c.cache.IsAvailable() {
+		return
+	}
+
 	pubsub, err := c.cache.PubSub().Subscribe(ctx, pattern)
 	if err != nil {
 		c.logger.Error().Err(err).Msg("Failed to subscribe to policy invalidations")
@@ -320,6 +343,9 @@ func GenerateEvalCacheKey(req EvaluationRequest) string {
 
 // InvalidateOnPolicyChange handles cache invalidation when a policy changes
 func (c *PolicyCache) InvalidateOnPolicyChange(ctx context.Context, tenantID uuid.UUID, policyID uuid.UUID) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	// Delete the specific policy
 	if err := c.DeletePolicy(ctx, policyID); err != nil {
 		c.logger.Error().Err(err).Str("policy_id", policyID.String()).Msg("Failed to delete policy from cache")

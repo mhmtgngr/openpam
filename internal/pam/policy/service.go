@@ -15,7 +15,7 @@ import (
 
 // Service handles policy business logic
 type Service struct {
-	repo     *Repository
+	repo     RepositoryInterface
 	cache    CacheInterface
 	evaluator *Evaluator
 	eventBus *events.EventBus
@@ -23,7 +23,7 @@ type Service struct {
 }
 
 // NewService creates a new policy service
-func NewService(repo *Repository, c *cache.Cache, eventBus *events.EventBus, logger zerolog.Logger) *Service {
+func NewService(repo RepositoryInterface, c *cache.Cache, eventBus *events.EventBus, logger zerolog.Logger) *Service {
 	policyCache := NewPolicyCache(c, logger)
 
 	return &Service{
@@ -294,6 +294,8 @@ func (s *Service) Evaluate(ctx context.Context, req EvaluationRequest) (*Evaluat
 
 // EvaluateCommand checks if a command is allowed
 func (s *Service) EvaluateCommand(ctx context.Context, tenantID, userID uuid.UUID, command string, sessionID *uuid.UUID) (bool, string, error) {
+	startTime := time.Now()
+
 	// Get command filter policies for the tenant
 	policies, err := s.repo.GetActiveForTenant(ctx, tenantID)
 	if err != nil {
@@ -321,14 +323,14 @@ func (s *Service) EvaluateCommand(ctx context.Context, tenantID, userID uuid.UUI
 
 	// Log evaluation
 	logEntry := &PolicyEvalLog{
-		TenantID:      tenantID,
-		UserID:        userID,
-		TargetType:    "command",
-		Action:        "execute",
-		Result:        EvaluationResultAllow,
-		ClientIP:      "", // Would be passed in context
-		SessionID:     sessionID,
-		EvaluationDurationMs: intPtr(int(time.Since(time.Now()).Milliseconds())),
+		TenantID:             tenantID,
+		UserID:               userID,
+		TargetType:           "command",
+		Action:               "execute",
+		Result:               EvaluationResultAllow,
+		ClientIP:             "", // Would be passed in context
+		SessionID:            sessionID,
+		EvaluationDurationMs: intPtr(int(time.Since(startTime).Milliseconds())),
 	}
 
 	if !allowed {
@@ -586,7 +588,7 @@ func (s *Service) generateFilterKey(filter PolicyFilter) string {
 }
 
 // GetRepository returns the underlying repository (for handlers that need direct access)
-func (s *Service) GetRepository() *Repository {
+func (s *Service) GetRepository() RepositoryInterface {
 	return s.repo
 }
 

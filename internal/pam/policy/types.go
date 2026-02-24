@@ -421,6 +421,11 @@ func (r *RecordingMode) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
+	// Handle empty string as default (none)
+	if s == "" {
+		*r = RecordingModeNone
+		return nil
+	}
 	rm, err := RecordingModeFromString(s)
 	if err != nil {
 		return err
@@ -544,6 +549,11 @@ func (l *LogicalOperator) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
+	}
+	// Handle empty string as default (AND)
+	if s == "" {
+		*l = LogicalOperatorAND
+		return nil
 	}
 	switch s {
 	case "and", "AND":

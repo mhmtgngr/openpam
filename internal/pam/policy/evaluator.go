@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -154,31 +155,51 @@ func (e *Evaluator) evaluateRule(ctx context.Context, req EvaluationRequest, rul
 	var matchedConditions []uuid.UUID
 
 	for _, condition := range rule.Conditions {
-		matched, err := e.evaluateCondition(ctx, req, condition)
+		conditionMatched, err := e.evaluateCondition(ctx, req, condition)
 		if err != nil {
 			return false, nil, fmt.Errorf("evaluateCondition: %w", err)
 		}
 
-		if matched {
-			matchedConditions = append(matchedConditions, condition.ID)
-		} else {
-			// Apply negation
-			if condition.Negate {
-				matchedConditions = append(matchedConditions, condition.ID)
-				matched = true
-			}
+		// Apply negation: if Negate is true, flip the result
+		effectiveMatch := conditionMatched
+		if condition.Negate {
+			effectiveMatch = !conditionMatched
 		}
 
-		// Apply logical operator
-		if rule.Operator == LogicalOperatorAND && !matched && !condition.Negate {
-			return false, nil, nil
+		// Track matched conditions (condition is considered matched if effectiveMatch is true)
+		if effectiveMatch {
+			matchedConditions = append(matchedConditions, condition.ID)
 		}
-		if rule.Operator == LogicalOperatorOR && matched && !condition.Negate {
-			return true, matchedConditions, nil
+
+		// Apply logical operator for early exit
+		switch rule.Operator {
+		case LogicalOperatorAND:
+			// For AND, if any condition doesn't match effectively, the rule fails
+			if !effectiveMatch {
+				return false, nil, nil
+			}
+		case LogicalOperatorOR:
+			// For OR, if any condition matches effectively, the rule succeeds
+			if effectiveMatch {
+				return true, matchedConditions, nil
+			}
 		}
 	}
 
-	return len(matchedConditions) > 0, matchedConditions, nil
+	// If no conditions, rule matches
+	if len(rule.Conditions) == 0 {
+		return true, matchedConditions, nil
+	}
+
+	// For AND: all conditions matched (we didn't early return)
+	// For OR: no condition matched (we didn't early return) - but OR with no match should fail
+	// Actually, let's reconsider: for OR, if we get here, nothing matched
+	if rule.Operator == LogicalOperatorOR {
+		return len(matchedConditions) > 0, matchedConditions, nil
+	}
+
+	// For AND, if we get here, all matched
+	return true, matchedConditions, nil
 }
 
 // evaluateCondition evaluates a single condition
@@ -644,16 +665,58 @@ func (e *Evaluator) IsCommandAllowed(ctx context.Context, command string, patter
 	return true, "", nil
 }
 
-// matchesPattern checks if a command matches a pattern (simplified regex)
+// matchesPattern checks if a command matches a pattern using RE2-compatible regex
 func (e *Evaluator) matchesPattern(command, pattern string) (bool, error) {
-	// For now, use simple string matching
-	// In production, use RE2 for proper regex matching
-	if strings.Contains(pattern, "*") {
-		// Simple wildcard matching
-		patternRegex := strings.ReplaceAll(pattern, "*", ".*")
-		return strings.Contains(command, strings.Trim(patternRegex, ".*")), nil
+	// Check if pattern contains explicit wildcards or regex anchors
+	hasWildcards := strings.ContainsAny(pattern, "*?")
+	hasAnchors := strings.HasPrefix(pattern, "^") || strings.HasSuffix(pattern, "$")
+
+	// If no wildcards or anchors, treat as prefix match (for backward compatibility)
+	if !hasWildcards && !hasAnchors {
+		// Simple prefix match - pattern matches if command starts with pattern
+		return strings.HasPrefix(command, pattern), nil
 	}
-	return strings.Contains(command, pattern), nil
+
+	// Convert wildcard pattern to regex
+	// * becomes .* (match any characters)
+	// ? becomes . (match single character)
+	regexPattern := pattern
+
+	// Escape regex special characters except * and ?
+	regexSpecialChars := []string{`\`, `^`, `$`, `.`, `|`, `(`, `)`, `[`, `]`, `{`, `}`, `+`}
+	for _, char := range regexSpecialChars {
+		if char == `\` {
+			regexPattern = strings.ReplaceAll(regexPattern, `\`, `\\`)
+		} else {
+			regexPattern = strings.ReplaceAll(regexPattern, char, `\`+char)
+		}
+	}
+
+	// Now convert wildcards to regex
+	regexPattern = strings.ReplaceAll(regexPattern, `\*`, `.*`)
+	regexPattern = strings.ReplaceAll(regexPattern, `\?`, `.`)
+
+	// Only anchor if not already anchored
+	if !hasAnchors {
+		// If pattern starts with a wildcard, don't add start anchor
+		// If pattern ends with a wildcard, don't add end anchor
+		if !strings.HasPrefix(pattern, "*") {
+			regexPattern = `^` + regexPattern
+		}
+		if !strings.HasSuffix(pattern, "*") {
+			regexPattern = regexPattern + `$`
+		}
+	}
+
+	// Compile and match using Go's regexp (RE2-compatible)
+	re, err := regexp.Compile(regexPattern)
+	if err != nil {
+		e.logger.Warn().Str("pattern", pattern).Err(err).Msg("Invalid regex pattern, falling back to contains")
+		// Fallback to simple contains for invalid patterns
+		return strings.Contains(command, pattern), nil
+	}
+
+	return re.MatchString(command), nil
 }
 
 // ValidatePolicy validates a policy before saving

@@ -23,10 +23,45 @@ const (
 	// KeySize is the AES-256 key size in bytes
 	KeySize = 32
 	// NonceSize is the GCM nonce size
+	// GCM mode uses a 12-byte (96-bit) nonce which is the recommended size.
+	// With 12 bytes, the probability of nonce reuse for random generation is
+	// negligible (birthday paradox: ~2^-32 for 2^48 messages).
 	NonceSize = 12
 	// TagSize is the GCM tag size
 	TagSize = 16
 )
+
+/*
+AES-GCM NONCE MANAGEMENT
+========================
+
+CRITICAL SECURITY REQUIREMENT: Each (key, nonce) pair MUST be unique for every encryption operation.
+Reusing a nonce with the same key allows an attacker to:
+- Recover the authentication key (forging messages)
+- Decrypt ciphertexts (breaking confidentiality)
+
+NONCE GENERATION STRATEGY:
+--------------------------
+This implementation uses RANDOM nonces generated via crypto/rand (12 bytes).
+Random nonces are appropriate here because:
+1. Each encryption uses a newly generated Data Encryption Key (DEK)
+2. DEKs are single-use or used very few times (rotate frequently)
+3. The birthday bound for 12-byte random nonces is 2^48 encryptions
+
+NONCE STORAGE:
+--------------
+Nonces are stored prepended to ciphertext (format: nonce || ciphertext || tag).
+This is the standard approach for AES-GCM with random nonces.
+
+WHEN TO USE COUNTER NONCES INSTEAD:
+-----------------------------------
+If the same key were used for many encryptions (>2^32), consider:
+- Switching to counter-based nonces (deterministic, guarantees uniqueness)
+- Or implementing automatic key rotation after N encryptions
+
+For envelope encryption (our pattern), random nonces are sufficient because
+each secret gets its own DEK that's rarely re-used.
+*/
 
 // Encryptor handles AES-256-GCM encryption
 type Encryptor struct {

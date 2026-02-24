@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -42,6 +43,19 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 		// Default to require for security
 		sslMode = "require"
 		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'require'")
+	}
+
+	// PRODUCTION GUARD: Prevent SSL disable in production environments
+	// This prevents accidental deployment with insecure database connections
+	if isProductionEnvironment() && (sslMode == "disable" || sslMode == "allow") {
+		return nil, fmt.Errorf("database: SSL mode '%s' is not allowed in production environment. Use 'require', 'verify-ca', or 'verify-full'. Set ENV=development to override", sslMode)
+	}
+
+	// Warn if SSL is disabled in non-production environments
+	if sslMode == "disable" || sslMode == "allow" {
+		logger.Warn().
+			Str("ssl_mode", sslMode).
+			Msg("Database SSL/TLS is disabled - database connections are NOT encrypted")
 	}
 
 	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters
@@ -158,4 +172,41 @@ func (ts *TenantScoped) NamedGet(ctx context.Context, dest interface{}, query st
 // NamedSelect executes a named query with tenant filtering
 func (ts *TenantScoped) NamedSelect(ctx context.Context, dest interface{}, query string, arg interface{}) error {
 	return ts.db.SelectContext(ctx, dest, query, arg)
+}
+
+// isProductionEnvironment determines if the application is running in production
+// This prevents insecure configurations from being deployed to production
+func isProductionEnvironment() bool {
+	// Check explicit environment variable
+	env := os.Getenv("ENV")
+	if env == "" {
+		env = os.Getenv("GO_ENV")
+	}
+	if env == "" {
+		env = os.Getenv("ENVIRONMENT")
+	}
+
+	// Consider production if:
+	// 1. ENV is explicitly set to "production" or "prod"
+	// 2. No explicit development/test environment is set AND running in container
+	isProduction := env == "production" || env == "prod"
+
+	// If env is not set, detect container environment as potential production
+	if env == "" {
+		// Check if running in Docker/container (common indicator)
+		if _, err := os.Stat("/.dockerenv"); err == nil {
+			isProduction = true
+		}
+		// Check for Kubernetes
+		if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
+			isProduction = true
+		}
+	}
+
+	// Explicitly not production if set to development/test
+	if env == "development" || env == "dev" || env == "test" || env == "testing" {
+		return false
+	}
+
+	return isProduction
 }

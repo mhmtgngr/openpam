@@ -46,9 +46,19 @@ func (s *Service) CreateCredential(ctx context.Context, secret *vault.Secret, pl
 	}
 
 	// Schedule rotation if needed
+	// SECURITY: Fail credential creation if rotation scheduling fails for non-manual policies.
+	// Credentials without rotation scheduling could persist indefinitely without being rotated,
+	// violating the principle of zero standing privileges and compliance requirements.
 	if secret.RotationPolicy != "" && secret.RotationPolicy != vault.RotationManual {
 		if err := s.rotation.ScheduleRotation(ctx, secret.ID, secret.RotationPolicy); err != nil {
-			s.logger.Error().Err(err).Str("credential_id", secret.ID.String()).Msg("Failed to schedule rotation")
+			// Rollback: delete the credential that was already stored since rotation scheduling failed
+			if deleteErr := s.vault.DeleteSecret(ctx, secret.ID); deleteErr != nil {
+				s.logger.Error().
+					Err(deleteErr).
+					Str("credential_id", secret.ID.String()).
+					Msg("Failed to rollback credential after rotation scheduling error")
+			}
+			return fmt.Errorf("credential.ScheduleRotation: %w (credential rolled back)", err)
 		}
 	}
 
@@ -56,6 +66,7 @@ func (s *Service) CreateCredential(ctx context.Context, secret *vault.Secret, pl
 		Str("credential_id", secret.ID.String()).
 		Str("name", secret.Name).
 		Str("type", string(secret.Type)).
+		Str("rotation_policy", string(secret.RotationPolicy)).
 		Msg("Credential created")
 
 	return nil

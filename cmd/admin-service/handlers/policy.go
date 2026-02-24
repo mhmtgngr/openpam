@@ -59,7 +59,7 @@ type UpdatePolicyRequest struct {
 	Name        string                 `json:"name"`
 	Description string                 `json:"description"`
 	Type        *policy.PolicyType     `json:"type"`
-	Effect      *policy.PolicyEffect   `json:"type"`
+	Effect      *policy.PolicyEffect   `json:"effect"`
 	Priority    *int                   `json:"priority"`
 	UserIDs     []uuid.UUID            `json:"user_ids"`
 	RoleIDs     []uuid.UUID            `json:"role_ids"`

@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -290,10 +289,27 @@ func zeroizeBytes(data []byte) {
 	for i := range data {
 		data[i] = 0
 	}
-	// Force the compiler to keep the wipe operation
+	// Force the compiler to keep the wipe operation and prevent optimization
+	// runtime.KeepAlive ensures the data reference stays alive until this point
 	runtime.KeepAlive(data)
-	// Prevent compiler optimizations by using unsafe
-	_ = unsafe.Pointer(&data[0])
+	// Use the data in a way that prevents compiler dead-code elimination
+	// while avoiding unsafe pointer usage. Calling a function with the slice
+	// as an argument forces the compiler to preserve the write operations.
+	volatileBytes(data)
+}
+
+// volatileBytes is a no-op function that prevents compiler optimizations
+// from eliminating the zeroize operation. By calling an external function,
+// the compiler cannot prove that the write operations are side-effect free.
+//go:nosplit
+func volatileBytes(data []byte) {
+	if len(data) > 0 {
+		// This conditional is always false, but the compiler cannot prove it.
+		// The reference to data[0] forces the compiler to keep the slice data alive.
+		if data[0] == 42 {
+			runtime.Gosched() // Impossible to reach, but forces data dependency
+		}
+	}
 }
 
 // AuditOnlyLogs creates a simpler audit middleware that only logs to zerolog

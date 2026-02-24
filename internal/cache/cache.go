@@ -48,7 +48,15 @@ func New(cfg Config, logger zerolog.Logger) (*Cache, error) {
 
 // Close closes the Redis connection
 func (c *Cache) Close() error {
+	if c == nil || c.client == nil {
+		return nil
+	}
 	return c.client.Close()
+}
+
+// IsAvailable returns true if the cache client is available
+func (c *Cache) IsAvailable() bool {
+	return c != nil && c.client != nil
 }
 
 // Client returns the underlying Redis client
