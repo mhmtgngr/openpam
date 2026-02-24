@@ -1,0 +1,159 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Analytics" [ref=e60] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e61]
+          - generic [ref=e63]: Analytics
+        - link "Audit Logs" [ref=e64] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e65]
+          - generic [ref=e68]: Audit Logs
+        - link "Settings" [ref=e69] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e70]
+          - generic [ref=e73]: Settings
+      - generic [ref=e75]:
+        - generic [ref=e76]: TU
+        - generic [ref=e77]:
+          - paragraph [ref=e78]: Test User
+          - paragraph [ref=e79]: test@example.com
+    - generic [ref=e80]:
+      - banner [ref=e81]:
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - textbox "Search targets, credentials, users..." [ref=e87]
+        - generic [ref=e88]:
+          - button "Refresh data" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
+            - generic [ref=e102]: TU
+            - generic [ref=e103]: test@example.com
+            - img [ref=e104]
+      - main [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - link "Back" [ref=e109] [cursor=pointer]:
+              - /url: /policies/access
+              - button "Back" [ref=e110]:
+                - img [ref=e112]
+                - text: Back
+            - generic [ref=e114]:
+              - img [ref=e116]
+              - generic [ref=e118]:
+                - heading "Create Access Policy" [level=1] [ref=e119]
+                - paragraph [ref=e120]: Define rules for controlling resource access
+          - generic [ref=e121]:
+            - generic [ref=e124]:
+              - heading "Basic Settings" [level=3] [ref=e125]
+              - generic [ref=e126]:
+                - generic [ref=e128]:
+                  - generic [ref=e129]: Policy Name
+                  - textbox "Policy Name" [active] [ref=e131]:
+                    - /placeholder: e.g., Production Database Access
+                - generic [ref=e133]:
+                  - generic [ref=e134]: Description
+                  - textbox "Description" [ref=e135]:
+                    - /placeholder: Describe what this policy controls...
+                - generic [ref=e136]:
+                  - generic [ref=e137]: Status
+                  - combobox [ref=e139]:
+                    - option "Draft" [selected]
+                    - option "Active"
+                    - option "Inactive"
+                  - paragraph [ref=e140]: Only active policies are evaluated during access checks
+                - generic [ref=e141]:
+                  - generic [ref=e142]:
+                    - generic [ref=e143]: Priority
+                    - spinbutton "Priority" [ref=e145]: "100"
+                  - paragraph [ref=e146]: Higher numbers = higher priority (evaluated first)
+                - generic [ref=e147]:
+                  - generic [ref=e148]: Conflict Resolution
+                  - combobox [ref=e150]:
+                    - option "Deny Overrides - Deny decisions take precedence (recommended for security)" [selected]
+                    - option "Allow Overrides - Allow decisions take precedence"
+                    - option "First Applicable - First matching rule wins (evaluate by priority)"
+                  - paragraph [ref=e151]: How to resolve when multiple rules match
+                - generic [ref=e152]:
+                  - generic [ref=e153]: Tags
+                  - generic [ref=e154]:
+                    - textbox "Add a tag..." [ref=e157]
+                    - button "Add" [ref=e158] [cursor=pointer]
+                  - generic [ref=e160]: No tags
+            - generic [ref=e163]:
+              - generic [ref=e165]:
+                - heading "Rules" [level=3] [ref=e166]
+                - paragraph [ref=e167]: Define access rules with conditions
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - img [ref=e170]
+                  - paragraph [ref=e171]: No rules defined
+                  - paragraph [ref=e172]: Rules are evaluated in priority order to determine access
+                - button "Add Rule" [ref=e173] [cursor=pointer]:
+                  - img [ref=e175]
+                  - text: Add Rule
+            - generic [ref=e178]:
+              - heading "Effective Period (Optional)" [level=3] [ref=e179]
+              - paragraph [ref=e180]: Set a time range for when this policy should be active
+              - generic [ref=e181]:
+                - generic [ref=e182]:
+                  - generic [ref=e183]: Effective From
+                  - textbox [ref=e186]
+                - generic [ref=e187]:
+                  - generic [ref=e188]: Effective Until
+                  - textbox [ref=e191]
+            - generic [ref=e193]:
+              - link "Cancel" [ref=e194] [cursor=pointer]:
+                - /url: /policies/access
+                - button "Cancel" [ref=e195]
+              - button "Create Policy" [ref=e196] [cursor=pointer]:
+                - img [ref=e198]
+                - text: Create Policy
+  - generic:
+    - status [ref=e207]: An error occurred
+    - status [ref=e213]: An error occurred
+```

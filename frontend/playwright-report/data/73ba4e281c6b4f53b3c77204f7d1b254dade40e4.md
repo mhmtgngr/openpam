@@ -1,0 +1,164 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: OpenPAM
+      - button [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - link "Dashboard" [ref=e15] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e16]
+        - generic [ref=e21]: Dashboard
+      - link "Users" [ref=e22] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e23]
+        - generic [ref=e28]: Users
+      - link "Roles" [ref=e29] [cursor=pointer]:
+        - /url: /roles
+        - img [ref=e30]
+        - generic [ref=e32]: Roles
+      - link "Targets" [ref=e33] [cursor=pointer]:
+        - /url: /targets
+        - img [ref=e34]
+        - generic [ref=e37]: Targets
+      - link "Credentials" [ref=e38] [cursor=pointer]:
+        - /url: /credentials
+        - img [ref=e39]
+        - generic [ref=e43]: Credentials
+      - link "My Requests" [ref=e44] [cursor=pointer]:
+        - /url: /requests/my
+        - img [ref=e45]
+        - generic [ref=e50]: My Requests
+      - link "Approvals" [ref=e51] [cursor=pointer]:
+        - /url: /approvals
+        - img [ref=e52]
+        - generic [ref=e55]: Approvals
+      - link "Sessions" [ref=e56] [cursor=pointer]:
+        - /url: /sessions
+        - img [ref=e57]
+        - generic [ref=e59]: Sessions
+      - link "Analytics" [ref=e60] [cursor=pointer]:
+        - /url: /analytics
+        - img [ref=e61]
+        - generic [ref=e63]: Analytics
+      - link "Audit Logs" [ref=e64] [cursor=pointer]:
+        - /url: /audit
+        - img [ref=e65]
+        - generic [ref=e68]: Audit Logs
+      - link "Settings" [ref=e69] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e70]
+        - generic [ref=e73]: Settings
+    - generic [ref=e75]:
+      - generic [ref=e76]: TU
+      - generic [ref=e77]:
+        - paragraph [ref=e78]: Test User
+        - paragraph [ref=e79]: test@example.com
+  - generic [ref=e80]:
+    - banner [ref=e81]:
+      - generic [ref=e83]:
+        - img [ref=e84]
+        - textbox "Search targets, credentials, users..." [ref=e87]
+      - generic [ref=e88]:
+        - button "Refresh data" [ref=e89] [cursor=pointer]:
+          - img [ref=e90]
+        - button [ref=e96] [cursor=pointer]:
+          - img [ref=e97]
+        - button "TU test@example.com" [ref=e101] [cursor=pointer]:
+          - generic [ref=e102]: TU
+          - generic [ref=e103]: test@example.com
+          - img [ref=e104]
+    - main [ref=e106]:
+      - generic [ref=e107]:
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - heading "Access Policies" [level=1] [ref=e110]
+            - paragraph [ref=e111]: Control who can access what resources and when
+          - generic [ref=e112]:
+            - link "Test Policies" [ref=e113] [cursor=pointer]:
+              - /url: /policies/access/test
+              - button "Test Policies" [ref=e114]:
+                - img [ref=e116]
+                - text: Test Policies
+            - link "New Policy" [ref=e118] [cursor=pointer]:
+              - /url: /policies/access/new
+              - button "New Policy" [ref=e119]:
+                - img [ref=e121]
+                - text: New Policy
+        - generic [ref=e124]:
+          - generic [ref=e127]:
+            - img [ref=e129]
+            - textbox "Search policies by name or tag..." [ref=e132]
+          - combobox [ref=e135]:
+            - option "All Statuses" [selected]
+            - option "Active"
+            - option "Inactive"
+            - option "Draft"
+        - generic [ref=e136]:
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - generic [ref=e141]:
+                - img [ref=e143]
+                - generic [ref=e145]:
+                  - generic [ref=e146]:
+                    - heading "Production Database Access" [level=3] [ref=e147]
+                    - generic [ref=e148]:
+                      - img [ref=e149]
+                      - generic [ref=e152]: active
+                  - paragraph [ref=e153]: Controls access to production database credentials
+                  - generic [ref=e154]:
+                    - generic [ref=e155]: "Priority: 100"
+                    - generic [ref=e156]: "Rules: 2"
+                    - generic [ref=e157]:
+                      - img [ref=e158]
+                      - generic [ref=e160]: "#production"
+                      - generic [ref=e161]: "#database"
+              - generic [ref=e162]:
+                - button [ref=e163] [cursor=pointer]:
+                  - img [ref=e164]
+                - button "Deactivate" [ref=e166] [cursor=pointer]
+                - button [ref=e167] [cursor=pointer]:
+                  - img [ref=e168]
+                - link "Edit" [ref=e171] [cursor=pointer]:
+                  - /url: /policies/access/policy-1
+                  - button "Edit" [ref=e172]
+                - button [ref=e173] [cursor=pointer]:
+                  - img [ref=e174]
+            - generic [ref=e177]: "Conflict Resolution: deny overrides"
+          - generic [ref=e180]:
+            - generic [ref=e181]:
+              - generic [ref=e182]:
+                - img [ref=e184]
+                - generic [ref=e186]:
+                  - generic [ref=e187]:
+                    - heading "SSH Access Policy" [level=3] [ref=e188]
+                    - generic [ref=e189]:
+                      - img [ref=e190]
+                      - generic [ref=e193]: active
+                    - generic [ref=e194]: Default
+                  - paragraph [ref=e195]: SSH session access controls
+                  - generic [ref=e196]:
+                    - generic [ref=e197]: "Priority: 50"
+                    - generic [ref=e198]: "Rules: 0"
+                    - generic [ref=e199]:
+                      - img [ref=e200]
+                      - generic [ref=e202]: "#ssh"
+                      - generic [ref=e203]: "#sessions"
+              - generic [ref=e204]:
+                - button [ref=e205] [cursor=pointer]:
+                  - img [ref=e206]
+                - button "Deactivate" [ref=e208] [cursor=pointer]
+                - button [ref=e209] [cursor=pointer]:
+                  - img [ref=e210]
+                - link "Edit" [ref=e213] [cursor=pointer]:
+                  - /url: /policies/access/policy-2
+                  - button "Edit" [ref=e214]
+                - button [ref=e215] [cursor=pointer]:
+                  - img [ref=e216]
+            - generic [ref=e219]: "Conflict Resolution: deny overrides"
+```

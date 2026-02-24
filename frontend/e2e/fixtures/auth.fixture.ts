@@ -228,9 +228,205 @@ const performLogin = async (page: Page) => {
   });
 };
 
+// Helper to setup access policy specific routes
+const setupAccessPolicyRoutes = (page: Page) => {
+  const mockAccessPolicies = [
+    {
+      id: 'policy-1',
+      name: 'Production Database Access',
+      description: 'Controls access to production database credentials',
+      status: 'active',
+      priority: 100,
+      rules: [
+        {
+          id: 'rule-1',
+          name: 'Allow admins',
+          effect: 'allow',
+          conditions: [
+            {
+              id: 'cond-1',
+              type: 'role',
+              field: 'role',
+              operator: 'in',
+              value: ['admin'],
+            },
+          ],
+          logical_operator: 'AND',
+          priority: 1,
+          resources: ['credential:prod-db-*'],
+          actions: ['checkout', 'connect'],
+          roles: ['admin'],
+          users: [],
+        },
+        {
+          id: 'rule-2',
+          name: 'Deny regular users',
+          effect: 'deny',
+          conditions: [],
+          logical_operator: 'AND',
+          priority: 2,
+          resources: ['credential:prod-db-*'],
+          actions: ['checkout'],
+          roles: ['user'],
+          users: [],
+        },
+      ],
+      conflict_resolution: 'deny_overrides',
+      is_default: false,
+      is_system: false,
+      tenant_id: 'tenant-1',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      tags: ['production', 'database'],
+    },
+    {
+      id: 'policy-2',
+      name: 'SSH Access Policy',
+      description: 'SSH session access controls',
+      status: 'active',
+      priority: 50,
+      rules: [],
+      conflict_resolution: 'deny_overrides',
+      is_default: true,
+      is_system: false,
+      tenant_id: 'tenant-1',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      tags: ['ssh', 'sessions'],
+    },
+  ];
+
+  const mockPolicyDetail = {
+    ...mockAccessPolicies[0],
+  };
+
+  // Unregister the generic policies route first, then set up specific ones
+  // Note: Playwright doesn't support unregistering routes, so we need to set up
+  // our specific routes BEFORE the generic one is registered. This means we need
+  // to NOT call setupMocks for policies, or modify setupMocks to skip policies.
+
+  page.route('**/api/v1/policies/access*', async (route) => {
+    const url = route.request().url();
+    const method = route.request().method();
+
+    // GET /api/v1/policies/access - List policies
+    if (url.includes('/api/v1/policies/access') && !url.includes('/test') && method === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: mockAccessPolicies, pagination: { total: 2, offset: 0, limit: 20 } }),
+      });
+      return;
+    }
+
+    // GET /api/v1/policies/access/:id - Get policy detail
+    if (url.includes('/api/v1/policies/access/') && method === 'GET' && !url.includes('/test')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockPolicyDetail),
+      });
+      return;
+    }
+
+    // POST /api/v1/policies/access - Create policy
+    if (url.includes('/api/v1/policies/access') && method === 'POST' && !url.includes('/test')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...mockAccessPolicies[0],
+          id: 'new-policy-id',
+          name: 'New Access Policy',
+        }),
+      });
+      return;
+    }
+
+    // PATCH /api/v1/policies/access/:id - Update policy
+    if (url.includes('/api/v1/policies/access/') && method === 'PATCH') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockPolicyDetail),
+      });
+      return;
+    }
+
+    // DELETE /api/v1/policies/access/:id - Delete policy
+    if (url.includes('/api/v1/policies/access/') && method === 'DELETE') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Policy deleted' }),
+      });
+      return;
+    }
+
+    // POST /api/v1/policies/access/validate - Validate policy
+    if (url.includes('/validate') && method === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ valid: true, errors: [], warnings: [] }),
+      });
+      return;
+    }
+
+    // POST /api/v1/policies/access/evaluate - Evaluate policy
+    if (url.includes('/evaluate') && method === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          allowed: true,
+          effect: 'allow',
+          matched_policy_id: 'policy-1',
+          matched_rule_id: 'rule-1',
+          reason: 'User has admin role',
+          details: [],
+          evaluated_at: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+
+    // POST /api/v1/policies/access/test - Test policy
+    if (url.includes('/test') && method === 'POST') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            scenario_name: 'Test Scenario',
+            result: {
+              allowed: true,
+              effect: 'allow',
+              reason: 'Test passed',
+              details: [],
+              evaluated_at: new Date().toISOString(),
+            },
+            passed: true,
+            expected_allowed: true,
+          },
+        ]),
+      });
+      return;
+    }
+
+    // Default fallback
+    await route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Route not found' } }),
+    });
+  });
+};
+
 export const test = base.extend<{
   authenticatedPage: typeof base.prototype['page'];
   mockApiPage: typeof base.prototype['page'];
+  accessPolicyPage: typeof base.prototype['page'];
 }>({
   // Authenticated page fixture - always uses mocked API for tests
   authenticatedPage: async ({ page }, use) => {
@@ -254,6 +450,19 @@ export const test = base.extend<{
       sessionStorage.clear();
     });
 
+    await use(page);
+  },
+
+  // Access policy page fixture - authenticated with access policy specific routes
+  accessPolicyPage: async ({ page }, use) => {
+    // Setup general mocks first
+    setupMocks(page);
+
+    // Setup access policy specific routes (these will be registered AFTER the general ones)
+    // In Playwright, routes are matched in LIFO order (last registered, first matched)
+    setupAccessPolicyRoutes(page);
+
+    await performLogin(page);
     await use(page);
   },
 });
