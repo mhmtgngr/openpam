@@ -38,7 +38,7 @@ type CreateRequestRequest struct {
 
 // ApproveRequestRequest represents an approval decision
 type ApproveRequestRequest struct {
-	Decision string `json:"decision" binding:"required,oneof=approve,deny"`
+	Decision string `json:"decision" binding:"required,oneof=approve deny"`
 	Comments string `json:"comments"`
 }
 
