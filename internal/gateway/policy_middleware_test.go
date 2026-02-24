@@ -88,7 +88,21 @@ func (m *mockTestPolicyRepository) GetActiveForTenant(ctx context.Context, tenan
 }
 
 func (m *mockTestPolicyRepository) GetApplicablePolicies(ctx context.Context, tenantID, userID uuid.UUID, userRoles []uuid.UUID, resourceID uuid.UUID) ([]policy.Policy, error) {
-	return nil, nil
+	var result []policy.Policy
+	for _, p := range m.policies {
+		// Check if policy applies to tenant
+		if p.TenantID != tenantID {
+			continue
+		}
+		// Check if policy is enabled
+		if !p.Enabled {
+			continue
+		}
+		// For testing, include all enabled tenant policies
+		// In a real implementation, this would check user/role/resource applicability
+		result = append(result, *p)
+	}
+	return result, nil
 }
 
 func (m *mockTestPolicyRepository) Update(ctx context.Context, p *policy.Policy) error {
@@ -462,6 +476,7 @@ func TestPolicyMiddleware_Middleware_Deny(t *testing.T) {
 	}
 
 	req, _ := http.NewRequest("GET", "/api/v1/credentials", nil)
+	req.RemoteAddr = "192.168.1.100:1234" // Set RemoteAddr for IP policy matching
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

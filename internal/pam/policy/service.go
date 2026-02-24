@@ -15,23 +15,30 @@ import (
 
 // Service handles policy business logic
 type Service struct {
-	repo     RepositoryInterface
-	cache    CacheInterface
-	evaluator *Evaluator
-	eventBus *events.EventBus
-	logger   zerolog.Logger
+	repo          RepositoryInterface
+	cache         CacheInterface
+	evaluator     *Evaluator
+	eventBus      *events.EventBus
+	logger        zerolog.Logger
+	denyByDefault bool
 }
 
-// NewService creates a new policy service
+// NewService creates a new policy service with secure default-deny behavior
 func NewService(repo RepositoryInterface, c *cache.Cache, eventBus *events.EventBus, logger zerolog.Logger) *Service {
+	return NewServiceWithConfig(repo, c, eventBus, logger, true)
+}
+
+// NewServiceWithConfig creates a new policy service with specified default behavior
+func NewServiceWithConfig(repo RepositoryInterface, c *cache.Cache, eventBus *events.EventBus, logger zerolog.Logger, denyByDefault bool) *Service {
 	policyCache := NewPolicyCache(c, logger)
 
 	return &Service{
-		repo:     repo,
-		cache:    policyCache,
-		evaluator: NewEvaluator(logger),
-		eventBus: eventBus,
-		logger:   logger,
+		repo:          repo,
+		cache:         policyCache,
+		evaluator:     NewEvaluatorWithConfig(logger, denyByDefault),
+		eventBus:      eventBus,
+		logger:        logger,
+		denyByDefault: denyByDefault,
 	}
 }
 

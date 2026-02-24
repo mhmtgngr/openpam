@@ -14,13 +14,23 @@ import (
 
 // Evaluator evaluates policies against requests
 type Evaluator struct {
-	logger zerolog.Logger
+	logger        zerolog.Logger
+	denyByDefault bool
 }
 
-// NewEvaluator creates a new policy evaluator
+// NewEvaluator creates a new policy evaluator with default-deny behavior
 func NewEvaluator(logger zerolog.Logger) *Evaluator {
 	return &Evaluator{
-		logger: logger,
+		logger:        logger,
+		denyByDefault: true, // Default to secure behavior
+	}
+}
+
+// NewEvaluatorWithConfig creates a new policy evaluator with specified default behavior
+func NewEvaluatorWithConfig(logger zerolog.Logger, denyByDefault bool) *Evaluator {
+	return &Evaluator{
+		logger:        logger,
+		denyByDefault: denyByDefault,
 	}
 }
 
@@ -95,10 +105,14 @@ func (e *Evaluator) Evaluate(ctx context.Context, req EvaluationRequest, policie
 		}
 	}
 
-	// If no policies matched, apply default behavior (deny)
+	// If no policies matched, apply default behavior based on configuration
 	if len(resp.MatchedPolicies) == 0 {
-		resp.Effect = EvaluationResultDeny
-		resp.DenialReasons = append(resp.DenialReasons, "No matching policy found - default deny")
+		if e.denyByDefault {
+			resp.Effect = EvaluationResultDeny
+			resp.DenialReasons = append(resp.DenialReasons, "No matching policy found - default deny")
+		} else {
+			resp.Effect = EvaluationResultAllow
+		}
 	}
 
 	resp.DurationMs = time.Since(startTime).Milliseconds()
