@@ -8,6 +8,7 @@ export interface CredentialListParams {
   type?: string;
   status?: string;
   folder_id?: string;
+  target_id?: string;
 }
 
 export interface CreateCredentialData {

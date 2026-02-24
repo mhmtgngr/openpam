@@ -10,13 +10,25 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { UserListPage } from '@/pages/users/UserListPage';
 import { UserFormPage } from '@/pages/users/UserFormPage';
 import { RoleListPage } from '@/pages/roles/RoleListPage';
+import { RoleFormPage } from '@/pages/roles/RoleFormPage';
 import { TargetListPage } from '@/pages/targets/TargetListPage';
+import { TargetFormPage } from '@/pages/targets/TargetFormPage';
 import { CredentialListPage } from '@/pages/credentials/CredentialListPage';
+import { CredentialFormPage } from '@/pages/credentials/CredentialFormPage';
 import { MyRequestsPage } from '@/pages/requests/MyRequestsPage';
+import { CreateRequestPage } from '@/pages/requests/CreateRequestPage';
+import { RequestDetailPage } from '@/pages/requests/RequestDetailPage';
 import { ApprovalsPage } from '@/pages/approvals/ApprovalsPage';
 import { SessionsPage } from '@/pages/sessions/SessionsPage';
+import { SessionDetailPage } from '@/pages/sessions/SessionDetailPage';
 import { AuditPage } from '@/pages/audit/AuditPage';
 import { MFASetup } from '@/components/auth/MFASetup';
+import { TenantListPage } from '@/pages/tenants/TenantListPage';
+import { TenantFormPage } from '@/pages/tenants/TenantFormPage';
+import { PasswordPolicyListPage } from '@/pages/policies/PasswordPolicyListPage';
+import { PasswordPolicyFormPage } from '@/pages/policies/PasswordPolicyFormPage';
+import { SessionPolicyListPage } from '@/pages/policies/SessionPolicyListPage';
+import { SessionPolicyFormPage } from '@/pages/policies/SessionPolicyFormPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -86,15 +98,37 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/roles/new"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <RoleFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/roles/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <RoleFormPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Targets */}
         <Route path="/targets" element={<TargetListPage />} />
+        <Route path="/targets/new" element={<TargetFormPage />} />
+        <Route path="/targets/:id" element={<TargetFormPage />} />
 
         {/* Credentials */}
         <Route path="/credentials" element={<CredentialListPage />} />
+        <Route path="/credentials/new" element={<CredentialFormPage />} />
+        <Route path="/credentials/:id" element={<CredentialFormPage />} />
 
         {/* Requests */}
         <Route path="/requests/my" element={<MyRequestsPage />} />
+        <Route path="/requests/new" element={<CreateRequestPage />} />
+        <Route path="/requests/:id" element={<RequestDetailPage />} />
 
         {/* Approvals */}
         <Route
@@ -108,6 +142,7 @@ const AppRoutes: React.FC = () => {
 
         {/* Sessions */}
         <Route path="/sessions" element={<SessionsPage />} />
+        <Route path="/sessions/:id" element={<SessionDetailPage />} />
 
         {/* Audit */}
         <Route
@@ -115,6 +150,84 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <AuditPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Tenant management (super_admin only) */}
+        <Route
+          path="/tenants"
+          element={
+            <ProtectedRoute requiredRoles={['super_admin']}>
+              <TenantListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tenants/new"
+          element={
+            <ProtectedRoute requiredRoles={['super_admin']}>
+              <TenantFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tenants/:id"
+          element={
+            <ProtectedRoute requiredRoles={['super_admin']}>
+              <TenantFormPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Password policies */}
+        <Route
+          path="/policies/password"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <PasswordPolicyListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/password/new"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <PasswordPolicyFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/password/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <PasswordPolicyFormPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Session policies */}
+        <Route
+          path="/policies/session"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <SessionPolicyListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/session/new"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <SessionPolicyFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies/session/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <SessionPolicyFormPage />
             </ProtectedRoute>
           }
         />
