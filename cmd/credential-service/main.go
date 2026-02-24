@@ -140,7 +140,7 @@ func loadConfig() Config {
 		DBUser:     getEnv("DB_USER", "openpam"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "openpam"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		DBSSLMode:  getEnv("DB_SSLMODE", "require"), // SECURITY: Default to require SSL
 
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),
 		RedisPort:     getEnvInt("REDIS_PORT", 6379),

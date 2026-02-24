@@ -493,25 +493,52 @@ func (s *Service) ListUsers(ctx context.Context, tenantID uuid.UUID, limit, offs
 	return users, total, nil
 }
 
-// UpdateUser updates a user
+// UpdateUser updates a user with field whitelist to prevent SQL injection
+// SECURITY: Only fields in the whitelist can be updated
 func (s *Service) UpdateUser(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
-	updates["updated_at"] = time.Now()
-
-	query := `
-		UPDATE users SET
-	`
-	args := []interface{}{id}
-	argCount := 2
-
-	for key, value := range updates {
-		if key != "id" {
-			query += fmt.Sprintf("%s = $%d, ", key, argCount)
-			args = append(args, value)
-			argCount++
-		}
+	// SECURITY: Field whitelist to prevent SQL injection via key names
+	allowedFields := map[string]bool{
+		"email":          true,
+		"first_name":     true,
+		"last_name":      true,
+		"role":           true,
+		"status":         true,
+		"mfa_enabled":    true,
+		"password_hash":  true,
+		"failed_logins":  true,
+		"locked_until":   true,
+		"last_login_at":  true,
 	}
 
-	query = query[:len(query)-2] + " WHERE id = $1"
+	query := `UPDATE users SET `
+	args := []interface{}{id}
+	argCount := 2
+	hasUpdates := false
+
+	for key, value := range updates {
+		if key == "id" {
+			continue // Never allow updating ID
+		}
+		if !allowedFields[key] {
+			s.logger.Warn().
+				Str("field", key).
+				Str("user_id", id.String()).
+				Msg("Attempted to update non-whitelisted field, skipping")
+			continue
+		}
+		query += fmt.Sprintf("%s = $%d, ", key, argCount)
+		args = append(args, value)
+		argCount++
+		hasUpdates = true
+	}
+
+	if !hasUpdates {
+		return fmt.Errorf("auth.UpdateUser: no valid fields to update")
+	}
+
+	// Add updated_at timestamp
+	query += fmt.Sprintf("updated_at = $%d WHERE id = $1", argCount)
+	args = append(args, time.Now())
 
 	_, err := s.db.ExecContext(ctx, query, args...)
 	if err != nil {

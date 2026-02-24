@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -88,18 +90,26 @@ func main() {
 	mfaManager := auth.NewMFAManager(totpManager, nil, redisCache, logger)
 
 	// MFA encryption key for encrypting TOTP secrets at rest
-	// SECURITY: This key should be loaded from a secure KMS in production
+	// SECURITY: MFA_ENCRYPTION_KEY is REQUIRED in production to prevent plaintext storage of TOTP secrets
 	mfaEncryptionKeyStr := getEnv("MFA_ENCRYPTION_KEY", "")
 	var mfaEncryptionKey []byte
-	if mfaEncryptionKeyStr != "" {
+	if mfaEncryptionKeyStr == "" {
+		// Check if we're in development mode
+		if getEnv("ENVIRONMENT", "production") != "development" {
+			log.Fatal().Msg("MFA_ENCRYPTION_KEY is required in production. Set a 64-character hex string (32 bytes) for MFA secret encryption.")
+		}
+		log.Warn().Msg("MFA_ENCRYPTION_KEY not set - running in development mode with unencrypted MFA secrets. DO NOT use in production!")
+		mfaEncryptionKey = nil
+	} else {
 		// Decode hex key
 		mfaEncryptionKey, err = hex.DecodeString(mfaEncryptionKeyStr)
-		if err != nil || len(mfaEncryptionKey) != 32 {
-			log.Warn().Err(err).Msg("Invalid MFA_ENCRYPTION_KEY, must be 64 hex characters (32 bytes). MFA secrets will not be encrypted at rest.")
-			mfaEncryptionKey = nil
+		if err != nil {
+			log.Fatal().Err(err).Msg("Invalid MFA_ENCRYPTION_KEY format. Must be a valid 64-character hex string (32 bytes).")
 		}
-	} else {
-		log.Warn().Msg("MFA_ENCRYPTION_KEY not set. MFA secrets will be stored in plaintext. Set a 32-byte hex key for production.")
+		if len(mfaEncryptionKey) != 32 {
+			log.Fatal().Int("key_length", len(mfaEncryptionKey)).Msg("Invalid MFA_ENCRYPTION_KEY length. Must be exactly 32 bytes (64 hex characters).")
+		}
+		logger.Info().Msg("MFA encryption key loaded successfully - MFA secrets will be encrypted at rest")
 	}
 
 	authService := auth.NewService(db.DB, jwtManager, mfaManager, redisCache, logger, mfaEncryptionKey)
@@ -110,26 +120,41 @@ func main() {
 
 	// Initialize vault service
 	secretRepo := vault.NewSecretRepository(db.DB, redisCache, logger)
-	// For now, generate a master key from environment or use a default
-	// In production, load from secure storage like HSM or KMS
-	masterKey := make([]byte, 32)
+	// SECURITY: VAULT_MASTER_KEY is REQUIRED for envelope encryption of vault secrets
+	// In production, this MUST be loaded from a secure KMS (AWS KMS, HashiCorp Vault, Azure Key Vault, etc.)
 	masterKeyStr := getEnv("VAULT_MASTER_KEY", "")
+	if masterKeyStr == "" {
+		// Check if we're in development mode
+		if getEnv("ENVIRONMENT", "production") != "development" {
+			log.Fatal().Msg("VAULT_MASTER_KEY is required in production. Load from a secure KMS or provide a 64-character hex string (32 bytes).")
+		}
+		// Development mode: generate a random key for testing only
+		log.Warn().Msg("VAULT_MASTER_KEY not set - running in development mode with INSECURE random key. DO NOT use in production!")
+		masterKey := make([]byte, 32)
+		if _, err := rand.Read(masterKey); err != nil {
+			log.Fatal().Err(err).Msg("Failed to generate development master key")
+		}
+		logger.Info().Hex("dev_key", masterKey).Msg("Generated development vault master key - USE ONLY FOR TESTING")
+	} else {
+		// Decode hex key from environment
+		masterKey, err := hex.DecodeString(masterKeyStr)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Invalid VAULT_MASTER_KEY format. Must be a valid 64-character hex string (32 bytes).")
+		}
+		if len(masterKey) != 32 {
+			log.Fatal().Int("key_length", len(masterKey)).Msg("Invalid VAULT_MASTER_KEY length. Must be exactly 32 bytes (64 hex characters).")
+		}
+		logger.Info().Msg("Vault master key loaded successfully from environment")
+	}
+	// Re-decode for actual use
+	masterKey := make([]byte, 32)
 	if masterKeyStr != "" {
-		// Use provided key (should be 64 hex chars for 32 bytes)
 		for i := 0; i < 32 && i*2 < len(masterKeyStr); i++ {
 			var b byte
 			if _, err := fmt.Sscanf(masterKeyStr[i*2:i*2+2], "%02x", &b); err == nil {
 				masterKey[i] = b
 			}
 		}
-	} else {
-		// Fallback: use a hash of the JWT private key path as seed
-		// This is NOT secure for production - replace with proper key management
-		seed := getEnv("JWT_PRIVATE_KEY_PATH", "/etc/openpam/jwt/private.pem")
-		for i, c := range seed {
-			masterKey[i%32] += byte(c)
-		}
-		logger.Warn().Msg("Using insecure master key generation - set VAULT_MASTER_KEY in production")
 	}
 	envelopeEncryption, err := vault.NewEnvelopeEncryption(masterKey, "master-1", db.DB, redisCache, logger)
 	if err != nil {
@@ -217,7 +242,7 @@ func loadConfig() Config {
 		DBUser:     getEnv("DB_USER", "openpam"),
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "openpam"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		DBSSLMode:  getEnv("DB_SSLMODE", "require"), // SECURITY: Default to require SSL
 
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),
 		RedisPort:     getEnvInt("REDIS_PORT", 6379),
@@ -247,6 +272,24 @@ func getEnvInt(key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+// parseAllowedOrigins parses comma-separated allowed origins from environment
+func parseAllowedOrigins(originsStr string) []string {
+	if originsStr == "" {
+		return []string{"http://localhost:3000", "http://localhost:8580"}
+	}
+	origins := []string{}
+	for _, origin := range strings.Split(originsStr, ",") {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	if len(origins) == 0 {
+		return []string{"http://localhost:3000", "http://localhost:8580"}
+	}
+	return origins
 }
 
 func setupLogger(level string) {
@@ -293,11 +336,15 @@ func setupRouter(
 	r.Use(middleware2.Logger(logger))
 	r.Use(middleware2.Recovery(logger))
 	r.Use(middleware2.SecurityHeaders())
+
+	// SECURITY: CORS restricted to specific trusted origins only
+	// Load allowed origins from environment or use secure defaults
+	allowedOrigins := parseAllowedOrigins(getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8580"))
 	r.Use(middleware2.CORS(middleware2.Config{
-		AllowedOrigins:  []string{"*"},
-		AllowedMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:  []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
-		ExposeHeaders:   []string{"Content-Length", "X-Request-ID"},
+		AllowedOrigins: allowedOrigins,
+		AllowedMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
+		ExposeHeaders:  []string{"Content-Length", "X-Request-ID"},
 	}))
 	r.Use(middleware2.RequestID())
 

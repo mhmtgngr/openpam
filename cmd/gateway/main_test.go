@@ -95,7 +95,7 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, 5432, config.DBPort)
 		assert.Equal(t, "openpam", config.DBUser)
 		assert.Equal(t, "openpam", config.DBName)
-		assert.Equal(t, "disable", config.DBSSLMode)
+		assert.Equal(t, "require", config.DBSSLMode)
 		assert.Equal(t, "localhost", config.RedisHost)
 		assert.Equal(t, 6379, config.RedisPort)
 		assert.Equal(t, 0, config.RedisDB)
