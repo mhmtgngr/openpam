@@ -504,6 +504,174 @@ func TestTenant(t *testing.T) {
 	})
 }
 
+func TestRequireTenantIsolation(t *testing.T) {
+	router := gin.New()
+	router.Use(RequireTenantIsolation())
+	router.GET("/protected", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	t.Run("allows valid tenant UUID", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		c.Set("user_id", "user-123")
+		c.Set("tenant_id", uuid.New().String())
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("rejects authenticated request without tenant_id", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		c.Set("user_id", "user-123")
+		// No tenant_id set
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.True(t, c.IsAborted())
+		assert.Equal(t, 403, w.Code)
+
+		var resp map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		assert.Equal(t, "TENANT_ISOLATION_VIOLATION", resp["error"].(map[string]interface{})["code"])
+	})
+
+	t.Run("rejects invalid tenant UUID format", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		c.Set("user_id", "user-123")
+		c.Set("tenant_id", "not-a-valid-uuid")
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.True(t, c.IsAborted())
+		assert.Equal(t, 403, w.Code)
+
+		var resp map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		assert.Equal(t, "INVALID_TENANT_ID", resp["error"].(map[string]interface{})["code"])
+	})
+
+	t.Run("rejects tenant_id in query parameter", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected?tenant_id=some-tenant", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		c.Set("user_id", "user-123")
+		c.Set("tenant_id", uuid.New().String())
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.True(t, c.IsAborted())
+		assert.Equal(t, 403, w.Code)
+
+		var resp map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
+		require.NoError(t, err)
+		assert.Equal(t, "TENANT_ISOLATION_VIOLATION", resp["error"].(map[string]interface{})["code"])
+	})
+
+	t.Run("allows health endpoint without tenant", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/health", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("allows metrics endpoint without tenant", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/metrics", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("allows auth login endpoint without tenant", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/v1/auth/login", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("allows auth register endpoint without tenant", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/v1/auth/register", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("rejects empty tenant_id string", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		c.Set("user_id", "user-123")
+		c.Set("tenant_id", "")
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.True(t, c.IsAborted())
+		assert.Equal(t, 403, w.Code)
+	})
+
+	t.Run("allows unauthenticated request (no user_id)", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/protected", nil)
+		w := httptest.NewRecorder()
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+		// No user_id and no tenant_id - let auth middleware handle it
+
+		handler := RequireTenantIsolation()
+		handler(c)
+
+		assert.False(t, c.IsAborted()) // Let auth middleware handle
+	})
+}
+
 func TestMiddlewareIntegration(t *testing.T) {
 	logger := zerolog.Nop()
 

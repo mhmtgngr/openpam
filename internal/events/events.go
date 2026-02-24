@@ -441,6 +441,7 @@ func (w *Webhook) sign(payload []byte, timestamp int64) string {
 
 // verifySignature verifies the webhook signature
 // SECURITY FIX: Validates timestamp to prevent replay attacks
+// SECURITY: Uses hmac.Equal() for timing-safe comparison to prevent timing attacks
 func (w *Webhook) verifySignature(payload []byte, signature string, timestamp int64) bool {
 	// Check timestamp is within acceptable range (5 minutes)
 	now := time.Now().Unix()
@@ -453,6 +454,8 @@ func (w *Webhook) verifySignature(payload []byte, signature string, timestamp in
 	// Recreate signature with timestamp
 	expectedSignature := w.sign(payload, timestamp)
 
+	// hmac.Equal performs a timing-safe comparison to prevent timing attacks
+	// This ensures attackers cannot use timing information to forge valid signatures
 	return hmac.Equal([]byte(signature), []byte(expectedSignature))
 }
 
@@ -474,7 +477,27 @@ func (w *Webhook) DeliverWithRetry(ctx context.Context, event Event, maxRetries 
 // VerifyWebhookSignature verifies an incoming webhook signature
 // This is used by webhook consumers to verify the authenticity of webhooks
 // SECURITY FIX: Includes timestamp verification to prevent replay attacks
+// SECURITY: Uses timing-safe HMAC comparison via hmac.Equal()
 func VerifyWebhookSignature(payload []byte, signature string, timestamp int64, secret string) bool {
+	// Validate inputs
+	if len(payload) == 0 {
+		return false
+	}
+	if signature == "" {
+		return false
+	}
+	if secret == "" {
+		return false
+	}
+	if timestamp == 0 {
+		return false
+	}
+
+	// Verify signature format (hex-encoded SHA256)
+	if len(signature) != 64 { // SHA256 produces 32 bytes, hex encoded is 64 chars
+		return false
+	}
+
 	webhook := &Webhook{secret: secret}
 	return webhook.verifySignature(payload, signature, timestamp)
 }

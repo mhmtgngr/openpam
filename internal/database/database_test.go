@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -270,6 +271,125 @@ func TestDB_WrapsSQLXDB(t *testing.T) {
 		assert.NotNil(t, db.DB)
 		assert.NotNil(t, db.logger)
 	})
+}
+
+// Test isLikelyProductionEnvironment function
+func TestIsLikelyProductionEnvironment(t *testing.T) {
+	// Save original environment values
+	originalEnv := []struct {
+		name, restore string
+	}{
+		{"ENV", ""},
+		{"GO_ENV", ""},
+		{"ENVIRONMENT", ""},
+		{"DB_HOST", ""},
+	}
+
+	for _, e := range originalEnv {
+		e.restore = os.Getenv(e.name)
+	}
+
+	// Restore environment after tests
+	defer func() {
+		for _, e := range originalEnv {
+			if e.restore == "" {
+				os.Unsetenv(e.name)
+			} else {
+				os.Setenv(e.name, e.restore)
+			}
+		}
+	}()
+
+	tests := []struct {
+		name           string
+		env            string
+		goEnv          string
+		environmentEnv string
+		dbHost         string
+		wantProduction bool
+	}{
+		{
+			name:           "ENV=local is not production",
+			env:            "local",
+			wantProduction: false,
+		},
+		{
+			name:           "ENV=dev with localhost is not production",
+			env:            "dev",
+			dbHost:         "localhost",
+			wantProduction: false,
+		},
+		{
+			name:           "ENV=dev with 127.0.0.1 is not production",
+			env:            "dev",
+			dbHost:         "127.0.0.1",
+			wantProduction: false,
+		},
+		{
+			name:           "ENV=dev with remote host IS production",
+			env:            "dev",
+			dbHost:         "db.example.com",
+			wantProduction: true,
+		},
+		{
+			name:           "ENV=development with localhost is not production",
+			env:            "development",
+			dbHost:         "localhost",
+			wantProduction: false,
+		},
+		{
+			name:           "ENV unset IS production (safe default)",
+			wantProduction: true,
+		},
+		{
+			name:           "ENV=production IS production",
+			env:            "production",
+			wantProduction: true,
+		},
+		{
+			name:           "ENV=prod IS production",
+			env:            "prod",
+			wantProduction: true,
+		},
+		{
+			name:           "ENV=staging IS production",
+			env:            "staging",
+			wantProduction: true,
+		},
+		{
+			name:           "ENV=test IS production (safe default for test envs)",
+			env:            "test",
+			wantProduction: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clean environment first
+			os.Unsetenv("ENV")
+			os.Unsetenv("GO_ENV")
+			os.Unsetenv("ENVIRONMENT")
+			os.Unsetenv("DB_HOST")
+
+			// Set test values
+			if tt.env != "" {
+				os.Setenv("ENV", tt.env)
+			}
+			if tt.goEnv != "" {
+				os.Setenv("GO_ENV", tt.goEnv)
+			}
+			if tt.environmentEnv != "" {
+				os.Setenv("ENVIRONMENT", tt.environmentEnv)
+			}
+			if tt.dbHost != "" {
+				os.Setenv("DB_HOST", tt.dbHost)
+			}
+
+			got := isLikelyProductionEnvironment()
+			assert.Equal(t, tt.wantProduction, got,
+				"isLikelyProductionEnvironment() = %v, want %v", got, tt.wantProduction)
+		})
+	}
 }
 
 // Test DSN construction

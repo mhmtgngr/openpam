@@ -47,15 +47,16 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 
 	// PRODUCTION GUARD: Prevent SSL disable in production environments
 	// This prevents accidental deployment with insecure database connections
-	if isProductionEnvironment() && (sslMode == "disable" || sslMode == "allow") {
-		return nil, fmt.Errorf("database: SSL mode '%s' is not allowed in production environment. Use 'require', 'verify-ca', or 'verify-full'. Set ENV=development to override", sslMode)
+	// SECURITY: The ENV=development override is REMOVED to prevent SSL bypass attacks
+	if isLikelyProductionEnvironment() && (sslMode == "disable" || sslMode == "allow") {
+		return nil, fmt.Errorf("database: SSL mode '%s' is not allowed in production-like environments. Use 'require', 'verify-ca', or 'verify-full'. Containerized and Kubernetes environments require encrypted connections", sslMode)
 	}
 
 	// Warn if SSL is disabled in non-production environments
 	if sslMode == "disable" || sslMode == "allow" {
 		logger.Warn().
 			Str("ssl_mode", sslMode).
-			Msg("Database SSL/TLS is disabled - database connections are NOT encrypted")
+			Msg("Database SSL/TLS is disabled - database connections are NOT encrypted. Only use this for local development with explicit ENV=local")
 	}
 
 	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters
@@ -174,9 +175,11 @@ func (ts *TenantScoped) NamedSelect(ctx context.Context, dest interface{}, query
 	return ts.db.SelectContext(ctx, dest, query, arg)
 }
 
-// isProductionEnvironment determines if the application is running in production
-// This prevents insecure configurations from being deployed to production
-func isProductionEnvironment() bool {
+// isLikelyProductionEnvironment determines if the application is running in a production-like environment
+// SECURITY: This function uses a whitelist approach for non-production environments
+// Only explicit "local" or "dev" with localhost connections are considered non-production
+// This prevents SSL bypass attacks via ENV variable manipulation
+func isLikelyProductionEnvironment() bool {
 	// Check explicit environment variable
 	env := os.Getenv("ENV")
 	if env == "" {
@@ -186,27 +189,23 @@ func isProductionEnvironment() bool {
 		env = os.Getenv("ENVIRONMENT")
 	}
 
-	// Consider production if:
-	// 1. ENV is explicitly set to "production" or "prod"
-	// 2. No explicit development/test environment is set AND running in container
-	isProduction := env == "production" || env == "prod"
-
-	// If env is not set, detect container environment as potential production
-	if env == "" {
-		// Check if running in Docker/container (common indicator)
-		if _, err := os.Stat("/.dockerenv"); err == nil {
-			isProduction = true
-		}
-		// Check for Kubernetes
-		if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-			isProduction = true
-		}
-	}
-
-	// Explicitly not production if set to development/test
-	if env == "development" || env == "dev" || env == "test" || env == "testing" {
+	// WHITELIST: Only these specific values are considered non-production
+	// "local" - for local development
+	// "dev" with additional checks for localhost
+	if env == "local" {
 		return false
 	}
 
-	return isProduction
+	// For "dev", only allow if connecting to localhost
+	if env == "dev" || env == "development" {
+		// Check DB host - only allow unencrypted for localhost
+		dbHost := os.Getenv("DB_HOST")
+		if dbHost == "localhost" || dbHost == "127.0.0.1" || dbHost == "" {
+			return false
+		}
+	}
+
+	// All other cases are considered production-like and require SSL
+	// This prevents SSL bypass in containerized/cloud environments
+	return true
 }
