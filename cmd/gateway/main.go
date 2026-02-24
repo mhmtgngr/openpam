@@ -10,11 +10,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/openpam/openpam/cmd/gateway/handlers"
 	"github.com/openpam/openpam/internal/auth"
+	"github.com/openpam/openpam/internal/audit"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/database"
 	"github.com/openpam/openpam/internal/events"
-	"github.com/openpam/openpam/internal/middleware"
+	middleware2 "github.com/openpam/openpam/internal/middleware"
+	"github.com/openpam/openpam/internal/pam/approval"
+	"github.com/openpam/openpam/internal/pam/target"
+	"github.com/openpam/openpam/internal/pam/vault"
+	"github.com/openpam/openpam/internal/session"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -59,7 +65,13 @@ func main() {
 	eventBus := events.New(redisCache, logger)
 	eventPublisher := events.NewPublisher(eventBus)
 
-	jwtManager := auth.NewJWTManager(/* load RSA keys */ nil, nil, redisCache, logger)
+	// Load or generate RSA keys for JWT
+	privateKey, publicKey, err := auth.LoadOrGenerateRSAKeys(config.JWTPrivateKeyPath, config.JWTPublicKeyPath, logger)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize RSA keys")
+	}
+
+	jwtManager := auth.NewJWTManager(privateKey, publicKey, redisCache, logger)
 
 	totpManager := auth.NewTOTPManager(auth.TOTPConfig{
 		Issuer:     "OpenPAM",
@@ -72,8 +84,55 @@ func main() {
 
 	mfaManager := auth.NewMFAManager(totpManager, nil, redisCache, logger)
 
+	authService := auth.NewService(db.DB, jwtManager, mfaManager, redisCache, logger)
+
+	// Initialize services
+	targetRepo := target.NewTargetRepository(db.DB, redisCache, logger)
+	targetService := target.NewTargetService(targetRepo, logger)
+
+	// Initialize vault service
+	secretRepo := vault.NewSecretRepository(db.DB, redisCache, logger)
+	// For now, generate a master key from environment or use a default
+	// In production, load from secure storage like HSM or KMS
+	masterKey := make([]byte, 32)
+	masterKeyStr := getEnv("VAULT_MASTER_KEY", "")
+	if masterKeyStr != "" {
+		// Use provided key (should be 64 hex chars for 32 bytes)
+		for i := 0; i < 32 && i*2 < len(masterKeyStr); i++ {
+			var b byte
+			if _, err := fmt.Sscanf(masterKeyStr[i*2:i*2+2], "%02x", &b); err == nil {
+				masterKey[i] = b
+			}
+		}
+	} else {
+		// Fallback: use a hash of the JWT private key path as seed
+		// This is NOT secure for production - replace with proper key management
+		seed := getEnv("JWT_PRIVATE_KEY_PATH", "/etc/openpam/jwt/private.pem")
+		for i, c := range seed {
+			masterKey[i%32] += byte(c)
+		}
+		logger.Warn().Msg("Using insecure master key generation - set VAULT_MASTER_KEY in production")
+	}
+	envelopeEncryption, err := vault.NewEnvelopeEncryption(masterKey, "master-1", db.DB, redisCache, logger)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize envelope encryption")
+	}
+	vaultService := vault.NewVaultService(secretRepo, envelopeEncryption, logger)
+
+	// Initialize session service
+	sessionRepo := session.NewRepository(db.DB, redisCache, logger)
+	sessionService := session.NewService(sessionRepo, redisCache, eventPublisher, logger)
+
+	// Initialize audit service
+	auditRepo := audit.NewRepository(db.DB, redisCache, logger)
+	auditService := audit.NewService(auditRepo, logger)
+
+	// Initialize approval service
+	approvalRepo := approval.NewRepository(db.DB, redisCache, logger)
+	approvalService := approval.NewWorkflowService(approvalRepo, eventPublisher, redisCache, logger)
+
 	// Setup router
-	router := setupRouter(config, db, redisCache, jwtManager, mfaManager, eventPublisher, logger)
+	router := setupRouter(config, db, redisCache, jwtManager, mfaManager, eventPublisher, authService, targetService, vaultService, sessionService, auditService, approvalService, logger)
 
 	// Start server
 	srv := &http.Server{
@@ -181,6 +240,12 @@ func setupRouter(
 	jwt *auth.JWTManager,
 	mfa *auth.MFAManager,
 	publisher *events.Publisher,
+	authService *auth.Service,
+	targetService *target.TargetService,
+	vaultService *vault.VaultService,
+	sessionService *session.Service,
+	auditService *audit.Service,
+	approvalService *approval.WorkflowService,
 	logger zerolog.Logger,
 ) *gin.Engine {
 	if config.LogLevel == "debug" {
@@ -191,17 +256,20 @@ func setupRouter(
 
 	r := gin.New()
 
+	// Initialize rate limiter
+	rateLimiter := middleware2.NewRateLimiter(cache, logger)
+
 	// Middleware
-	r.Use(middleware.Logger(logger))
-	r.Use(middleware.Recovery(logger))
-	r.Use(middleware.SecurityHeaders())
-	r.Use(middleware.CORS(middleware.Config{
+	r.Use(middleware2.Logger(logger))
+	r.Use(middleware2.Recovery(logger))
+	r.Use(middleware2.SecurityHeaders())
+	r.Use(middleware2.CORS(middleware2.Config{
 		AllowedOrigins:  []string{"*"},
 		AllowedMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:  []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
 		ExposeHeaders:   []string{"Content-Length", "X-Request-ID"},
 	}))
-	r.Use(middleware.RequestID())
+	r.Use(middleware2.RequestID())
 
 	// Health endpoints
 	r.GET("/health", func(c *gin.Context) {
@@ -236,80 +304,115 @@ func setupRouter(
 		}
 	})
 
+	// Create handlers
+	authHandler := handlers.NewAuthHandler(authService, logger)
+	targetHandler := handlers.NewTargetHandler(targetService, logger)
+	credentialHandler := handlers.NewCredentialHandler(vaultService, logger)
+	sessionHandler := handlers.NewSessionHandler(sessionService, logger)
+	auditHandler := handlers.NewAuditHandler(auditService, logger)
+	approvalHandler := handlers.NewApprovalHandler(approvalService, logger)
+
 	// API v1 routes
 	v1 := r.Group("/api/v1")
 	{
 		// Public routes (no auth)
 		public := v1.Group("")
 		{
-			public.POST("/auth/login", handleLogin(jwt, mfa, db, logger))
-			public.POST("/auth/logout", handleLogout(cache, logger))
-			public.POST("/auth/refresh", handleRefresh(jwt, cache, logger))
-			public.POST("/auth/mfa/verify", handleMFAVerify(mfa, cache, logger))
+			// Use stricter rate limiting for auth endpoints
+			public.Use(rateLimiter.RateLimit(middleware2.AuthRateLimitConfig()))
+
+			public.POST("/auth/login", authHandler.Login)
+			public.POST("/auth/logout", authHandler.Logout)
+			public.POST("/auth/refresh", authHandler.Refresh)
+			public.POST("/auth/verify-mfa", authHandler.VerifyMFA)
 		}
 
 		// Protected routes (require auth)
 		protected := v1.Group("")
-		protected.Use(middleware.Auth())
+		protected.Use(middleware2.Auth())
 		{
-			// User management
-			protected.GET("/users", handleListUsers(db, logger))
-			protected.GET("/users/:id", handleGetUser(db, logger))
-			protected.POST("/users", handleCreateUser(db, logger))
-			protected.PUT("/users/:id", handleUpdateUser(db, logger))
-			protected.DELETE("/users/:id", handleDeleteUser(db, logger))
+			// Auth routes
+			protected.GET("/auth/me", authHandler.Me)
+			protected.POST("/auth/mfa/setup", authHandler.SetupMFA)
+			protected.POST("/auth/mfa/verify", authHandler.VerifyAndEnableMFA)
+			protected.POST("/auth/change-password", authHandler.ChangePassword)
+			protected.GET("/auth/backup-codes", authHandler.GetBackupCodes)
+
+			// User management (privileged)
+			users := protected.Group("/users")
+			users.Use(middleware2.RequireRole("admin", "super_admin"))
+			{
+				users.GET("", authHandler.ListUsers)
+				users.POST("", authHandler.Register)
+				users.GET("/:id", authHandler.Me) // Reuse Me for single user
+				users.PUT("/:id", authHandler.UpdateUser)
+				users.DELETE("/:id", authHandler.DeleteUser)
+			}
 
 			// Targets
-			protected.GET("/targets", handleListTargets(db, logger))
-			protected.GET("/targets/:id", handleGetTarget(db, logger))
-			protected.POST("/targets", handleCreateTarget(db, logger))
-			protected.PUT("/targets/:id", handleUpdateTarget(db, logger))
-			protected.DELETE("/targets/:id", handleDeleteTarget(db, logger))
+			protected.GET("/targets", targetHandler.List)
+			protected.GET("/targets/:id", targetHandler.Get)
+			protected.POST("/targets", middleware2.RequireRole("admin", "super_admin"), targetHandler.Create)
+			protected.PUT("/targets/:id", middleware2.RequireRole("admin", "super_admin"), targetHandler.Update)
+			protected.DELETE("/targets/:id", middleware2.RequireRole("admin", "super_admin"), targetHandler.Delete)
+			protected.POST("/targets/:id/verify", targetHandler.Verify)
 
 			// Credentials
-			protected.GET("/credentials", handleListCredentials(db, logger))
-			protected.GET("/credentials/:id", handleGetCredential(db, logger))
-			protected.POST("/credentials", handleCreateCredential(db, logger))
-			protected.PUT("/credentials/:id", handleUpdateCredential(db, logger))
-			protected.DELETE("/credentials/:id", handleDeleteCredential(db, logger))
+			protected.GET("/credentials", credentialHandler.List)
+			protected.GET("/credentials/:id", credentialHandler.Get)
+			protected.GET("/credentials/:id/reveal", credentialHandler.Reveal)
+			protected.POST("/credentials", middleware2.RequireRole("admin", "super_admin"), credentialHandler.Create)
+			protected.PUT("/credentials/:id", middleware2.RequireRole("admin", "super_admin"), credentialHandler.Update)
+			protected.DELETE("/credentials/:id", middleware2.RequireRole("admin", "super_admin"), credentialHandler.Delete)
+			protected.POST("/credentials/:id/rotate", credentialHandler.Rotate)
+			protected.POST("/credentials/:id/compromised", credentialHandler.MarkCompromised)
 
-			// Checkouts
-			protected.GET("/checkouts", handleListCheckouts(db, logger))
-			protected.POST("/checkouts", handleCreateCheckout(db, publisher, logger))
-			protected.POST("/checkouts/:id/checkout", handleCheckoutCredential(db, logger))
-			protected.POST("/checkouts/:id/checkin", handleCheckinCredential(db, logger))
+			// Checkouts (placeholder - to be implemented)
+			protected.GET("/checkouts", handleListCheckouts)
+			protected.POST("/checkouts", handleCreateCheckout)
+			protected.POST("/checkouts/:id/checkout", handleCheckoutCredential)
+			protected.POST("/checkouts/:id/checkin", handleCheckinCredential)
 
 			// Sessions
-			protected.GET("/sessions", handleListSessions(db, logger))
-			protected.GET("/sessions/:id", handleGetSession(db, logger))
-			protected.POST("/sessions/:id/terminate", handleTerminateSession(db, logger))
+			protected.GET("/sessions", sessionHandler.List)
+			protected.GET("/sessions/:id", sessionHandler.Get)
+			protected.POST("/sessions", sessionHandler.Create)
+			protected.POST("/sessions/:id/terminate", sessionHandler.Terminate)
+			protected.GET("/sessions/active", sessionHandler.GetActive)
+			protected.GET("/sessions/stats", sessionHandler.GetStats)
 
 			// Approval requests
-			protected.GET("/approvals/requests", handleListApprovalRequests(db, logger))
-			protected.GET("/approvals/requests/:id", handleGetApprovalRequest(db, logger))
-			protected.POST("/approvals/requests", handleCreateApprovalRequest(db, logger))
-			protected.POST("/approvals/requests/:id/approve", handleApproveRequest(db, logger))
-			protected.POST("/approvals/requests/:id/deny", handleDenyRequest(db, logger))
+			protected.GET("/approvals/requests", approvalHandler.List)
+			protected.GET("/approvals/requests/pending", approvalHandler.GetPending)
+			protected.GET("/approvals/requests/:id", approvalHandler.Get)
+			protected.POST("/approvals/requests", approvalHandler.Create)
+			protected.POST("/approvals/requests/:id/approve", approvalHandler.Approve)
+			protected.POST("/approvals/requests/:id/deny", approvalHandler.Approve)
+			protected.POST("/approvals/requests/:id/cancel", approvalHandler.Cancel)
+			protected.POST("/approvals/requests/:id/delegate", approvalHandler.Delegate)
 
 			// Audit logs
-			protected.GET("/audit/events", handleListAuditEvents(db, logger))
-			protected.GET("/audit/events/:id", handleGetAuditEvent(db, logger))
-			protected.GET("/audit/export", handleExportAuditEvents(db, logger))
+			protected.GET("/audit/events", auditHandler.List)
+			protected.GET("/audit/events/:id", auditHandler.Get)
+			protected.GET("/audit/export", auditHandler.Export)
+			protected.GET("/audit/integrity", auditHandler.VerifyIntegrity)
+			protected.GET("/audit/compliance/report", auditHandler.GenerateComplianceReport)
+			protected.GET("/audit/stats", auditHandler.GetStats)
 
 			// Discovery
-			protected.GET("/discovery/scans", handleListDiscoveryScans(db, logger))
-			protected.POST("/discovery/scans", handleCreateDiscoveryScan(db, logger))
-			protected.POST("/discovery/scans/:id/run", handleRunDiscoveryScan(db, logger))
-			protected.GET("/discovery/assets", handleListDiscoveredAssets(db, logger))
+			protected.GET("/discovery/scans", handleListDiscoveryScans)
+			protected.POST("/discovery/scans", handleCreateDiscoveryScan)
+			protected.POST("/discovery/scans/:id/run", handleRunDiscoveryScan)
+			protected.GET("/discovery/assets", handleListDiscoveredAssets)
 
 			// Admin routes (require admin role)
 			admin := protected.Group("/admin")
-			admin.Use(middleware.RequireRole("admin", "super_admin"))
+			admin.Use(middleware2.RequireRole("admin", "super_admin"))
 			{
-				admin.GET("/tenants", handleListTenants(db, logger))
-				admin.POST("/tenants", handleCreateTenant(db, logger))
-				admin.PUT("/tenants/:id", handleUpdateTenant(db, logger))
-				admin.GET("/stats", handleSystemStats(db, logger))
+				admin.GET("/tenants", handleListTenants)
+				admin.POST("/tenants", handleCreateTenant)
+				admin.PUT("/tenants/:id", handleUpdateTenant)
+				admin.GET("/stats", handleSystemStats)
 			}
 		}
 	}
@@ -317,297 +420,30 @@ func setupRouter(
 	return r
 }
 
-// Handler functions
+// Placeholder handlers for routes not yet implemented
+// These will be replaced with proper handler implementations
 
-func handleLogin(jwt *auth.JWTManager, mfa *auth.MFAManager, db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var req struct {
-			Email    string `json:"email" binding:"required"`
-			Password string `json:"password" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
-			return
-		}
+var (
+	handleListCheckouts          = notImplemented
+	handleCreateCheckout         = notImplemented
+	handleCheckoutCredential     = notImplemented
+	handleCheckinCredential      = notImplemented
+	handleListDiscoveryScans     = notImplemented
+	handleCreateDiscoveryScan    = notImplemented
+	handleRunDiscoveryScan       = notImplemented
+	handleListDiscoveredAssets   = notImplemented
+	handleListTenants            = notImplemented
+	handleCreateTenant           = notImplemented
+	handleUpdateTenant           = notImplemented
+	handleSystemStats            = notImplemented
+)
 
-		// Authenticate user
-		// user, err := userService.Authenticate(c.Request.Context(), req.Email, req.Password)
-		// if err != nil {
-		// 	c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "Invalid credentials"}})
-		// 	return
-		// }
-
-		// Generate tokens
-		// accessToken, refreshToken, err := jwt.GenerateTokenPair(...)
-		// if err != nil {
-		// 	c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to generate tokens"}})
-		// 	return
-		// }
-
-		c.JSON(http.StatusOK, gin.H{
-			"access_token":  "accessToken",
-			"refresh_token": "refreshToken",
-			"user":          nil, // user info without password
-		})
-	}
-}
-
-func handleLogout(cache *cache.Cache, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Revoke refresh token
-		c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
-	}
-}
-
-func handleRefresh(jwt *auth.JWTManager, cache *cache.Cache, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Refresh access token using refresh token
-		c.JSON(http.StatusOK, gin.H{"access_token": "newAccessToken"})
-	}
-}
-
-func handleMFAVerify(mfa *auth.MFAManager, cache *cache.Cache, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var req struct {
-			Code  string `json:"code" binding:"required"`
-			Token string `json:"token" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
-			return
-		}
-
-		// Verify MFA code
-		c.JSON(http.StatusOK, gin.H{"verified": true})
-	}
-}
-
-func handleListUsers(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"users": []interface{}{}})
-	}
-}
-
-func handleGetUser(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"user": nil})
-	}
-}
-
-func handleCreateUser(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"user": nil})
-	}
-}
-
-func handleUpdateUser(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"user": nil})
-	}
-}
-
-func handleDeleteUser(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
-	}
-}
-
-func handleListTargets(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"targets": []interface{}{}, "total": 0})
-	}
-}
-
-func handleGetTarget(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"target": nil})
-	}
-}
-
-func handleCreateTarget(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"target": nil})
-	}
-}
-
-func handleUpdateTarget(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"target": nil})
-	}
-}
-
-func handleDeleteTarget(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Target deleted"})
-	}
-}
-
-func handleListCredentials(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"credentials": []interface{}{}, "total": 0})
-	}
-}
-
-func handleGetCredential(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"credential": nil})
-	}
-}
-
-func handleCreateCredential(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"credential": nil})
-	}
-}
-
-func handleUpdateCredential(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"credential": nil})
-	}
-}
-
-func handleDeleteCredential(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Credential deleted"})
-	}
-}
-
-func handleListCheckouts(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"checkouts": []interface{}{}, "total": 0})
-	}
-}
-
-func handleCreateCheckout(db *database.DB, publisher *events.Publisher, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"checkout": nil})
-	}
-}
-
-func handleCheckoutCredential(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"credential": nil})
-	}
-}
-
-func handleCheckinCredential(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Credential checked in"})
-	}
-}
-
-func handleListSessions(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"sessions": []interface{}{}, "total": 0})
-	}
-}
-
-func handleGetSession(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"session": nil})
-	}
-}
-
-func handleTerminateSession(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Session terminated"})
-	}
-}
-
-func handleListApprovalRequests(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"requests": []interface{}{}, "total": 0})
-	}
-}
-
-func handleGetApprovalRequest(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"request": nil})
-	}
-}
-
-func handleCreateApprovalRequest(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"request": nil})
-	}
-}
-
-func handleApproveRequest(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Request approved"})
-	}
-}
-
-func handleDenyRequest(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Request denied"})
-	}
-}
-
-func handleListAuditEvents(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"events": []interface{}{}, "total": 0})
-	}
-}
-
-func handleGetAuditEvent(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"event": nil})
-	}
-}
-
-func handleExportAuditEvents(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Content-Type", "application/json")
-		c.Header("Content-Disposition", "attachment; filename=audit_export.json")
-		c.String(http.StatusOK, "[]")
-	}
-}
-
-func handleListDiscoveryScans(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"scans": []interface{}{}, "total": 0})
-	}
-}
-
-func handleCreateDiscoveryScan(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"scan": nil})
-	}
-}
-
-func handleRunDiscoveryScan(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Scan started"})
-	}
-}
-
-func handleListDiscoveredAssets(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"assets": []interface{}{}, "total": 0})
-	}
-}
-
-func handleListTenants(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"tenants": []interface{}{}, "total": 0})
-	}
-}
-
-func handleCreateTenant(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"tenant": nil})
-	}
-}
-
-func handleUpdateTenant(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"tenant": nil})
-	}
-}
-
-func handleSystemStats(db *database.DB, logger zerolog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"stats": nil})
-	}
+// notImplemented returns a 501 Not Implemented response
+func notImplemented(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"error": gin.H{
+			"code":    "NOT_IMPLEMENTED",
+			"message": "This endpoint is not yet implemented",
+		},
+	})
 }

@@ -429,6 +429,11 @@ func (s *TargetService) GetTargetsForUser(ctx context.Context, userID, tenantID 
 	return s.repo.List(ctx, tenantID, filter, limit, offset)
 }
 
+// GetByID retrieves a target by ID
+func (s *TargetService) GetByID(ctx context.Context, id uuid.UUID) (*Target, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
 // validateTarget validates target data
 func (s *TargetService) validateTarget(target *Target) error {
 	if target.Name == "" {

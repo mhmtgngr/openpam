@@ -18,6 +18,7 @@ type User struct {
 	FirstName    string     `db:"first_name" json:"first_name"`
 	LastName     string     `db:"last_name" json:"last_name"`
 	PasswordHash string     `db:"password_hash" json:"-"`
+	Role         string     `db:"role" json:"role"`
 	Status       string     `db:"status" json:"status"` // active, suspended, locked
 	TenantID     uuid.UUID  `db:"tenant_id" json:"tenant_id"`
 	MFAEnabled   bool       `db:"mfa_enabled" json:"mfa_enabled"`

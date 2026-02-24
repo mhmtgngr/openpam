@@ -426,6 +426,16 @@ func (s *VaultService) DeleteSecret(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
+// GetByID retrieves a secret by ID without decrypting it
+func (s *VaultService) GetByID(ctx context.Context, id uuid.UUID) (*Secret, error) {
+	return s.repo.GetByID(ctx, id)
+}
+
+// List retrieves secrets with filtering
+func (s *VaultService) List(ctx context.Context, tenantID uuid.UUID, filter SecretFilter, limit, offset int) ([]Secret, int, error) {
+	return s.repo.List(ctx, tenantID, filter, limit, offset)
+}
+
 // MarkCompromised marks a secret as compromised
 func (s *VaultService) MarkCompromised(ctx context.Context, id uuid.UUID) error {
 	secret, err := s.repo.GetByID(ctx, id)
