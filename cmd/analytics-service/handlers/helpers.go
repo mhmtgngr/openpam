@@ -66,11 +66,11 @@ func parseUserID(c *gin.Context) (uuid.UUID, *gin.H) {
 }
 
 type HandlerBase struct {
-	service *analytics.Service
+	service analytics.AnalyticsService
 	logger  zerolog.Logger
 }
 
-func NewHandlerBase(service *analytics.Service, logger zerolog.Logger) *HandlerBase {
+func NewHandlerBase(service analytics.AnalyticsService, logger zerolog.Logger) *HandlerBase {
 	return &HandlerBase{
 		service: service,
 		logger:  logger,

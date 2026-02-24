@@ -12,12 +12,12 @@ import (
 
 // AnomalyHandler handles anomaly detection HTTP requests
 type AnomalyHandler struct {
-	service *analytics.Service
+	service analytics.AnalyticsService
 	logger  zerolog.Logger
 }
 
 // NewAnomalyHandler creates a new anomaly handler
-func NewAnomalyHandler(service *analytics.Service, logger zerolog.Logger) *AnomalyHandler {
+func NewAnomalyHandler(service analytics.AnalyticsService, logger zerolog.Logger) *AnomalyHandler {
 	return &AnomalyHandler{
 		service: service,
 		logger:  logger,

@@ -49,6 +49,9 @@ func NewRedisCache(c *cache.Cache, logger zerolog.Logger) *RedisCache {
 // Session Metrics Caching
 
 func (c *RedisCache) GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, date time.Time) (*SessionAnalytics, error) {
+	if c == nil || c.cache == nil {
+		return nil, fmt.Errorf("cache not available")
+	}
 	key := fmt.Sprintf("analytics:session:%s:%s", tenantID, date.Format("2006-01-02"))
 
 	var analytics SessionAnalytics
@@ -61,6 +64,9 @@ func (c *RedisCache) GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, 
 }
 
 func (c *RedisCache) SetSessionMetrics(ctx context.Context, analytics *SessionAnalytics, ttl time.Duration) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	key := fmt.Sprintf("analytics:session:%s:%s", analytics.TenantID, analytics.Date.Format("2006-01-02"))
 
 	if ttl == 0 {
@@ -71,6 +77,9 @@ func (c *RedisCache) SetSessionMetrics(ctx context.Context, analytics *SessionAn
 }
 
 func (c *RedisCache) InvalidateSessionMetrics(ctx context.Context, tenantID uuid.UUID) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	pattern := fmt.Sprintf("analytics:session:%s:*", tenantID)
 	return c.cache.DeleteByPattern(ctx, pattern)
 }
@@ -78,6 +87,9 @@ func (c *RedisCache) InvalidateSessionMetrics(ctx context.Context, tenantID uuid
 // User Activity Caching
 
 func (c *RedisCache) GetUserActivity(ctx context.Context, tenantID, userID uuid.UUID, date time.Time) (*UserActivity, error) {
+	if c == nil || c.cache == nil {
+		return nil, fmt.Errorf("cache not available")
+	}
 	key := fmt.Sprintf("analytics:activity:%s:%s:%s", tenantID, userID, date.Format("2006-01-02"))
 
 	var activity UserActivity
@@ -90,6 +102,9 @@ func (c *RedisCache) GetUserActivity(ctx context.Context, tenantID, userID uuid.
 }
 
 func (c *RedisCache) SetUserActivity(ctx context.Context, activity *UserActivity, ttl time.Duration) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	key := fmt.Sprintf("analytics:activity:%s:%s:%s", activity.TenantID, activity.UserID, activity.Date.Format("2006-01-02"))
 
 	if ttl == 0 {
@@ -100,6 +115,9 @@ func (c *RedisCache) SetUserActivity(ctx context.Context, activity *UserActivity
 }
 
 func (c *RedisCache) InvalidateUserActivity(ctx context.Context, tenantID, userID uuid.UUID) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	pattern := fmt.Sprintf("analytics:activity:%s:%s:*", tenantID, userID)
 	return c.cache.DeleteByPattern(ctx, pattern)
 }
@@ -107,6 +125,9 @@ func (c *RedisCache) InvalidateUserActivity(ctx context.Context, tenantID, userI
 // Compliance Report Caching
 
 func (c *RedisCache) GetComplianceReport(ctx context.Context, id uuid.UUID) (*ComplianceReport, error) {
+	if c == nil || c.cache == nil {
+		return nil, fmt.Errorf("cache not available")
+	}
 	key := fmt.Sprintf("analytics:compliance:%s", id)
 
 	var report ComplianceReport
@@ -119,6 +140,9 @@ func (c *RedisCache) GetComplianceReport(ctx context.Context, id uuid.UUID) (*Co
 }
 
 func (c *RedisCache) SetComplianceReport(ctx context.Context, report *ComplianceReport, ttl time.Duration) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	key := fmt.Sprintf("analytics:compliance:%s", report.ID)
 
 	if ttl == 0 {
@@ -129,6 +153,9 @@ func (c *RedisCache) SetComplianceReport(ctx context.Context, report *Compliance
 }
 
 func (c *RedisCache) InvalidateComplianceCache(ctx context.Context, tenantID uuid.UUID) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	pattern := fmt.Sprintf("analytics:compliance:*")
 	// In production, might want to track tenant-specific compliance reports
 	return c.cache.DeleteByPattern(ctx, pattern)
@@ -137,6 +164,9 @@ func (c *RedisCache) InvalidateComplianceCache(ctx context.Context, tenantID uui
 // Anomaly Stats Caching
 
 func (c *RedisCache) GetAnomalyStats(ctx context.Context, tenantID uuid.UUID) (map[string]int, error) {
+	if c == nil || c.cache == nil {
+		return nil, fmt.Errorf("cache not available")
+	}
 	key := fmt.Sprintf("analytics:anomaly:stats:%s", tenantID)
 
 	var stats map[string]int
@@ -149,6 +179,9 @@ func (c *RedisCache) GetAnomalyStats(ctx context.Context, tenantID uuid.UUID) (m
 }
 
 func (c *RedisCache) SetAnomalyStats(ctx context.Context, tenantID uuid.UUID, stats map[string]int, ttl time.Duration) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	key := fmt.Sprintf("analytics:anomaly:stats:%s", tenantID)
 
 	if ttl == 0 {
@@ -161,6 +194,9 @@ func (c *RedisCache) SetAnomalyStats(ctx context.Context, tenantID uuid.UUID, st
 // Invalidate All
 
 func (c *RedisCache) InvalidateAll(ctx context.Context, tenantID uuid.UUID) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	pattern := fmt.Sprintf("analytics:*:%s*", tenantID)
 	return c.cache.DeleteByPattern(ctx, pattern)
 }
@@ -431,7 +467,7 @@ func (r *CachedRepository) GetCommandBlacklist(ctx context.Context, id uuid.UUID
 
 func (r *CachedRepository) ListCommandBlacklist(ctx context.Context, tenantID *uuid.UUID) ([]CommandBlacklist, error) {
 	// Try cache first
-	if tenantID != nil {
+	if tenantID != nil && r.cache != nil && r.cache.cache != nil {
 		key := fmt.Sprintf("analytics:blacklist:%s", *tenantID)
 		var cached []CommandBlacklist
 		if err := r.cache.cache.Get(ctx, key, &cached); err == nil {
@@ -493,11 +529,17 @@ func (r *CachedRepository) FindMatchingBlacklist(ctx context.Context, tenantID u
 }
 
 func (r *CachedRepository) invalidateBlacklistCache(ctx context.Context, tenantID uuid.UUID) error {
+	if r.cache == nil || r.cache.cache == nil {
+		return nil
+	}
 	key := fmt.Sprintf("analytics:blacklist:%s", tenantID)
 	return r.cache.cache.Delete(ctx, key)
 }
 
 func (r *CachedRepository) invalidateAllBlacklistCache(ctx context.Context) error {
+	if r.cache == nil || r.cache.cache == nil {
+		return nil
+	}
 	pattern := "analytics:blacklist:*"
 	return r.cache.cache.DeleteByPattern(ctx, pattern)
 }
@@ -524,10 +566,12 @@ func (r *CachedRepository) ListSSHKeyAnalytics(ctx context.Context, tenantID, ss
 
 func (r *CachedRepository) GetDashboardMetrics(ctx context.Context, tenantID uuid.UUID) (*DashboardMetrics, error) {
 	// Try cache first for dashboard metrics (short TTL)
-	key := fmt.Sprintf("analytics:dashboard:%s", tenantID)
-	var cached DashboardMetrics
-	if err := r.cache.cache.Get(ctx, key, &cached); err == nil {
-		return &cached, nil
+	if r.cache != nil && r.cache.cache != nil {
+		key := fmt.Sprintf("analytics:dashboard:%s", tenantID)
+		var cached DashboardMetrics
+		if err := r.cache.cache.Get(ctx, key, &cached); err == nil {
+			return &cached, nil
+		}
 	}
 
 	// Cache miss, fetch from DB
@@ -537,7 +581,10 @@ func (r *CachedRepository) GetDashboardMetrics(ctx context.Context, tenantID uui
 	}
 
 	// Populate cache with short TTL (30 seconds)
-	_ = r.cache.cache.Set(ctx, key, metrics, 30*time.Second)
+	if r.cache != nil && r.cache.cache != nil {
+		key := fmt.Sprintf("analytics:dashboard:%s", tenantID)
+		_ = r.cache.cache.Set(ctx, key, metrics, 30*time.Second)
+	}
 
 	return metrics, nil
 }
@@ -564,6 +611,9 @@ func (r *CachedRepository) UpdateRansomwareEvent(ctx context.Context, event *Ran
 
 // WarmSessionMetricsCache preloads session metrics cache
 func (c *RedisCache) WarmSessionMetricsCache(ctx context.Context, tenantID uuid.UUID, dateFrom, dateTo time.Time, repo Repository) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	current := dateFrom
 	for current.Before(dateTo) || current.Equal(dateTo) {
 		for hour := 0; hour < 24; hour++ {
@@ -580,6 +630,9 @@ func (c *RedisCache) WarmSessionMetricsCache(ctx context.Context, tenantID uuid.
 
 // WarmComplianceReportCache preloads compliance report cache
 func (c *RedisCache) WarmComplianceReportCache(ctx context.Context, reportIDs []uuid.UUID, repo Repository) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	for _, id := range reportIDs {
 		report, err := repo.GetComplianceReport(ctx, id)
 		if err == nil && report != nil {
@@ -592,6 +645,9 @@ func (c *RedisCache) WarmComplianceReportCache(ctx context.Context, reportIDs []
 
 // BatchInvalidation invalidates multiple cache entries at once
 func (c *RedisCache) BatchInvalidation(ctx context.Context, tenantID uuid.UUID, cacheTypes ...string) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	for _, cacheType := range cacheTypes {
 		var pattern string
 		switch cacheType {
@@ -621,6 +677,9 @@ func (c *RedisCache) BatchInvalidation(ctx context.Context, tenantID uuid.UUID, 
 
 // GetCacheStats returns statistics about cache utilization
 func (c *RedisCache) GetCacheStats(ctx context.Context, tenantID uuid.UUID) (map[string]interface{}, error) {
+	if c == nil || c.cache == nil {
+		return make(map[string]interface{}), nil
+	}
 	stats := make(map[string]interface{})
 
 	// Count keys by pattern
@@ -646,6 +705,9 @@ func (c *RedisCache) GetCacheStats(ctx context.Context, tenantID uuid.UUID) (map
 
 // Export cache data for backup/migration
 func (c *RedisCache) ExportCacheData(ctx context.Context, tenantID uuid.UUID) ([]byte, error) {
+	if c == nil || c.cache == nil {
+		return json.Marshal(make(map[string]interface{}))
+	}
 	pattern := fmt.Sprintf("analytics:*:%s*", tenantID)
 
 	data := make(map[string]interface{})
@@ -663,6 +725,9 @@ func (c *RedisCache) ExportCacheData(ctx context.Context, tenantID uuid.UUID) ([
 
 // Import cache data from backup
 func (c *RedisCache) ImportCacheData(ctx context.Context, data []byte) error {
+	if c == nil || c.cache == nil {
+		return nil
+	}
 	var cacheData map[string]interface{}
 	if err := json.Unmarshal(data, &cacheData); err != nil {
 		return err

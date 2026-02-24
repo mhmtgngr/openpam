@@ -14,12 +14,12 @@ import (
 
 // AnalyticsHandler handles analytics HTTP requests
 type AnalyticsHandler struct {
-	service *analytics.Service
+	service analytics.AnalyticsService
 	logger  zerolog.Logger
 }
 
 // NewAnalyticsHandler creates a new analytics handler
-func NewAnalyticsHandler(service *analytics.Service, logger zerolog.Logger) *AnalyticsHandler {
+func NewAnalyticsHandler(service analytics.AnalyticsService, logger zerolog.Logger) *AnalyticsHandler {
 	return &AnalyticsHandler{
 		service: service,
 		logger:  logger,

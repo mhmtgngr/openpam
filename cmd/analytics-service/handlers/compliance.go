@@ -12,12 +12,12 @@ import (
 
 // ComplianceHandler handles compliance HTTP requests
 type ComplianceHandler struct {
-	service *analytics.Service
+	service analytics.AnalyticsService
 	logger  zerolog.Logger
 }
 
 // NewComplianceHandler creates a new compliance handler
-func NewComplianceHandler(service *analytics.Service, logger zerolog.Logger) *ComplianceHandler {
+func NewComplianceHandler(service analytics.AnalyticsService, logger zerolog.Logger) *ComplianceHandler {
 	return &ComplianceHandler{
 		service: service,
 		logger:  logger,
