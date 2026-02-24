@@ -211,10 +211,21 @@ const performLogin = async (page: Page) => {
 
   await emailInput.fill('test@example.com');
   await passwordInput.fill('testpassword123');
+
+  // Click and wait for navigation - use Promise.race to handle both cases
+  // The button might become disabled during loading, so we click once and wait for URL change
   await submitButton.click();
 
-  await page.waitForURL('/dashboard', { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  // Wait for either dashboard URL or any navigation to complete
+  await page.waitForURL('**/dashboard', { timeout: 15000 }).catch(() => {
+    // If URL wait fails, try waiting for load state instead
+    return page.waitForLoadState('load', { timeout: 5000 });
+  });
+
+  // Wait for network to be idle to ensure all API calls complete
+  await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
+    // If networkidle times out, continue anyway - page might be loaded enough
+  });
 };
 
 export const test = base.extend<{

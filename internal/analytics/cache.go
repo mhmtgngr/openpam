@@ -659,8 +659,9 @@ func (c *RedisCache) BatchInvalidation(ctx context.Context, tenantID uuid.UUID, 
 			pattern = fmt.Sprintf("analytics:compliance:*")
 		case "anomaly":
 			// Match the pattern used by SetAnomalyStats: analytics:anomaly:stats:{tenantID}
-			// Also match other anomaly-related keys that follow the pattern analytics:anomaly:{subkey}:{tenantID}
-			pattern = fmt.Sprintf("analytics:anomaly:*:%s", tenantID)
+			// The key format is analytics:anomaly:stats:{tenantID}
+			// Also match other anomaly-related keys that follow the pattern analytics:anomaly:*
+			pattern = fmt.Sprintf("analytics:anomaly:*%s", tenantID)
 		case "blacklist":
 			pattern = fmt.Sprintf("analytics:blacklist:%s", tenantID)
 		case "dashboard":
