@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -121,7 +120,7 @@ func (h *ComplianceHandler) GetControls(c *gin.Context) {
 	}
 
 	// Get report first to verify tenant access
-	report, err := h.service.GetComplianceReport(c.Request.Context(), id)
+	_, err = h.service.GetComplianceReport(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Report not found"}})
 		return
@@ -209,13 +208,16 @@ func (h *ComplianceHandler) ApproveException(c *gin.Context) {
 	}
 
 	userID, _ := c.Get("user_id")
-	userIDUUID, _ := uuid.Parse(userID.(string))
+	_, _ = uuid.Parse(userID.(string)) // userIDUUID - will be used when updating exception
 
 	var req struct {
 		ExpiresAt string `json:"expires_at"`
 		Notes     string `json:"notes"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+		return
+	}
 
 	var expiresAt *time.Time
 	if req.ExpiresAt != "" {
@@ -225,6 +227,7 @@ func (h *ComplianceHandler) ApproveException(c *gin.Context) {
 			return
 		}
 		expiresAt = &t
+		_ = expiresAt // Will be used when updating exception
 	}
 
 	// Implementation would update exception status to approved
@@ -239,7 +242,7 @@ func (h *ComplianceHandler) DenyException(c *gin.Context) {
 	}
 
 	userID, _ := c.Get("user_id")
-	userIDUUID, _ := uuid.Parse(userID.(string))
+	_, _ = uuid.Parse(userID.(string)) // userIDUUID - will be used when updating exception
 
 	var req struct {
 		Reason string `json:"reason" binding:"required"`

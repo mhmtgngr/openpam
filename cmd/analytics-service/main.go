@@ -190,7 +190,7 @@ func setupRouter(config Config, cache *cache.Cache, service *analytics.Service, 
 	r := gin.New()
 
 	// Initialize rate limiter
-	rateLimiter := middleware2.NewRateLimiter(cache, logger)
+	_ = middleware2.NewRateLimiter(cache, logger) // TODO: integrate rate limiting
 
 	// Middleware
 	r.Use(middleware2.Logger(logger))
@@ -245,7 +245,7 @@ func setupRouter(config Config, cache *cache.Cache, service *analytics.Service, 
 			protected.GET("/analytics/sessions/trends", analyticsHandler.GetSessionTrends)
 			protected.GET("/analytics/sessions/summary", analyticsHandler.GetSessionSummary)
 			protected.GET("/analytics/users/:id/activity", analyticsHandler.GetUserActivity)
-			protected.GET("/analytics/users/:id/risk", analyticsHandler.GetUserRisk)
+			protected.GET("/analytics/users/:id/risk", analyticsHandler.GetUserRiskScore)
 			protected.GET("/analytics/users/top", analyticsHandler.GetTopUsers)
 			protected.GET("/analytics/commands", analyticsHandler.GetCommands)
 			protected.GET("/analytics/commands/top", analyticsHandler.GetTopCommands)
@@ -258,28 +258,28 @@ func setupRouter(config Config, cache *cache.Cache, service *analytics.Service, 
 			protected.GET("/analytics/ssh-keys/:id", analyticsHandler.GetSSHKeyAnalytics)
 
 			// Compliance endpoints
-			protected.GET("/compliance/reports", complianceHandler.GetReports)
-			protected.POST("/compliance/reports", complianceHandler.CreateReport)
+			protected.GET("/compliance/reports", complianceHandler.ListReports)
+			protected.POST("/compliance/reports", complianceHandler.GenerateReport)
 			protected.GET("/compliance/reports/:id", complianceHandler.GetReport)
-			protected.GET("/compliance/reports/:id/controls", complianceHandler.GetReportControls)
+			protected.GET("/compliance/reports/:id/controls", complianceHandler.GetControls)
 			protected.GET("/compliance/summary", complianceHandler.GetSummary)
-			protected.GET("/compliance/exceptions", complianceHandler.GetExceptions)
+			protected.GET("/compliance/exceptions", complianceHandler.ListExceptions)
 			protected.POST("/compliance/exceptions", complianceHandler.CreateException)
 			protected.PUT("/compliance/exceptions/:id/approve", complianceHandler.ApproveException)
 			protected.PUT("/compliance/exceptions/:id/deny", complianceHandler.DenyException)
 
 			// Anomaly Detection endpoints
-			protected.GET("/anomalies", anomalyHandler.GetAnomalies)
+			protected.GET("/anomalies", anomalyHandler.ListAnomalies)
 			protected.GET("/anomalies/:id", anomalyHandler.GetAnomaly)
-			protected.POST("/anomalies/detect", anomalyHandler.TriggerDetection)
-			protected.PUT("/anomalies/:id/status", anomalyHandler.UpdateAnomalyStatus)
-			protected.GET("/anomalies/trends", anomalyHandler.GetAnomalyTrends)
+			protected.POST("/anomalies/detect", anomalyHandler.RunDetection)
+			protected.PUT("/anomalies/:id/status", anomalyHandler.UpdateStatus)
+			protected.GET("/anomalies/trends", anomalyHandler.GetTrends)
 			protected.GET("/anomalies/users/:id", anomalyHandler.GetUserAnomalies)
 
 			// Ransomware Events endpoints
-			protected.GET("/ransomware/events", anomalyHandler.GetRansomwareEvents)
+			protected.GET("/ransomware/events", anomalyHandler.ListRansomwareEvents)
 			protected.GET("/ransomware/events/:id", anomalyHandler.GetRansomwareEvent)
-			protected.POST("/ransomware/events/:id/emergency", anomalyHandler.TriggerEmergencyResponse)
+			protected.POST("/ransomware/events/:id/emergency", anomalyHandler.TriggerEmergency)
 
 			// Internal event ingestion endpoint (called by other services)
 			protected.POST("/analytics/events/ingest", analyticsHandler.IngestEvent)

@@ -3,7 +3,6 @@ package handlers
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -216,6 +215,10 @@ func (h *AnomalyHandler) GetUserAnomalies(c *gin.Context) {
 func (h *AnomalyHandler) ListRansomwareEvents(c *gin.Context) {
 	_, _ = c.Get("tenant_id")
 	_, _ = getIntQuery(c, "limit", 50), getIntQuery(c, "offset", 0)
+
+	// Get tenant ID for filtering
+	tenantID, _ := c.Get("tenant_id")
+	_ = tenantID // Will be used for actual query
 
 	// This would query the repository for ransomware events
 	// For now, return empty list

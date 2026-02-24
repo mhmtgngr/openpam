@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -540,15 +539,4 @@ func (h *AnalyticsHandler) IngestEvent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{"message": "Event ingested"})
-}
-
-// Helper functions
-
-func getIntQuery(c *gin.Context, key string, defaultVal int) int {
-	if val := c.Query(key); val != "" {
-		if intVal, err := strconv.Atoi(val); err == nil {
-			return intVal
-		}
-	}
-	return defaultVal
 }
