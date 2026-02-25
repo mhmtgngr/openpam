@@ -86,20 +86,20 @@ export const TargetFormPage: React.FC = () => {
   // Fetch existing target for editing
   const { data: existingTarget, isLoading: isLoadingTarget } = useQuery({
     queryKey: ['target', id],
-    queryFn: () => targetsApi.get(id!).then((res) => res.data),
+    queryFn: () => targetsApi.get(id!),
     enabled: isEditing,
   });
 
   // Fetch folders for organization
   const { data: folders } = useQuery({
     queryKey: ['folders', 'targets'],
-    queryFn: () => foldersApi.list('targets').then((res) => res.data),
+    queryFn: () => foldersApi.list('targets'),
   });
 
   // Fetch users for approvers
   const { data: users } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list({ limit: 100 }).then((res) => res.data),
+    queryFn: () => usersApi.list({ limit: 100 }),
   });
 
   // Populate form when editing
@@ -135,7 +135,7 @@ export const TargetFormPage: React.FC = () => {
     onSuccess: (data) => {
       toast.success('Target created successfully');
       queryClient.invalidateQueries({ queryKey: ['targets'] });
-      navigate(`/targets/${data.data.id}`);
+      navigate(`/targets/${data.id}`);
     },
   });
 
@@ -196,8 +196,8 @@ export const TargetFormPage: React.FC = () => {
     if (isEditing) {
       testConnectionMutation.mutate(undefined, {
         onSuccess: (data) => {
-          if (data.data.status === 'online') {
-            toast.success(`Connection successful! Latency: ${data.data.latency_ms}ms`);
+          if (data.status === 'online') {
+            toast.success(`Connection successful! Latency: ${data.latency_ms}ms`);
           } else {
             toast.error('Connection failed');
           }
@@ -470,7 +470,7 @@ export const TargetFormPage: React.FC = () => {
                   Approvers
                 </label>
                 <div className="border border-gray-700 rounded-md p-3 max-h-48 overflow-y-auto">
-                  {users?.data && users.data.length > 0 ? (
+                  {users && users.data && users.data.length > 0 ? (
                     users.data.map((user) => (
                       <div
                         key={user.id}

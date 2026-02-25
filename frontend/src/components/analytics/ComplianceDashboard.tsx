@@ -182,7 +182,7 @@ export const ComplianceDashboard: React.FC = () => {
   const { data: dashboard, isLoading, refetch } = useQuery({
     queryKey: ['complianceDashboard', framework],
     queryFn: () =>
-      complianceApi.getDashboard(framework).then((res) => res.data),
+      complianceApi.getDashboard(framework),
     refetchInterval: 15 * 60 * 1000, // Refresh every 15 minutes
   });
 
@@ -216,8 +216,8 @@ export const ComplianceDashboard: React.FC = () => {
         format: 'pdf',
       });
 
-      if (result.data.download_url) {
-        window.open(result.data.download_url, '_blank');
+      if (result.download_url) {
+        window.open(result.download_url, '_blank');
       }
     } catch {
       // Error handled by interceptor

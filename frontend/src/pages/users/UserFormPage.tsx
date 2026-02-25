@@ -55,7 +55,7 @@ export const UserFormPage: React.FC = () => {
 
   const { data: user, isLoading: isLoadingUser } = useQuery({
     queryKey: ['users', id],
-    queryFn: () => usersApi.get(id!).then((res) => res.data),
+    queryFn: () => usersApi.get(id!),
     enabled: isEdit,
   });
 

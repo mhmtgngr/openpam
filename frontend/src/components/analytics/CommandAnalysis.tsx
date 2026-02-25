@@ -199,7 +199,7 @@ export const CommandAnalysis: React.FC = () => {
         risk_level: riskLevel,
         limit,
         offset,
-      }).then((res) => res.data),
+      }),
   });
 
   const { data: riskSummary, isLoading: isLoadingSummary } = useQuery({
@@ -208,7 +208,7 @@ export const CommandAnalysis: React.FC = () => {
       analyticsApi.getCommandRiskSummary({
         start_date: subDays(new Date(), days).toISOString(),
         end_date: new Date().toISOString(),
-      }).then((res) => res.data),
+      }),
   });
 
   const handleExport = async () => {
@@ -221,7 +221,7 @@ export const CommandAnalysis: React.FC = () => {
         format: 'csv',
       });
 
-      window.open(response.data.download_url, '_blank');
+      window.open(response.download_url, '_blank');
     } catch {
       // Error handled by interceptor
     }

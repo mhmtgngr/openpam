@@ -165,20 +165,15 @@ describe('analyticsApi', () => {
         avg_active_duration: 1200,
       };
 
-      (api.get as any).mockImplementation((endpoint: string) => {
-        if (endpoint === '/analytics/dashboard') {
-          return Promise.resolve({ data: {
-            metrics: mockMetrics,
-            trends: mockTrends,
-            realtime: mockRealtime,
-          }});
-        }
-        return Promise.reject(new Error('Unknown endpoint'));
+      (api.get as any).mockResolvedValue({
+        metrics: mockMetrics,
+        trends: mockTrends,
+        realtime: mockRealtime,
       });
 
-      const data = (await analyticsApi.getDashboard()).data;
+      const result = await analyticsApi.getDashboard();
 
-      expect(data).toEqual({
+      expect(result).toEqual({
         metrics: mockMetrics,
         trends: mockTrends,
         realtime: mockRealtime,
@@ -322,8 +317,8 @@ describe('analyticsApi', () => {
         last_activity_at: '2024-01-15T10:30:00Z',
         most_used_targets: ['server-1', 'server-2', 'server-3'],
         activity_heatmap: [
-          { date: '2024-01-15', hour: 9, session_count: 5 },
-          { date: '2024-01-15', hour: 14, session_count: 3 },
+          { day: '2024-01-15', hour: 9, count: 5 },
+          { day: '2024-01-15', hour: 14, count: 3 },
         ],
       };
 
@@ -340,7 +335,9 @@ describe('analyticsApi', () => {
     it('should get command frequency', async () => {
       const mockCommands: CommandFrequency[] = [
         {
+          id: 'cmd-1',
           command: 'ls -la',
+          base_command: 'ls',
           risk_level: 'low',
           count: 1500,
           first_seen_at: '2024-01-01T00:00:00Z',
@@ -349,7 +346,9 @@ describe('analyticsApi', () => {
           targets: [],
         },
         {
+          id: 'cmd-2',
           command: 'sudo su',
+          base_command: 'sudo',
           risk_level: 'high',
           count: 45,
           first_seen_at: '2024-01-01T00:00:00Z',

@@ -39,14 +39,14 @@ export const TenantFormPage: React.FC = () => {
   // Fetch existing tenant for editing
   const { data: existingTenant, isLoading: isLoadingTenant } = useQuery({
     queryKey: ['tenant', id],
-    queryFn: () => tenantsApi.get(id!).then((res) => res.data),
+    queryFn: () => tenantsApi.get(id!),
     enabled: isEditing,
   });
 
   // Fetch tenant stats for editing
   const { data: tenantStats } = useQuery({
     queryKey: ['tenant', id, 'stats'],
-    queryFn: () => tenantsApi.getStats(id!).then((res) => res.data),
+    queryFn: () => tenantsApi.getStats(id!),
     enabled: isEditing,
   });
 
@@ -76,7 +76,7 @@ export const TenantFormPage: React.FC = () => {
     onSuccess: (data) => {
       toast.success('Tenant created successfully');
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
-      navigate(`/tenants/${data.data.id}`);
+      navigate(`/tenants/${data.id}`);
     },
   });
 

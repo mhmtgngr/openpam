@@ -43,14 +43,14 @@ export const TargetListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['targets', { search, type: typeFilter, environment: envFilter, offset, limit }],
     queryFn: () =>
-      targetsApi.list({ search, type: typeFilter, environment: envFilter, offset, limit }).then((res) => res.data),
+      targetsApi.list({ search, type: typeFilter, environment: envFilter, offset, limit }),
   });
 
   const testConnectionMutation = useMutation({
     mutationFn: (id: string) => targetsApi.testConnection(id),
     onSuccess: (data) => {
-      if (data.data.status === 'online') {
-        toast.success(`Connection successful! Latency: ${data.data.latency_ms}ms`);
+      if (data.status === 'online') {
+        toast.success(`Connection successful! Latency: ${data.latency_ms}ms`);
       } else {
         toast.error('Connection failed');
       }

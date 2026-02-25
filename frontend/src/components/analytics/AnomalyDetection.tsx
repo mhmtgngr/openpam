@@ -305,7 +305,7 @@ export const AnomalyDetection: React.FC = () => {
         search,
         limit,
         offset,
-      }).then((res) => res.data),
+      }),
     refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes
   });
 
@@ -315,7 +315,7 @@ export const AnomalyDetection: React.FC = () => {
       complianceApi.getAnomalySummary({
         start_date: subDays(new Date(), days).toISOString(),
         end_date: new Date().toISOString(),
-      }).then((res) => res.data),
+      }),
   });
 
   const handleUpdateAnomaly = async (id: string, data: { status?: 'open' | 'investigating' | 'resolved' | 'false_positive'; assigned_to?: string; resolution_notes?: string }) => {

@@ -28,7 +28,7 @@ export const UserListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['users', { search, role: roleFilter, status: statusFilter, offset, limit }],
     queryFn: () =>
-      usersApi.list({ search, role: roleFilter, status: statusFilter, offset, limit }).then((res) => res.data),
+      usersApi.list({ search, role: roleFilter, status: statusFilter, offset, limit }),
   });
 
   const deleteMutation = useMutation({

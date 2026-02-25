@@ -30,7 +30,7 @@ export const TenantListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['tenants', { search, status: statusFilter, offset, limit }],
     queryFn: () =>
-      tenantsApi.list({ search, status: statusFilter, offset, limit }).then((res) => res.data),
+      tenantsApi.list({ search, status: statusFilter, offset, limit }),
   });
 
   const suspendMutation = useMutation({
