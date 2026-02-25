@@ -1,0 +1,141 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Analytics" [ref=e60] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e61]
+          - generic [ref=e63]: Analytics
+        - link "Audit Logs" [ref=e64] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e65]
+          - generic [ref=e68]: Audit Logs
+        - link "Settings" [ref=e69] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e70]
+          - generic [ref=e73]: Settings
+      - generic [ref=e75]:
+        - generic [ref=e76]: TU
+        - generic [ref=e77]:
+          - paragraph [ref=e78]: Test User
+          - paragraph [ref=e79]: test@example.com
+    - generic [ref=e80]:
+      - banner [ref=e81]:
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - textbox "Search targets, credentials, users..." [ref=e87]
+        - generic [ref=e88]:
+          - button "Refresh data" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
+            - generic [ref=e102]: TU
+            - generic [ref=e103]: test@example.com
+            - img [ref=e104]
+      - main [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - heading "Targets" [level=1] [ref=e110]
+              - paragraph [ref=e111]: Manage target systems for privileged access
+            - link "Add Target" [ref=e112] [cursor=pointer]:
+              - /url: /targets/new
+              - button "Add Target" [ref=e113]:
+                - img [ref=e115]
+                - text: Add Target
+          - generic [ref=e118]:
+            - generic [ref=e121]:
+              - img [ref=e123]
+              - textbox "Search targets..." [ref=e126]
+            - combobox [ref=e128]:
+              - option "All Types" [selected]
+              - option "SSH"
+              - option "RDP"
+              - option "Database"
+              - option "Kubernetes"
+              - option "Web"
+              - option "API"
+            - combobox [ref=e130]:
+              - option "All Environments" [selected]
+              - option "Production"
+              - option "Staging"
+              - option "Development"
+              - option "Test"
+          - table [ref=e133]:
+            - rowgroup [ref=e134]:
+              - row "Target Type Environment Status Sensitivity" [ref=e135]:
+                - columnheader "Target" [ref=e136]
+                - columnheader "Type" [ref=e137]
+                - columnheader "Environment" [ref=e138]
+                - columnheader "Status" [ref=e139]
+                - columnheader "Sensitivity" [ref=e140]
+                - columnheader [ref=e141]
+            - rowgroup [ref=e142]:
+              - row "Web Server 01 web01.example.com:22 SSH production online undefined Test View" [ref=e143]:
+                - cell "Web Server 01 web01.example.com:22" [ref=e144]:
+                  - generic [ref=e145]:
+                    - img [ref=e147]
+                    - generic [ref=e150]:
+                      - paragraph [ref=e151]: Web Server 01
+                      - paragraph [ref=e152]: web01.example.com:22
+                - cell "SSH" [ref=e153]:
+                  - generic [ref=e154]: SSH
+                - cell "production" [ref=e155]:
+                  - generic [ref=e156]: production
+                - cell "online" [ref=e157]:
+                  - generic [ref=e158]: online
+                - cell "undefined" [ref=e159]
+                - cell "Test View" [ref=e160]:
+                  - generic [ref=e161]:
+                    - button "Test" [ref=e162] [cursor=pointer]:
+                      - img [ref=e164]
+                      - text: Test
+                    - link "View" [ref=e166] [cursor=pointer]:
+                      - /url: /targets/target-1
+                      - button "View" [ref=e167]
+  - generic:
+    - status [ref=e173]: An error occurred
+    - status [ref=e179]: An error occurred
+```

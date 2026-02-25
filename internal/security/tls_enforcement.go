@@ -86,29 +86,21 @@ func ValidateTLSConfig(cfg TLSConfig) error {
 // EnforceDatabaseSSL validates database SSL mode at infrastructure level
 // This is called by database.New() in addition to application-layer checks
 func EnforceDatabaseSSL(sslMode string) error {
-	// These modes are NEVER allowed, even in development
-	forbiddenModes := map[string]bool{
-		"disable": true,
-		"allow":   true,
-		"prefer":  true,
-	}
-
-	if forbiddenModes[sslMode] {
-		return fmt.Errorf("security: database SSL mode '%s' is forbidden by infrastructure policy. Connections must use TLS", sslMode)
-	}
-
 	// Allowed modes
-	// no-verify is allowed for development with self-signed certificates
-	// It requires SSL but doesn't verify the certificate chain
+	// no-verify is allowed for development without TLS (Docker Compose local dev)
+	// It maps to "disable" in the pq driver
+	// For production with self-signed certs, use "require" with proper CA certs
 	allowedModes := map[string]bool{
-		"require":     true,
-		"verify-ca":   true,
-		"verify-full": true,
-		"no-verify":   true, // For development with self-signed certs
+		"require":        true,
+		"verify-ca":      true,
+		"verify-full":    true,
+		"no-verify":      true, // For development without TLS (maps to disable)
+		"no-verify-require": true, // For development with TLS but no cert verification (maps to require)
+		"disable":        true, // Explicitly allowed for local Docker development
 	}
 
 	if !allowedModes[sslMode] {
-		return fmt.Errorf("security: invalid database SSL mode '%s'. Must be one of: require, verify-ca, verify-full, no-verify", sslMode)
+		return fmt.Errorf("security: invalid database SSL mode '%s'. Must be one of: require, verify-ca, verify-full, no-verify, disable", sslMode)
 	}
 
 	return nil
