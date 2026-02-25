@@ -296,7 +296,7 @@ func (c *ComplianceEngine) assessSessionManagement(ctx context.Context, tenantID
 	// Check session recording coverage
 	recordingCoverage := c.getSessionRecordingCoverage(ctx, tenantID, periodStart, periodEnd)
 	if recordingCoverage < 0.95 {
-		penalty := int((1.0 - recordingCoverage) * 50)
+		penalty := float64((1.0 - recordingCoverage) * 50)
 		score.Score -= penalty
 		findings = append(findings, ComplianceFinding{
 			ID:          uuid.New(),
@@ -315,7 +315,7 @@ func (c *ComplianceEngine) assessSessionManagement(ctx context.Context, tenantID
 	// Check for orphaned sessions
 	orphanedSessions := c.countOrphanedSessions(ctx, tenantID, periodStart, periodEnd)
 	if orphanedSessions > 0 {
-		penalty := min(orphanedSessions*5, 30)
+		penalty := float64(min(orphanedSessions*5, 30))
 		score.Score -= penalty
 		findings = append(findings, ComplianceFinding{
 			ID:          uuid.New(),
@@ -510,7 +510,7 @@ func (c *ComplianceEngine) assessAnomalyDetection(ctx context.Context, tenantID 
 	// Check for open critical anomalies
 	criticalAnomalies := c.countOpenAnomaliesBySeverity(ctx, tenantID, "critical")
 	if criticalAnomalies > 0 {
-		penalty := min(criticalAnomalies*20, 100)
+		penalty := float64(min(criticalAnomalies*20, 100))
 		score.Score -= penalty
 		findings = append(findings, ComplianceFinding{
 			ID:          uuid.New(),

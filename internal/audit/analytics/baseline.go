@@ -10,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/openpam/openpam/internal/audit/analytics"
 	"github.com/rs/zerolog"
 )
 
@@ -18,12 +17,12 @@ import (
 type BaselineManager struct {
 	db           *sqlx.DB
 	metricsStore *MetricsStore
-	redis        *analytics.RedisMetricsCache
+	redis        *RedisMetricsCache
 	logger       zerolog.Logger
 }
 
 // NewBaselineManager creates a new baseline manager
-func NewBaselineManager(db *sqlx.DB, metricsStore *MetricsStore, redis *analytics.RedisMetricsCache, logger zerolog.Logger) *BaselineManager {
+func NewBaselineManager(db *sqlx.DB, metricsStore *MetricsStore, redis *RedisMetricsCache, logger zerolog.Logger) *BaselineManager {
 	return &BaselineManager{
 		db:           db,
 		metricsStore: metricsStore,
@@ -102,7 +101,7 @@ func (b *BaselineManager) GetUserBaseline(ctx context.Context, tenantID, userID 
 		LIMIT 1
 	`
 
-	var baseline UserBaseline
+	var baseline UserBaselineExtended
 	err = b.db.GetContext(ctx, &baseline, query, tenantID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("baseline_manager.GetUserBaseline: %w", err)
@@ -123,9 +122,9 @@ func (b *BaselineManager) GetUserBaseline(ctx context.Context, tenantID, userID 
 	}
 
 	// Cache in Redis
-	_ = b.redis.StoreUserBaseline(ctx, &baseline)
+	_ = b.redis.StoreUserBaseline(ctx, &baseline.UserBaseline)
 
-	return &baseline, nil
+	return &baseline.UserBaseline, nil
 }
 
 // BuildUserBaseline creates a new baseline from historical metrics
@@ -158,8 +157,8 @@ func (b *BaselineManager) BuildUserBaseline(ctx context.Context, tenantID, userI
 	// Calculate session statistics
 	sessionCounts := groupMetricsByDay(metrics)
 	dailyValues := make([]float64, 0, len(sessionCounts))
-	for _, count := range sessionCounts {
-		dailyValues = append(dailyValues, float64(count))
+	for _, dayMetrics := range sessionCounts {
+		dailyValues = append(dailyValues, float64(len(dayMetrics)))
 	}
 	baseline.MeanDailySessions, baseline.StdDevDailySessions = calculateStatistics(dailyValues)
 
@@ -539,7 +538,6 @@ func groupOffHoursByDay(metrics []SessionMetric) map[string][]SessionMetric {
 
 func calculateHourlyPattern(metrics []SessionMetric) map[int]float64 {
 	hourlyCounts := make(map[int]int)
-	hourlyTotal := make(map[int]int)
 
 	for _, m := range metrics {
 		hour := m.Timestamp.Hour()
@@ -627,7 +625,9 @@ func calculateTargetAccessStats(metrics []SessionMetric) (map[string]TargetStats
 
 	// Update std dev for each target
 	for target := range stats {
-		stats[target].StdDevAccessCount = stdDev
+		stat := stats[target]
+		stat.StdDevAccessCount = stdDev
+		stats[target] = stat
 	}
 
 	return stats, stdDev

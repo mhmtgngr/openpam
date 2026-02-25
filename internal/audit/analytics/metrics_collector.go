@@ -9,19 +9,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/openpam/openpam/internal/audit/analytics"
 	"github.com/rs/zerolog"
 )
 
 // MetricsStore handles collection and storage of session metrics
 type MetricsStore struct {
 	db        *sqlx.DB
-	redis     *analytics.RedisMetricsCache
+	redis     *RedisMetricsCache
 	logger    zerolog.Logger
 }
 
 // NewMetricsStore creates a new metrics store
-func NewMetricsStore(db *sqlx.DB, redis *analytics.RedisMetricsCache, logger zerolog.Logger) *MetricsStore {
+func NewMetricsStore(db *sqlx.DB, redis *RedisMetricsCache, logger zerolog.Logger) *MetricsStore {
 	return &MetricsStore{
 		db:     db,
 		redis:  redis,
@@ -106,7 +105,20 @@ func (s *MetricsStore) GetSessionMetrics(ctx context.Context, sessionID uuid.UUI
 	// Try Redis cache first
 	cached, err := s.redis.GetSessionMetrics(ctx, sessionID)
 	if err == nil && cached != nil {
-		return cached, nil
+		// Convert from cached type to full type
+		return &SessionMetrics{
+			SessionID:       cached.SessionID,
+			TenantID:        cached.TenantID,
+			UserID:          cached.UserID,
+			TargetHost:      cached.TargetHost,
+			StartTime:       cached.StartTime,
+			EndTime:         cached.EndTime,
+			DurationSeconds: cached.DurationSeconds,
+			CommandCount:    cached.CommandCount,
+			FailedCommands:  cached.FailedCommands,
+			OffHoursAccess:  cached.OffHoursAccess,
+			FailureRate:     cached.FailureRate,
+		}, nil
 	}
 
 	var metrics SessionMetrics

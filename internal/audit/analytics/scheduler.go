@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/openpam/openpam/internal/audit/analytics"
+	"github.com/openpam/openpam/internal/audit/anomalies"
 	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog"
 )
@@ -22,8 +22,8 @@ type Scheduler struct {
 	metricsStore  *MetricsStore
 	baselineMgr   *BaselineManager
 	compliance    *ComplianceEngine
-	anomalyStore  *AnomalyStore
-	redisCache    *analytics.RedisMetricsCache
+	anomalyStore  *anomalies.Store
+	redisCache    *RedisMetricsCache
 	logger        zerolog.Logger
 
 	// Running state
@@ -40,8 +40,8 @@ func NewScheduler(
 	metricsStore *MetricsStore,
 	baselineMgr *BaselineManager,
 	compliance *ComplianceEngine,
-	anomalyStore *AnomalyStore,
-	redisCache *analytics.RedisMetricsCache,
+	anomalyStore *anomalies.Store,
+	redisCache *RedisMetricsCache,
 	logger zerolog.Logger,
 ) *Scheduler {
 	// Configure cron with seconds precision
@@ -333,10 +333,7 @@ func (s *Scheduler) runMetricsAggregation(ctx context.Context) error {
 // runReportGeneration generates scheduled reports
 func (s *Scheduler) runReportGeneration(ctx context.Context) error {
 	// Get due report schedules
-	schedules, err := s.getDueReportSchedules(ctx)
-	if err != nil {
-		return fmt.Errorf("run_report_generation: failed to get schedules: %w", err)
-	}
+	schedules := s.getDueReportSchedules(ctx)
 
 	for _, schedule := range schedules {
 		if err := s.generateScheduledReport(ctx, &schedule); err != nil {
@@ -424,20 +421,12 @@ func (s *Scheduler) getActiveTenants(ctx context.Context) ([]uuid.UUID, error) {
 	return tenants, nil
 }
 
-func (s *Scheduler) storeComplianceReport(ctx context.Context, report *interface{}) error {
+func (s *Scheduler) storeComplianceReport(ctx context.Context, report interface{}) error {
 	// Simplified - would use repository in full implementation
 	return nil
 }
 
 func (s *Scheduler) getDueReportSchedules(ctx context.Context) []ReportSchedule {
-	query := `
-		SELECT * FROM report_schedules
-		WHERE status = 'active'
-			AND next_run_at <= NOW()
-		ORDER BY next_run_at ASC
-		LIMIT 100
-	`
-
 	// Implementation would scan and return schedules
 	return []ReportSchedule{}
 }
@@ -450,9 +439,9 @@ func (s *Scheduler) generateScheduledReport(ctx context.Context, schedule *Repor
 func (s *Scheduler) getNextRunTimes(entries []cron.Entry) map[string]time.Time {
 	nextRuns := make(map[string]time.Time)
 	for _, entry := range entries {
-		if len(entry.Jobs) > 0 {
-			// Extract job name from wrapped function
-			// This is simplified - actual implementation would track job names
+		if !entry.Next.IsZero() {
+			// Use entry ID as key since job names aren't easily extracted
+			nextRuns[fmt.Sprintf("job-%d", entry.ID)] = entry.Next
 		}
 	}
 	return nextRuns
