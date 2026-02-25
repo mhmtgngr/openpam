@@ -66,10 +66,10 @@ export const reportsApi = {
 
   // List compliance report definitions
   list: (params?: { framework?: ComplianceFramework; status?: ReportStatus }) =>
-    api.get<PaginatedResponse<BaseComplianceReport>>('/reports', params),
+    api.get<PaginatedResponse<ComplianceReport>>('/reports', params),
 
   // Get report by ID
-  get: (id: string) => api.get<BaseComplianceReport>(`/reports/${id}`),
+  get: (id: string) => api.get<ComplianceReport>(`/reports/${id}`),
 
   // Create report definition
   create: (data: {
@@ -84,7 +84,7 @@ export const reportsApi = {
       include_sections: string[];
       filters?: Record<string, unknown>;
     };
-  }) => api.post<BaseComplianceReport>('/reports', data),
+  }) => api.post<ComplianceReport>('/reports', data),
 
   // Update report definition
   update: (id: string, data: Partial<{
@@ -100,7 +100,7 @@ export const reportsApi = {
       filters?: Record<string, unknown>;
     };
   }>) =>
-    api.patch<BaseComplianceReport>(`/reports/${id}`, data),
+    api.patch<ComplianceReport>(`/reports/${id}`, data),
 
   // Delete report definition
   delete: (id: string) => api.delete<void>(`/reports/${id}`),
