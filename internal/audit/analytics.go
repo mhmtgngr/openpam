@@ -481,6 +481,40 @@ func (s *AnalyticsService) getSeverityFromRisk(risk float64) string {
 }
 
 // =============================================================================
+// Anomaly Correlation and Deduplication Methods
+// =============================================================================
+
+// GetAnomaliesByCorrelationID retrieves all anomalies in a correlation group
+func (s *AnalyticsService) GetAnomaliesByCorrelationID(ctx context.Context, correlationID uuid.UUID) ([]model.AnomalyDetection, error) {
+	return s.anomalyRepo.GetByCorrelationID(ctx, correlationID)
+}
+
+// GetAnomalyTypes retrieves unique anomaly types for a tenant
+func (s *AnalyticsService) GetAnomalyTypes(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+	return s.anomalyRepo.GetAnomalyTypes(ctx, tenantID)
+}
+
+// GetTopUsersByAnomalyCount retrieves users with the most anomalies
+func (s *AnalyticsService) GetTopUsersByAnomalyCount(ctx context.Context, tenantID uuid.UUID, limit int, dateFrom, dateTo *time.Time) ([]repository.UserAnomalyCount, error) {
+	return s.anomalyRepo.GetTopUsersByAnomalyCount(ctx, tenantID, limit, dateFrom, dateTo)
+}
+
+// MergeDuplicateAnomalies marks all anomalies with the same correlation key as duplicates
+func (s *AnalyticsService) MergeDuplicateAnomalies(ctx context.Context, anomalyID uuid.UUID) (int, error) {
+	count, err := s.anomalyRepo.MergeDuplicateAnomalies(ctx, anomalyID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Get anomaly to invalidate cache
+	if anomaly, err := s.anomalyRepo.GetByID(ctx, anomalyID); err == nil {
+		_ = s.cache.InvalidateAnomalies(ctx, anomaly.TenantID)
+	}
+
+	return count, nil
+}
+
+// =============================================================================
 // SSH Key Analytics Methods
 // =============================================================================
 

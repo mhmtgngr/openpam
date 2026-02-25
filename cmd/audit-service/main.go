@@ -272,9 +272,15 @@ func setupRouter(
 				// Anomaly acknowledge/resolve operations
 				analytics.POST("/anomalies/:id/acknowledge", handleAcknowledgeAnomaly(pamAnalyticsSvc, logger))
 				analytics.POST("/anomalies/:id/resolve", handleResolveAnomaly(pamAnalyticsSvc, logger))
+				analytics.POST("/anomalies/:id/merge", handleMergeDuplicateAnomalies(analyticsSvc, logger))
 
 				// Anomaly bulk operations
 				analytics.PUT("/anomalies/bulk", handleBulkUpdateAnomalies(analyticsSvc, logger))
+
+				// Anomaly correlation and deduplication
+				analytics.GET("/anomalies/correlation/:id", handleGetAnomaliesByCorrelation(analyticsSvc, logger))
+				analytics.GET("/anomalies/types", handleGetAnomalyTypes(analyticsSvc, logger))
+				analytics.GET("/anomalies/top-users", handleGetTopAnomalyUsers(analyticsSvc, logger))
 
 				// SSH Key Analytics
 				analytics.GET("/ssh-keys/:id/analytics", handleGetSSHKeyAnalytics(analyticsSvc, logger))
@@ -1321,6 +1327,112 @@ func handleDisableCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.L
 		}
 
 		c.JSON(http.StatusOK, gin.H{"message": "Blacklist entry disabled"})
+	}
+}
+
+// =============================================================================
+// Anomaly Correlation Handlers
+// =============================================================================
+
+// handleGetAnomaliesByCorrelation handles GET /api/v1/analytics/anomalies/correlation/:id
+func handleGetAnomaliesByCorrelation(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		correlationID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid correlation ID"}})
+			return
+		}
+
+		anomalies, err := svc.GetAnomaliesByCorrelationID(c.Request.Context(), correlationID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get anomalies by correlation")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get anomalies"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"anomalies":       anomalies,
+			"correlation_id":  correlationID,
+			"count":          len(anomalies),
+		})
+	}
+}
+
+// handleGetAnomalyTypes handles GET /api/v1/analytics/anomalies/types
+func handleGetAnomalyTypes(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		types, err := svc.GetAnomalyTypes(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get anomaly types")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get anomaly types"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"types": types})
+	}
+}
+
+// handleGetTopAnomalyUsers handles GET /api/v1/analytics/anomalies/top-users
+func handleGetTopAnomalyUsers(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		limit := getIntQuery(c, "limit", 10)
+
+		var dateFrom, dateTo *time.Time
+		if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+			if t, err := time.Parse(time.RFC3339, dateFromStr); err == nil {
+				dateFrom = &t
+			}
+		}
+		if dateToStr := c.Query("date_to"); dateToStr != "" {
+			if t, err := time.Parse(time.RFC3339, dateToStr); err == nil {
+				dateTo = &t
+			}
+		}
+
+		users, err := svc.GetTopUsersByAnomalyCount(c.Request.Context(), tenantID, limit, dateFrom, dateTo)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get top anomaly users")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get top users"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"users": users})
+	}
+}
+
+// handleMergeDuplicateAnomalies handles POST /api/v1/analytics/anomalies/:id/merge
+func handleMergeDuplicateAnomalies(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid anomaly ID"}})
+			return
+		}
+
+		count, err := svc.MergeDuplicateAnomalies(c.Request.Context(), id)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to merge duplicate anomalies")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to merge duplicates"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":          "Duplicates merged",
+			"anomaly_id":       id.String(),
+			"duplicates_merged": count,
+		})
 	}
 }
 

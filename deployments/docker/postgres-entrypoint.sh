@@ -1,4 +1,6 @@
 #!/bin/sh
+set -e
+
 # Fix TLS key ownership for PostgreSQL
 if [ -f /tls/server.key ]; then
     # Copy key to data directory with correct permissions
@@ -11,8 +13,8 @@ if [ -f /tls/server.key ]; then
     chown postgres:postgres /var/lib/postgresql/data/ca.crt
 fi
 
-# Run postgres with SSL
-exec postgres \
+# Drop privileges and run postgres with SSL
+exec su-exec postgres postgres \
     -c ssl=on \
     -c ssl_cert_file=/var/lib/postgresql/data/server.crt \
     -c ssl_key_file=/var/lib/postgresql/data/server.key \

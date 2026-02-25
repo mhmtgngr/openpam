@@ -99,6 +99,9 @@ func (r *AnomalyRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.A
 
 // List retrieves anomalies with filtering and pagination
 func (r *AnomalyRepository) List(ctx context.Context, tenantID uuid.UUID, filter model.AnomalyFilter, limit, offset int) ([]model.AnomalyDetection, int, error) {
+	// By default, exclude duplicates unless explicitly requested
+	includeDuplicates := filter.IsDuplicate != nil && *filter.IsDuplicate
+
 	baseQuery := `
 		SELECT * FROM anomaly_detections
 		WHERE tenant_id = $1
@@ -109,6 +112,11 @@ func (r *AnomalyRepository) List(ctx context.Context, tenantID uuid.UUID, filter
 
 	args := []interface{}{tenantID}
 	argCount := 2
+
+	if !includeDuplicates {
+		baseQuery += " AND is_duplicate = false"
+		countQuery += " AND is_duplicate = false"
+	}
 
 	if filter.UserID != nil {
 		baseQuery += fmt.Sprintf(" AND user_id = $%d", argCount)
@@ -152,9 +160,31 @@ func (r *AnomalyRepository) List(ctx context.Context, tenantID uuid.UUID, filter
 		argCount++
 	}
 
-	// Get total count
+	if filter.AssignedTo != nil {
+		baseQuery += fmt.Sprintf(" AND assigned_to = $%d", argCount)
+		countQuery += fmt.Sprintf(" AND assigned_to = $%d", argCount)
+		args = append(args, *filter.AssignedTo)
+		argCount++
+	}
+
+	if filter.CorrelationID != nil {
+		baseQuery += fmt.Sprintf(" AND correlation_id = $%d", argCount)
+		countQuery += fmt.Sprintf(" AND correlation_id = $%d", argCount)
+		args = append(args, *filter.CorrelationID)
+		argCount++
+	}
+
+	if filter.Search != "" {
+		baseQuery += fmt.Sprintf(" AND (title ILIKE $%d OR description ILIKE $%d)", argCount, argCount)
+		countQuery += fmt.Sprintf(" AND (title ILIKE $%d OR description ILIKE $%d)", argCount, argCount)
+		searchPattern := "%" + filter.Search + "%"
+		args = append(args, searchPattern, searchPattern)
+		argCount += 2
+	}
+
+	// Get total count (need to use all filter args for count)
 	var total int
-	if err := r.db.GetContext(ctx, &total, countQuery, args[:1]...); err != nil {
+	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, 0, fmt.Errorf("anomaly.List.Count: %w", err)
 	}
 
@@ -313,14 +343,19 @@ func (r *AnomalyRepository) GetOpen(ctx context.Context, tenantID uuid.UUID, sev
 func (r *AnomalyRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*AnomalyStats, error) {
 	query := `
 		SELECT
-			COUNT(*) as total,
-			COUNT(*) FILTER (WHERE status = 'open') as open_count,
-			COUNT(*) FILTER (WHERE status = 'investigating') as investigating_count,
-			COUNT(*) FILTER (WHERE status = 'resolved') as resolved_count,
-			COUNT(*) FILTER (WHERE severity = 'critical') as critical_count,
-			COUNT(*) FILTER (WHERE severity = 'high') as high_count,
-			COUNT(*) FILTER (WHERE detected_at >= CURRENT_DATE) as today_count,
-			COUNT(*) FILTER (WHERE detected_at >= CURRENT_DATE - INTERVAL '7 days') as week_count
+			COUNT(*) FILTER (WHERE is_duplicate = false) as total,
+			COUNT(*) FILTER (WHERE status = 'open' AND is_duplicate = false) as open_count,
+			COUNT(*) FILTER (WHERE status = 'investigating' AND is_duplicate = false) as investigating_count,
+			COUNT(*) FILTER (WHERE status = 'resolved' AND is_duplicate = false) as resolved_count,
+			COUNT(*) FILTER (WHERE severity = 'critical' AND is_duplicate = false) as critical_count,
+			COUNT(*) FILTER (WHERE severity = 'high' AND is_duplicate = false) as high_count,
+			COUNT(*) FILTER (WHERE severity = 'medium' AND is_duplicate = false) as medium_count,
+			COUNT(*) FILTER (WHERE severity = 'low' AND is_duplicate = false) as low_count,
+			COUNT(*) FILTER (WHERE detected_at >= CURRENT_DATE AND is_duplicate = false) as today_count,
+			COUNT(*) FILTER (WHERE detected_at >= CURRENT_DATE - INTERVAL '7 days' AND is_duplicate = false) as week_count,
+			COUNT(DISTINCT correlation_id) FILTER (WHERE is_duplicate = false) as unique_correlations,
+			COALESCE(SUM(duplicate_count), 0) as total_duplicates,
+			COALESCE(AVG(risk_score) FILTER (WHERE is_duplicate = false), 0) as avg_risk_score
 		FROM anomaly_detections
 		WHERE tenant_id = $1
 	`
@@ -419,4 +454,99 @@ func (r *AnomalyRepository) BatchCreate(ctx context.Context, anomalies []model.A
 		Msg("Batch anomalies created")
 
 	return nil
+}
+
+// GetByCorrelationID retrieves all anomalies in a correlation group
+func (r *AnomalyRepository) GetByCorrelationID(ctx context.Context, correlationID uuid.UUID) ([]model.AnomalyDetection, error) {
+	var anomalies []model.AnomalyDetection
+	query := `
+		SELECT * FROM anomaly_detections
+		WHERE correlation_id = $1
+		ORDER BY detected_at ASC
+	`
+
+	err := r.db.SelectContext(ctx, &anomalies, query, correlationID)
+	if err != nil {
+		return nil, fmt.Errorf("anomaly.GetByCorrelationID: %w", err)
+	}
+
+	return anomalies, nil
+}
+
+// GetAnomalyTypes retrieves unique anomaly types for a tenant
+func (r *AnomalyRepository) GetAnomalyTypes(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+	query := `
+		SELECT DISTINCT anomaly_type
+		FROM anomaly_detections
+		WHERE tenant_id = $1 AND is_duplicate = false
+		ORDER BY anomaly_type
+	`
+
+	var types []string
+	err := r.db.SelectContext(ctx, &types, query, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("anomaly.GetAnomalyTypes: %w", err)
+	}
+
+	return types, nil
+}
+
+// GetTopUsersByAnomalyCount retrieves users with the most anomalies
+func (r *AnomalyRepository) GetTopUsersByAnomalyCount(ctx context.Context, tenantID uuid.UUID, limit int, dateFrom, dateTo *time.Time) ([]UserAnomalyCount, error) {
+	query := `
+		SELECT user_id, COUNT(*) as anomaly_count, MAX(risk_score) as max_risk_score
+		FROM anomaly_detections
+		WHERE tenant_id = $1 AND user_id IS NOT NULL AND is_duplicate = false
+	`
+
+	args := []interface{}{tenantID}
+	argCount := 2
+
+	if dateFrom != nil {
+		query += fmt.Sprintf(" AND detected_at >= $%d", argCount)
+		args = append(args, *dateFrom)
+		argCount++
+	}
+
+	if dateTo != nil {
+		query += fmt.Sprintf(" AND detected_at <= $%d", argCount)
+		args = append(args, *dateTo)
+		argCount++
+	}
+
+	query += " GROUP BY user_id ORDER BY anomaly_count DESC"
+
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d", limit)
+	}
+
+	var results []UserAnomalyCount
+	err := r.db.SelectContext(ctx, &results, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("anomaly.GetTopUsersByAnomalyCount: %w", err)
+	}
+
+	return results, nil
+}
+
+// UserAnomalyCount represents anomaly count per user
+type UserAnomalyCount struct {
+	UserID       uuid.UUID `db:"user_id" json:"user_id"`
+	AnomalyCount int       `db:"anomaly_count" json:"anomaly_count"`
+	MaxRiskScore float64   `db:"max_risk_score" json:"max_risk_score"`
+}
+
+// MergeDuplicateAnomalies marks all anomalies with the same correlation key as duplicates
+func (r *AnomalyRepository) MergeDuplicateAnomalies(ctx context.Context, anomalyID uuid.UUID) (int, error) {
+	// This relies on the database trigger function merge_duplicate_anomalies
+	// defined in migration 003
+	query := `SELECT merge_duplicate_anomalies($1)`
+
+	var result int
+	err := r.db.GetContext(ctx, &result, query, anomalyID)
+	if err != nil {
+		return 0, fmt.Errorf("anomaly.MergeDuplicateAnomalies: %w", err)
+	}
+
+	return result, nil
 }

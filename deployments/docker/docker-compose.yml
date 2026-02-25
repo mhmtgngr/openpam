@@ -344,8 +344,10 @@ services:
         condition: service_healthy
     volumes:
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.11
     restart: unless-stopped
     # Privileged mode for network scanning
     # In production, use separate scanning service
@@ -380,8 +382,10 @@ services:
         condition: service_healthy
     volumes:
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.12
     restart: unless-stopped
 
   # ============================================
@@ -437,3 +441,8 @@ networks:
   openpam-net:
     driver: bridge
     name: openpam-net
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.89.0.0/24
+          gateway: 10.89.0.1
