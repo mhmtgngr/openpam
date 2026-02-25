@@ -13,13 +13,13 @@ import (
 
 // Repository handles analytics data operations
 type Repository struct {
-	db     *sqlx.DB
+	Db     *sqlx.DB
 	logger zerolog.Logger
 }
 
 // NewRepository creates a new analytics repository
 func NewRepository(db *sqlx.DB, logger zerolog.Logger) *Repository {
-	return &Repository{db: db, logger: logger}
+	return &Repository{Db: db, logger: logger}
 }
 
 // Session Analytics Methods
@@ -31,7 +31,7 @@ func (r *Repository) GetSessionAnalytics(ctx context.Context, tenantID uuid.UUID
 		SELECT * FROM analytics_sessions
 		WHERE tenant_id = $1 AND period_type = $2 AND period_start = $3
 	`
-	err := r.db.GetContext(ctx, &analytics, query, tenantID, periodType, periodStart)
+	err := r.Db.GetContext(ctx, &analytics, query, tenantID, periodType, periodStart)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetSessionAnalytics: %w", err)
 	}
@@ -73,7 +73,7 @@ func (r *Repository) UpsertSessionAnalytics(ctx context.Context, analytics *Sess
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
 	`
-	_, err := r.db.NamedExecContext(ctx, query, analytics)
+	_, err := r.Db.NamedExecContext(ctx, query, analytics)
 	if err != nil {
 		return fmt.Errorf("analytics.UpsertSessionAnalytics: %w", err)
 	}
@@ -90,7 +90,7 @@ func (r *Repository) ListSessionAnalytics(ctx context.Context, tenantID uuid.UUI
 		ORDER BY period_start DESC
 		LIMIT $5 OFFSET $6
 	`
-	err := r.db.SelectContext(ctx, &analytics, query, tenantID, periodType, startDate, endDate, limit, offset)
+	err := r.Db.SelectContext(ctx, &analytics, query, tenantID, periodType, startDate, endDate, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.ListSessionAnalytics: %w", err)
 	}
@@ -106,7 +106,7 @@ func (r *Repository) GetEventAnalytics(ctx context.Context, tenantID uuid.UUID, 
 		SELECT * FROM analytics_events
 		WHERE tenant_id = $1 AND period_type = $2 AND period_start = $3
 	`
-	err := r.db.GetContext(ctx, &analytics, query, tenantID, periodType, periodStart)
+	err := r.Db.GetContext(ctx, &analytics, query, tenantID, periodType, periodStart)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetEventAnalytics: %w", err)
 	}
@@ -142,7 +142,7 @@ func (r *Repository) UpsertEventAnalytics(ctx context.Context, analytics *EventA
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
 	`
-	_, err := r.db.NamedExecContext(ctx, query, analytics)
+	_, err := r.Db.NamedExecContext(ctx, query, analytics)
 	if err != nil {
 		return fmt.Errorf("analytics.UpsertEventAnalytics: %w", err)
 	}
@@ -170,7 +170,7 @@ func (r *Repository) CreateReport(ctx context.Context, report *Report) error {
 			:metadata, :tags, :created_by
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, report)
+	_, err := r.Db.NamedExecContext(ctx, query, report)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateReport: %w", err)
 	}
@@ -181,7 +181,7 @@ func (r *Repository) CreateReport(ctx context.Context, report *Report) error {
 func (r *Repository) GetReport(ctx context.Context, id uuid.UUID) (*Report, error) {
 	var report Report
 	query := `SELECT * FROM analytics_reports WHERE id = $1 AND deleted_at IS NULL`
-	err := r.db.GetContext(ctx, &report, query, id)
+	err := r.Db.GetContext(ctx, &report, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetReport: %w", err)
 	}
@@ -215,7 +215,7 @@ func (r *Repository) ListReports(ctx context.Context, filter ReportFilter) ([]Re
 	// Get count
 	var total int
 	countQuery := "SELECT COUNT(*) FROM analytics_reports " + whereClause
-	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
+	if err := r.Db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, 0, fmt.Errorf("analytics.ListReports.Count: %w", err)
 	}
 
@@ -227,7 +227,7 @@ func (r *Repository) ListReports(ctx context.Context, filter ReportFilter) ([]Re
 		LIMIT $` + fmt.Sprint(argCount) + ` OFFSET $` + fmt.Sprint(argCount+1)
 	args = append(args, filter.Limit, filter.Offset)
 
-	err := r.db.SelectContext(ctx, &reports, query, args...)
+	err := r.Db.SelectContext(ctx, &reports, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("analytics.ListReports: %w", err)
 	}
@@ -257,7 +257,7 @@ func (r *Repository) UpdateReport(ctx context.Context, report *Report) error {
 			updated_at = :updated_at
 		WHERE id = :id AND deleted_at IS NULL
 	`
-	_, err := r.db.NamedExecContext(ctx, query, report)
+	_, err := r.Db.NamedExecContext(ctx, query, report)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateReport: %w", err)
 	}
@@ -267,7 +267,7 @@ func (r *Repository) UpdateReport(ctx context.Context, report *Report) error {
 // DeleteReport soft deletes a report
 func (r *Repository) DeleteReport(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE analytics_reports SET deleted_at = NOW() WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.Db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("analytics.DeleteReport: %w", err)
 	}
@@ -288,7 +288,7 @@ func (r *Repository) CreateReportSnapshot(ctx context.Context, snapshot *ReportS
 			:data, :summary, :file_url, :file_format, :file_size_bytes, :status
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, snapshot)
+	_, err := r.Db.NamedExecContext(ctx, query, snapshot)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateReportSnapshot: %w", err)
 	}
@@ -299,7 +299,7 @@ func (r *Repository) CreateReportSnapshot(ctx context.Context, snapshot *ReportS
 func (r *Repository) GetReportSnapshot(ctx context.Context, id uuid.UUID) (*ReportSnapshot, error) {
 	var snapshot ReportSnapshot
 	query := `SELECT * FROM analytics_report_snapshots WHERE id = $1`
-	err := r.db.GetContext(ctx, &snapshot, query, id)
+	err := r.Db.GetContext(ctx, &snapshot, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetReportSnapshot: %w", err)
 	}
@@ -315,7 +315,7 @@ func (r *Repository) ListReportSnapshots(ctx context.Context, reportID uuid.UUID
 		ORDER BY period_start DESC
 		LIMIT $2 OFFSET $3
 	`
-	err := r.db.SelectContext(ctx, &snapshots, query, reportID, limit, offset)
+	err := r.Db.SelectContext(ctx, &snapshots, query, reportID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.ListReportSnapshots: %w", err)
 	}
@@ -333,7 +333,7 @@ func (r *Repository) UpdateReportSnapshotStatus(ctx context.Context, id uuid.UUI
 			generated_at = CASE WHEN $5 = 'completed' THEN NOW() ELSE generated_at END
 		WHERE id = $6
 	`
-	_, err := r.db.ExecContext(ctx, query, status, fileURL, fileSize, errorMsg, status, id)
+	_, err := r.Db.ExecContext(ctx, query, status, fileURL, fileSize, errorMsg, status, id)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateReportSnapshotStatus: %w", err)
 	}
@@ -357,7 +357,7 @@ func (r *Repository) CreateDashboard(ctx context.Context, dashboard *Dashboard) 
 			:layout, :global_filters, :metadata, :tags, :created_by
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, dashboard)
+	_, err := r.Db.NamedExecContext(ctx, query, dashboard)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateDashboard: %w", err)
 	}
@@ -368,7 +368,7 @@ func (r *Repository) CreateDashboard(ctx context.Context, dashboard *Dashboard) 
 func (r *Repository) GetDashboard(ctx context.Context, id uuid.UUID) (*Dashboard, error) {
 	var dashboard Dashboard
 	query := `SELECT * FROM analytics_dashboards WHERE id = $1 AND deleted_at IS NULL`
-	err := r.db.GetContext(ctx, &dashboard, query, id)
+	err := r.Db.GetContext(ctx, &dashboard, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetDashboard: %w", err)
 	}
@@ -379,7 +379,7 @@ func (r *Repository) GetDashboard(ctx context.Context, id uuid.UUID) (*Dashboard
 func (r *Repository) GetDefaultDashboard(ctx context.Context, tenantID uuid.UUID) (*Dashboard, error) {
 	var dashboard Dashboard
 	query := `SELECT * FROM analytics_dashboards WHERE tenant_id = $1 AND is_default = true AND deleted_at IS NULL LIMIT 1`
-	err := r.db.GetContext(ctx, &dashboard, query, tenantID)
+	err := r.Db.GetContext(ctx, &dashboard, query, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetDefaultDashboard: %w", err)
 	}
@@ -425,7 +425,7 @@ func (r *Repository) ListDashboards(ctx context.Context, filter DashboardFilter)
 	// Get count
 	var total int
 	countQuery := "SELECT COUNT(*) FROM analytics_dashboards " + whereClause
-	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
+	if err := r.Db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, 0, fmt.Errorf("analytics.ListDashboards.Count: %w", err)
 	}
 
@@ -437,7 +437,7 @@ func (r *Repository) ListDashboards(ctx context.Context, filter DashboardFilter)
 		LIMIT $` + fmt.Sprint(argCount) + ` OFFSET $` + fmt.Sprint(argCount+1)
 	args = append(args, filter.Limit, filter.Offset)
 
-	err := r.db.SelectContext(ctx, &dashboards, query, args...)
+	err := r.Db.SelectContext(ctx, &dashboards, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("analytics.ListDashboards: %w", err)
 	}
@@ -463,7 +463,7 @@ func (r *Repository) UpdateDashboard(ctx context.Context, dashboard *Dashboard) 
 			updated_at = :updated_at
 		WHERE id = :id AND deleted_at IS NULL
 	`
-	_, err := r.db.NamedExecContext(ctx, query, dashboard)
+	_, err := r.Db.NamedExecContext(ctx, query, dashboard)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateDashboard: %w", err)
 	}
@@ -473,7 +473,7 @@ func (r *Repository) UpdateDashboard(ctx context.Context, dashboard *Dashboard) 
 // DeleteDashboard soft deletes a dashboard
 func (r *Repository) DeleteDashboard(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE analytics_dashboards SET deleted_at = NOW() WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.Db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("analytics.DeleteDashboard: %w", err)
 	}
@@ -501,7 +501,7 @@ func (r *Repository) CreateWidget(ctx context.Context, widget *Widget) error {
 			:metadata, :created_by
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, widget)
+	_, err := r.Db.NamedExecContext(ctx, query, widget)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateWidget: %w", err)
 	}
@@ -512,7 +512,7 @@ func (r *Repository) CreateWidget(ctx context.Context, widget *Widget) error {
 func (r *Repository) GetWidget(ctx context.Context, id uuid.UUID) (*Widget, error) {
 	var widget Widget
 	query := `SELECT * FROM analytics_widgets WHERE id = $1`
-	err := r.db.GetContext(ctx, &widget, query, id)
+	err := r.Db.GetContext(ctx, &widget, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetWidget: %w", err)
 	}
@@ -527,7 +527,7 @@ func (r *Repository) ListWidgets(ctx context.Context, dashboardID uuid.UUID) ([]
 		WHERE dashboard_id = $1
 		ORDER BY position_y ASC, position_x ASC
 	`
-	err := r.db.SelectContext(ctx, &widgets, query, dashboardID)
+	err := r.Db.SelectContext(ctx, &widgets, query, dashboardID)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.ListWidgets: %w", err)
 	}
@@ -552,7 +552,7 @@ func (r *Repository) UpdateWidget(ctx context.Context, widget *Widget) error {
 			updated_at = :updated_at
 		WHERE id = :id
 	`
-	_, err := r.db.NamedExecContext(ctx, query, widget)
+	_, err := r.Db.NamedExecContext(ctx, query, widget)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateWidget: %w", err)
 	}
@@ -562,7 +562,7 @@ func (r *Repository) UpdateWidget(ctx context.Context, widget *Widget) error {
 // DeleteWidget deletes a widget
 func (r *Repository) DeleteWidget(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM analytics_widgets WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.Db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("analytics.DeleteWidget: %w", err)
 	}
@@ -588,7 +588,7 @@ func (r *Repository) CreateAlert(ctx context.Context, alert *Alert) error {
 			:cooldown_minutes, :metadata, :tags, :created_by
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, alert)
+	_, err := r.Db.NamedExecContext(ctx, query, alert)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateAlert: %w", err)
 	}
@@ -599,7 +599,7 @@ func (r *Repository) CreateAlert(ctx context.Context, alert *Alert) error {
 func (r *Repository) GetAlert(ctx context.Context, id uuid.UUID) (*Alert, error) {
 	var alert Alert
 	query := `SELECT * FROM analytics_alerts WHERE id = $1 AND deleted_at IS NULL`
-	err := r.db.GetContext(ctx, &alert, query, id)
+	err := r.Db.GetContext(ctx, &alert, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetAlert: %w", err)
 	}
@@ -645,7 +645,7 @@ func (r *Repository) ListAlerts(ctx context.Context, filter AlertFilter) ([]Aler
 	// Get count
 	var total int
 	countQuery := "SELECT COUNT(*) FROM analytics_alerts " + whereClause
-	if err := r.db.GetContext(ctx, &total, countQuery, args...); err != nil {
+	if err := r.Db.GetContext(ctx, &total, countQuery, args...); err != nil {
 		return nil, 0, fmt.Errorf("analytics.ListAlerts.Count: %w", err)
 	}
 
@@ -657,7 +657,7 @@ func (r *Repository) ListAlerts(ctx context.Context, filter AlertFilter) ([]Aler
 		LIMIT $` + fmt.Sprint(argCount) + ` OFFSET $` + fmt.Sprint(argCount+1)
 	args = append(args, filter.Limit, filter.Offset)
 
-	err := r.db.SelectContext(ctx, &alerts, query, args...)
+	err := r.Db.SelectContext(ctx, &alerts, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("analytics.ListAlerts: %w", err)
 	}
@@ -685,7 +685,7 @@ func (r *Repository) UpdateAlert(ctx context.Context, alert *Alert) error {
 			updated_at = :updated_at
 		WHERE id = :id AND deleted_at IS NULL
 	`
-	_, err := r.db.NamedExecContext(ctx, query, alert)
+	_, err := r.Db.NamedExecContext(ctx, query, alert)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateAlert: %w", err)
 	}
@@ -695,7 +695,7 @@ func (r *Repository) UpdateAlert(ctx context.Context, alert *Alert) error {
 // DeleteAlert soft deletes an alert
 func (r *Repository) DeleteAlert(ctx context.Context, id uuid.UUID) error {
 	query := `UPDATE analytics_alerts SET deleted_at = NOW() WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.Db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("analytics.DeleteAlert: %w", err)
 	}
@@ -718,7 +718,7 @@ func (r *Repository) CreateAlertTrigger(ctx context.Context, trigger *AlertTrigg
 			:trigger_data, :notifications_sent, :metadata
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, trigger)
+	_, err := r.Db.NamedExecContext(ctx, query, trigger)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateAlertTrigger: %w", err)
 	}
@@ -734,7 +734,7 @@ func (r *Repository) ListAlertTriggers(ctx context.Context, alertID uuid.UUID, l
 		ORDER BY triggered_at DESC
 		LIMIT $2 OFFSET $3
 	`
-	err := r.db.SelectContext(ctx, &triggers, query, alertID, limit, offset)
+	err := r.Db.SelectContext(ctx, &triggers, query, alertID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.ListAlertTriggers: %w", err)
 	}
@@ -750,7 +750,7 @@ func (r *Repository) UpdateAlertTrigger(ctx context.Context, id uuid.UUID, resol
 			resolution_notes = COALESCE($2, resolution_notes)
 		WHERE id = $3
 	`
-	_, err := r.db.ExecContext(ctx, query, resolvedBy, resolutionNotes, id)
+	_, err := r.Db.ExecContext(ctx, query, resolvedBy, resolutionNotes, id)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateAlertTrigger: %w", err)
 	}
@@ -765,7 +765,7 @@ func (r *Repository) GetActiveAlerts(ctx context.Context) ([]Alert, error) {
 		WHERE enabled = true AND deleted_at IS NULL
 		ORDER BY next_trigger_at ASC NULLS LAST
 	`
-	err := r.db.SelectContext(ctx, &alerts, query)
+	err := r.Db.SelectContext(ctx, &alerts, query)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetActiveAlerts: %w", err)
 	}
@@ -781,7 +781,7 @@ func (r *Repository) UpdateAlertTriggerStatus(ctx context.Context, alertID uuid.
 			trigger_count = $3
 		WHERE id = $4
 	`
-	_, err := r.db.ExecContext(ctx, query, lastTriggeredAt, nextTriggerAt, triggerCount, alertID)
+	_, err := r.Db.ExecContext(ctx, query, lastTriggeredAt, nextTriggerAt, triggerCount, alertID)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateAlertTriggerStatus: %w", err)
 	}
@@ -791,7 +791,7 @@ func (r *Repository) UpdateAlertTriggerStatus(ctx context.Context, alertID uuid.
 // UpdateAlertEvaluationTime updates the last evaluated time
 func (r *Repository) UpdateAlertEvaluationTime(ctx context.Context, alertID uuid.UUID) error {
 	query := `UPDATE analytics_alerts SET last_evaluated_at = NOW() WHERE id = $1`
-	_, err := r.db.ExecContext(ctx, query, alertID)
+	_, err := r.Db.ExecContext(ctx, query, alertID)
 	if err != nil {
 		return fmt.Errorf("analytics.UpdateAlertEvaluationTime: %w", err)
 	}
@@ -814,7 +814,7 @@ func (r *Repository) RecordMetric(ctx context.Context, metric *Metric) error {
 			:id, :tenant_id, :metric_name, :metric_type, :value, :labels, :recorded_at, :metadata
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, metric)
+	_, err := r.Db.NamedExecContext(ctx, query, metric)
 	if err != nil {
 		return fmt.Errorf("analytics.RecordMetric: %w", err)
 	}
@@ -831,7 +831,7 @@ func (r *Repository) QueryMetrics(ctx context.Context, tenantID uuid.UUID, metri
 		ORDER BY recorded_at DESC
 		LIMIT $5
 	`
-	err := r.db.SelectContext(ctx, &metrics, query, tenantID, metricName, startDate, endDate, limit)
+	err := r.Db.SelectContext(ctx, &metrics, query, tenantID, metricName, startDate, endDate, limit)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.QueryMetrics: %w", err)
 	}
@@ -866,7 +866,7 @@ func (r *Repository) AggregateMetrics(ctx context.Context, tenantID uuid.UUID, m
 		ORDER BY timestamp ASC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, tenantID, metricName, startDate, endDate)
+	rows, err := r.Db.QueryContext(ctx, query, tenantID, metricName, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.AggregateMetrics: %w", err)
 	}
@@ -897,7 +897,7 @@ func (r *Repository) GetUserActivity(ctx context.Context, tenantID, userID uuid.
 		SELECT * FROM analytics_user_activity
 		WHERE tenant_id = $1 AND user_id = $2 AND period_type = $3 AND period_start = $4
 	`
-	err := r.db.GetContext(ctx, &activity, query, tenantID, userID, periodType, periodStart)
+	err := r.Db.GetContext(ctx, &activity, query, tenantID, userID, periodType, periodStart)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetUserActivity: %w", err)
 	}
@@ -941,7 +941,7 @@ func (r *Repository) UpsertUserActivity(ctx context.Context, activity *UserActiv
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
 	`
-	_, err := r.db.NamedExecContext(ctx, query, activity)
+	_, err := r.Db.NamedExecContext(ctx, query, activity)
 	if err != nil {
 		return fmt.Errorf("analytics.UpsertUserActivity: %w", err)
 	}
@@ -958,7 +958,7 @@ func (r *Repository) ListUserActivity(ctx context.Context, tenantID uuid.UUID, p
 		ORDER BY period_start DESC
 		LIMIT $5 OFFSET $6
 	`
-	err := r.db.SelectContext(ctx, &activities, query, tenantID, periodType, startDate, endDate, limit, offset)
+	err := r.Db.SelectContext(ctx, &activities, query, tenantID, periodType, startDate, endDate, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.ListUserActivity: %w", err)
 	}
@@ -974,7 +974,7 @@ func (r *Repository) GetAnomalousUsers(ctx context.Context, tenantID uuid.UUID, 
 		ORDER BY anomaly_score DESC
 		LIMIT $4
 	`
-	err := r.db.SelectContext(ctx, &activities, query, tenantID, periodType, periodStart, limit)
+	err := r.Db.SelectContext(ctx, &activities, query, tenantID, periodType, periodStart, limit)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetAnomalousUsers: %w", err)
 	}
@@ -992,7 +992,7 @@ func (r *Repository) GetLatestRiskScore(ctx context.Context, tenantID uuid.UUID,
 		ORDER BY calculated_at DESC
 		LIMIT 1
 	`
-	err := r.db.GetContext(ctx, &score, query, tenantID, entityType, entityID)
+	err := r.Db.GetContext(ctx, &score, query, tenantID, entityType, entityID)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetLatestRiskScore: %w", err)
 	}
@@ -1019,7 +1019,7 @@ func (r *Repository) CreateRiskScore(ctx context.Context, score *RiskScore) erro
 			:overall_risk_score, :risk_level, :factors, :previous_score, :score_change, :metadata
 		)
 	`
-	_, err := r.db.NamedExecContext(ctx, query, score)
+	_, err := r.Db.NamedExecContext(ctx, query, score)
 	if err != nil {
 		return fmt.Errorf("analytics.CreateRiskScore: %w", err)
 	}
@@ -1061,7 +1061,7 @@ func (r *Repository) ListRiskScores(ctx context.Context, tenantID uuid.UUID, ent
 		ORDER BY entity_type, entity_id, calculated_at DESC
 		LIMIT $` + fmt.Sprint(argCount-1) + ` OFFSET $` + fmt.Sprint(argCount)
 
-	err := r.db.SelectContext(ctx, &scores, query, args...)
+	err := r.Db.SelectContext(ctx, &scores, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.ListRiskScores: %w", err)
 	}
@@ -1131,7 +1131,7 @@ func (r *Repository) QueryRiskScores(ctx context.Context, tenantID uuid.UUID, en
 		ORDER BY calculated_at DESC
 		LIMIT $` + fmt.Sprint(argCount-1) + ` OFFSET $` + fmt.Sprint(argCount)
 
-	err := r.db.SelectContext(ctx, &scores, query, args...)
+	err := r.Db.SelectContext(ctx, &scores, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.QueryRiskScores: %w", err)
 	}
@@ -1147,7 +1147,7 @@ func (r *Repository) LogRefreshStart(ctx context.Context, viewName string) (uuid
 		INSERT INTO analytics_refresh_log (id, materialized_view, started_at, status)
 		VALUES ($1, $2, NOW(), 'running')
 	`
-	_, err := r.db.ExecContext(ctx, query, id, viewName)
+	_, err := r.Db.ExecContext(ctx, query, id, viewName)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("analytics.LogRefreshStart: %w", err)
 	}
@@ -1165,7 +1165,7 @@ func (r *Repository) LogRefreshComplete(ctx context.Context, id uuid.UUID, rowsA
 		SET completed_at = NOW(), status = $1, rows_affected = $2, error_message = COALESCE($3, error_message)
 		WHERE id = $4
 	`
-	_, err := r.db.ExecContext(ctx, query, status, rowsAffected, errorMsg, id)
+	_, err := r.Db.ExecContext(ctx, query, status, rowsAffected, errorMsg, id)
 	if err != nil {
 		return fmt.Errorf("analytics.LogRefreshComplete: %w", err)
 	}
@@ -1191,7 +1191,7 @@ func (r *Repository) GetRawSessionStats(ctx context.Context, tenantID uuid.UUID,
 		FROM sessions
 		WHERE tenant_id = $1 AND started_at >= $2 AND started_at <= $3
 	`
-	err := r.db.GetContext(ctx, &struct {
+	err := r.Db.GetContext(ctx, &struct {
 		Total       int64   `db:"total"`
 		Active      int64   `db:"active"`
 		Completed   int64   `db:"completed"`
@@ -1211,7 +1211,7 @@ func (r *Repository) GetRawSessionStats(ctx context.Context, tenantID uuid.UUID,
 		WHERE tenant_id = $1 AND started_at >= $2 AND started_at <= $3
 		GROUP BY protocol
 	`
-	protocolRows, err := r.db.QueryContext(ctx, protocolQuery, tenantID, startDate, endDate)
+	protocolRows, err := r.Db.QueryContext(ctx, protocolQuery, tenantID, startDate, endDate)
 	if err == nil {
 		defer protocolRows.Close()
 		for protocolRows.Next() {
@@ -1243,7 +1243,7 @@ func (r *Repository) GetRawEventStats(ctx context.Context, tenantID uuid.UUID, s
 		FROM audit_events
 		WHERE tenant_id = $1 AND created_at >= $2 AND created_at <= $3
 	`
-	err := r.db.GetContext(ctx, &struct {
+	err := r.Db.GetContext(ctx, &struct {
 		Total      int64 `db:"total"`
 		Successful int64 `db:"successful"`
 		Failed     int64 `db:"failed"`
@@ -1273,7 +1273,7 @@ func (r *Repository) GetTopUsersBySessions(ctx context.Context, tenantID uuid.UU
 		ORDER BY session_count DESC
 		LIMIT $4
 	`
-	err := r.db.SelectContext(ctx, &users, query, tenantID, startDate, endDate, limit)
+	err := r.Db.SelectContext(ctx, &users, query, tenantID, startDate, endDate, limit)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetTopUsersBySessions: %w", err)
 	}
@@ -1295,7 +1295,7 @@ func (r *Repository) GetAccessPatterns(ctx context.Context, tenantID uuid.UUID, 
 		GROUP BY hour_of_day, day_of_week
 		ORDER BY day_of_week, hour_of_day
 	`
-	err := r.db.SelectContext(ctx, &patterns, query, tenantID, startDate, endDate)
+	err := r.Db.SelectContext(ctx, &patterns, query, tenantID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetAccessPatterns: %w", err)
 	}
@@ -1325,7 +1325,7 @@ func (r *Repository) CalculateComplianceStatus(ctx context.Context, tenantID uui
 		WHERE pe.tenant_id = $1 AND pe.created_at >= $2 AND pe.created_at <= $3
 		GROUP BY p.id, p.name
 	`
-	rows, err := r.db.QueryContext(ctx, query, tenantID, startDate, endDate)
+	rows, err := r.Db.QueryContext(ctx, query, tenantID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.CalculateComplianceStatus: %w", err)
 	}
@@ -1408,7 +1408,7 @@ func (r *Repository) GetSessionTimeSeries(ctx context.Context, tenantID uuid.UUI
 		ORDER BY timestamp ASC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, tenantID, startDate, endDate)
+	rows, err := r.Db.QueryContext(ctx, query, tenantID, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("analytics.GetSessionTimeSeries: %w", err)
 	}
@@ -1454,11 +1454,11 @@ func (r *Repository) RefreshMaterializedViews(ctx context.Context) error {
 		}
 
 		query := `REFRESH MATERIALIZED VIEW CONCURRENTLY ` + view
-		_, err = r.db.ExecContext(ctx, query)
+		_, err = r.Db.ExecContext(ctx, query)
 		if err != nil {
 			// Non-concurrent refresh if concurrent fails
 			query = `REFRESH MATERIALIZED VIEW ` + view
-			_, err = r.db.ExecContext(ctx, query)
+			_, err = r.Db.ExecContext(ctx, query)
 		}
 
 		var errorMsg *string

@@ -11,7 +11,30 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Service provides analytics business logic for privileged access management
+// Service provides PAM-specific analytics business logic for privileged access management.
+//
+// This is the PAM-DOMAIN analytics service, focused on:
+// - Session metrics and tracking
+// - User activity monitoring
+// - Risk scoring for PAM entities
+// - Command frequency analysis
+// - Alert evaluation and scheduling
+//
+// NOTE: This is different from the general analytics service at internal/analytics.
+// See internal/analytics/interface.go for documentation on when to use each service.
+//
+// Use this service (internal/pam/analytics.Service) for:
+// - PAM session lifecycle tracking
+// - PAM-specific dashboards
+// - User activity in privileged access contexts
+// - Risk scoring for PAM entities
+//
+// Use internal/analytics.Service for:
+// - Compliance reporting (SOC2, ISO27001, PCI-DSS, HIPAA)
+// - Anomaly detection
+// - Ransomware detection
+// - Command blacklist enforcement
+// - SSH key analytics
 type Service struct {
 	repo   *Repository
 	cache  *cache.Cache

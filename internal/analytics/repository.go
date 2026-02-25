@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
+	"regexp"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -1033,32 +1036,58 @@ func (r *PostgresRepository) commandMatchesPattern(command string, bl *CommandBl
 			matches = append(matches, *bl)
 		}
 	case string(PatternTypeGlob):
-		// Simple glob matching - can be enhanced with actual glob library
-		pattern := bl.CommandPattern
-		matched, _ := r.globMatch(command, pattern)
-		if matched {
+		// Use proper glob matching with filepath.Match
+		matched, err := globMatch(command, bl.CommandPattern)
+		if err == nil && matched {
 			matches = append(matches, *bl)
 		}
 	case string(PatternTypeRegex):
-		// In production, use proper regex matching
-		// For now, simple substring check
-		if len(command) >= len(bl.CommandPattern) {
+		// Use proper regex matching
+		matched, err := regexMatch(command, bl.CommandPattern)
+		if err == nil && matched {
 			matches = append(matches, *bl)
 		}
 	}
 	return matches, nil
 }
 
-func (r *PostgresRepository) globMatch(s, pattern string) (bool, error) {
-	// Simplified glob matching - production should use filepath.Match or similar
-	if pattern == "*" {
-		return true, nil
+// regexCache caches compiled regex patterns for performance
+var (
+	regexCache = make(map[string]*regexp.Regexp)
+	regexMu    sync.RWMutex
+)
+
+// regexMatch performs regex pattern matching with caching
+func regexMatch(command, pattern string) (bool, error) {
+	regexMu.RLock()
+	re, exists := regexCache[pattern]
+	regexMu.RUnlock()
+
+	if !exists {
+		var err error
+		re, err = regexp.Compile(pattern)
+		if err != nil {
+			return false, fmt.Errorf("invalid regex pattern %q: %w", pattern, err)
+		}
+
+		regexMu.Lock()
+		regexCache[pattern] = re
+		regexMu.Unlock()
 	}
-	if pattern == s {
-		return true, nil
+
+	return re.MatchString(command), nil
+}
+
+// globMatch performs glob pattern matching using filepath.Match
+func globMatch(command, pattern string) (bool, error) {
+	// filepath.Match requires pattern to be a valid glob pattern
+	// It supports * (matches any sequence) and ? (matches single character)
+	matched, err := filepath.Match(pattern, command)
+	if err != nil {
+		// Invalid pattern - treat as no match
+		return false, nil
 	}
-	// More sophisticated matching would go here
-	return false, nil
+	return matched, nil
 }
 
 // SSH Key Analytics Methods

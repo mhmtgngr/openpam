@@ -151,74 +151,458 @@ func (w *AggregationWorker) runDailyAggregation(ctx context.Context) {
 
 // aggregateSessionsForPeriod aggregates session data for a time period
 func (w *AggregationWorker) aggregateSessionsForPeriod(ctx context.Context, periodStart, periodEnd time.Time) error {
-	// Get raw session data from sessions table
-	// This would query the sessions table and aggregate into analytics_sessions
-	// For now, we'll create placeholder analytics
+	// Check if repository is available (may be nil in tests)
+	if w.repo == nil || w.repo.Db == nil {
+		w.logger.Debug().Msg("Repository not available, skipping session aggregation")
+		return nil
+	}
 
-	// TODO: Implement actual session data aggregation
-	// 1. Query sessions table for period
-	// 2. Aggregate by tenant, hour, day
-	// 3. Calculate statistics (count, duration, unique users, etc.)
-	// 4. Store in analytics_sessions table
+	// Query sessions table for the period and aggregate by tenant and hour
+	query := `
+		INSERT INTO analytics_sessions (
+			id, tenant_id, period_type, period_start, period_end,
+			total_sessions, active_sessions, completed_sessions, failed_sessions, terminated_sessions,
+			avg_duration_seconds, min_duration_seconds, max_duration_seconds,
+			unique_users, protocol_breakdown, metadata, created_at, updated_at
+		)
+		SELECT
+			gen_random_uuid(),
+			s.tenant_id,
+			'hour' as period_type,
+			date_trunc('hour', s.started_at) as period_start,
+			date_trunc('hour', s.started_at) + interval '1 hour' as period_end,
+			COUNT(*) as total_sessions,
+			COUNT(*) FILTER (WHERE s.status = 'active') as active_sessions,
+			COUNT(*) FILTER (WHERE s.status = 'completed' OR s.ended_at IS NOT NULL) as completed_sessions,
+			COUNT(*) FILTER (WHERE s.status = 'failed') as failed_sessions,
+			COUNT(*) FILTER (WHERE s.status = 'terminated') as terminated_sessions,
+			AVG(EXTRACT(EPOCH FROM (COALESCE(s.ended_at, NOW()) - s.started_at))) as avg_duration_seconds,
+			MIN(EXTRACT(EPOCH FROM (COALESCE(s.ended_at, NOW()) - s.started_at))) as min_duration_seconds,
+			MAX(EXTRACT(EPOCH FROM (COALESCE(s.ended_at, NOW()) - s.started_at))) as max_duration_seconds,
+			COUNT(DISTINCT s.user_id) as unique_users,
+			jsonb_object_agg(s.type, count_by_type) as protocol_breakdown,
+			'{}'::jsonb as metadata,
+			NOW() as created_at,
+			NOW() as updated_at
+		FROM sessions s
+		JOIN (
+			SELECT tenant_id, date_trunc('hour', started_at) as hour, type, COUNT(*) as count_by_type
+			FROM sessions
+			WHERE started_at >= $1 AND started_at < $2
+			GROUP BY tenant_id, date_trunc('hour', started_at), type
+		) type_counts ON s.tenant_id = type_counts.tenant_id
+			AND date_trunc('hour', s.started_at) = type_counts.hour
+			AND s.type = type_counts.type
+		WHERE s.started_at >= $1 AND s.started_at < $2
+		GROUP BY s.tenant_id, date_trunc('hour', s.started_at)
+		ON CONFLICT (tenant_id, period_type, period_start)
+		DO UPDATE SET
+			period_end = EXCLUDED.period_end,
+			total_sessions = EXCLUDED.total_sessions,
+			active_sessions = EXCLUDED.active_sessions,
+			completed_sessions = EXCLUDED.completed_sessions,
+			failed_sessions = EXCLUDED.failed_sessions,
+			terminated_sessions = EXCLUDED.terminated_sessions,
+			avg_duration_seconds = EXCLUDED.avg_duration_seconds,
+			min_duration_seconds = EXCLUDED.min_duration_seconds,
+			max_duration_seconds = EXCLUDED.max_duration_seconds,
+			unique_users = EXCLUDED.unique_users,
+			protocol_breakdown = EXCLUDED.protocol_breakdown,
+			updated_at = NOW()
+	`
+
+	_, err := w.repo.Db.ExecContext(ctx, query, periodStart, periodEnd)
+	if err != nil {
+		return fmt.Errorf("aggregate sessions: %w", err)
+	}
 
 	return nil
 }
 
 // aggregateEventsForPeriod aggregates event data for a time period
 func (w *AggregationWorker) aggregateEventsForPeriod(ctx context.Context, periodStart, periodEnd time.Time) error {
-	// Get raw event data from audit_events table
-	// Aggregate into analytics_events table
+	// Check if repository is available (may be nil in tests)
+	if w.repo == nil || w.repo.Db == nil {
+		w.logger.Debug().Msg("Repository not available, skipping event aggregation")
+		return nil
+	}
 
-	// TODO: Implement actual event data aggregation
-	// 1. Query audit_events table for period
-	// 2. Aggregate by tenant, event type, outcome
-	// 3. Calculate statistics
-	// 4. Store in analytics_events table
+	// Query audit_events table for the period and aggregate by tenant and hour
+	query := `
+		INSERT INTO analytics_events (
+			id, tenant_id, period_type, period_start, period_end,
+			total_events, successful_events, failed_events, denied_events,
+			action_breakdown, top_users, top_resources,
+			failed_auth_count, unique_failed_users, metadata, created_at, updated_at
+		)
+		SELECT
+			gen_random_uuid(),
+			e.tenant_id,
+			'hour' as period_type,
+			date_trunc('hour', e.created_at) as period_start,
+			date_trunc('hour', e.created_at) + interval '1 hour' as period_end,
+			COUNT(*) as total_events,
+			COUNT(*) FILTER (WHERE e.outcome = 'success') as successful_events,
+			COUNT(*) FILTER (WHERE e.outcome = 'failure') as failed_events,
+			COUNT(*) FILTER (WHERE e.outcome = 'denied') as denied_events,
+			jsonb_object_agg(e.action, action_counts.count) as action_breakdown,
+			(
+				SELECT jsonb_agg(jsonb_build_object('user_id', top.actor_id, 'event_count', top.count))
+				FROM (
+					SELECT actor_id, COUNT(*) as count
+					FROM audit_events
+					WHERE tenant_id = e.tenant_id
+						AND created_at >= $1 AND created_at < $2
+						AND date_trunc('hour', created_at) = date_trunc('hour', e.created_at)
+					GROUP BY actor_id
+					ORDER BY count DESC
+					LIMIT 10
+				) top
+			) as top_users,
+			(
+				SELECT jsonb_agg(jsonb_build_object('resource_type', top.resource_type, 'event_count', top.count))
+				FROM (
+					SELECT resource_type, COUNT(*) as count
+					FROM audit_events
+					WHERE tenant_id = e.tenant_id
+						AND created_at >= $1 AND created_at < $2
+						AND date_trunc('hour', created_at) = date_trunc('hour', e.created_at)
+					GROUP BY resource_type
+					ORDER BY count DESC
+					LIMIT 10
+				) top
+			) as top_resources,
+			COUNT(*) FILTER (WHERE e.action = 'authenticate' AND e.outcome = 'failure') as failed_auth_count,
+			COUNT(DISTINCT e.actor_id) FILTER (WHERE e.action = 'authenticate' AND e.outcome = 'failure') as unique_failed_users,
+			'{}'::jsonb as metadata,
+			NOW() as created_at,
+			NOW() as updated_at
+		FROM audit_events e
+		JOIN (
+			SELECT tenant_id, date_trunc('hour', created_at) as hour, action, COUNT(*) as count
+			FROM audit_events
+			WHERE created_at >= $1 AND created_at < $2
+			GROUP BY tenant_id, date_trunc('hour', created_at), action
+		) action_counts ON e.tenant_id = action_counts.tenant_id
+			AND date_trunc('hour', e.created_at) = action_counts.hour
+			AND e.action = action_counts.action
+		WHERE e.created_at >= $1 AND e.created_at < $2
+		GROUP BY e.tenant_id, date_trunc('hour', e.created_at)
+		ON CONFLICT (tenant_id, period_type, period_start)
+		DO UPDATE SET
+			period_end = EXCLUDED.period_end,
+			total_events = EXCLUDED.total_events,
+			successful_events = EXCLUDED.successful_events,
+			failed_events = EXCLUDED.failed_events,
+			denied_events = EXCLUDED.denied_events,
+			action_breakdown = EXCLUDED.action_breakdown,
+			top_users = EXCLUDED.top_users,
+			top_resources = EXCLUDED.top_resources,
+			failed_auth_count = EXCLUDED.failed_auth_count,
+			unique_failed_users = EXCLUDED.unique_failed_users,
+			updated_at = NOW()
+	`
+
+	_, err := w.repo.Db.ExecContext(ctx, query, periodStart, periodEnd)
+	if err != nil {
+		return fmt.Errorf("aggregate events: %w", err)
+	}
 
 	return nil
 }
 
 // aggregateUserActivityForPeriod aggregates user activity for a time period
 func (w *AggregationWorker) aggregateUserActivityForPeriod(ctx context.Context, periodStart, periodEnd time.Time) error {
-	// Aggregate user activity from sessions and events
-	// Store in analytics_user_activity table
+	// Check if repository is available (may be nil in tests)
+	if w.repo == nil || w.repo.Db == nil {
+		w.logger.Debug().Msg("Repository not available, skipping user activity aggregation")
+		return nil
+	}
 
-	// TODO: Implement actual user activity aggregation
-	// 1. Query sessions and events grouped by user
-	// 2. Calculate activity metrics
-	// 3. Detect anomalies
-	// 4. Store in analytics_user_activity table
+	// Query sessions and audit_events to aggregate user activity by tenant, user, and hour
+	query := `
+		INSERT INTO analytics_user_activity (
+			id, tenant_id, user_id, date, hour,
+			sessions_initiated, sessions_completed, commands_executed,
+			total_session_seconds, unique_targets, off_hours_access,
+			first_access_time, last_access_time, metadata, created_at, updated_at
+		)
+		SELECT
+			gen_random_uuid(),
+			s.tenant_id,
+			s.user_id,
+			DATE_TRUNC('day', s.started_at) as date,
+			EXTRACT(HOUR FROM s.started_at)::INTEGER as hour,
+			COUNT(*) as sessions_initiated,
+			COUNT(*) FILTER (WHERE s.ended_at IS NOT NULL) as sessions_completed,
+			COALESCE((SELECT SUM(commands_count) FROM sessions s2
+				WHERE s2.user_id = s.user_id
+				AND s2.tenant_id = s.tenant_id
+				AND DATE_TRUNC('day', s2.started_at) = DATE_TRUNC('day', s.started_at)
+				AND EXTRACT(HOUR FROM s2.started_at) = EXTRACT(HOUR FROM s.started_at)
+			), 0) as commands_executed,
+			COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(s.ended_at, NOW()) - s.started_at))), 0) as total_session_seconds,
+			COUNT(DISTINCT s.target_host || ':' || s.target_port) as unique_targets,
+			COUNT(*) FILTER (WHERE EXTRACT(HOUR FROM s.started_at) >= 18 OR EXTRACT(HOUR FROM s.started_at) < 6) > 0 as off_hours_access,
+			MIN(s.started_at) as first_access_time,
+			MAX(s.started_at) as last_access_time,
+			'{}'::jsonb as metadata,
+			NOW() as created_at,
+			NOW() as updated_at
+		FROM sessions s
+		WHERE s.started_at >= $1 AND s.started_at < $2
+		GROUP BY s.tenant_id, s.user_id, DATE_TRUNC('day', s.started_at), EXTRACT(HOUR FROM s.started_at)
+		ON CONFLICT (tenant_id, user_id, date, hour)
+		DO UPDATE SET
+			sessions_initiated = EXCLUDED.sessions_initiated,
+			sessions_completed = EXCLUDED.sessions_completed,
+			commands_executed = analytics_user_activity.commands_executed + EXCLUDED.commands_executed,
+			total_session_seconds = analytics_user_activity.total_session_seconds + EXCLUDED.total_session_seconds,
+			unique_targets = GREATEST(analytics_user_activity.unique_targets, EXCLUDED.unique_targets),
+			off_hours_access = analytics_user_activity.off_hours_access OR EXCLUDED.off_hours_access,
+			last_access_time = GREATEST(analytics_user_activity.last_access_time, EXCLUDED.last_access_time),
+			updated_at = NOW()
+	`
+
+	_, err := w.repo.Db.ExecContext(ctx, query, periodStart, periodEnd)
+	if err != nil {
+		return fmt.Errorf("aggregate user activity: %w", err)
+	}
 
 	return nil
 }
 
 // calculateAllRiskScores calculates risk scores for all entities
 func (w *AggregationWorker) calculateAllRiskScores(ctx context.Context) error {
-	// TODO: Implement risk score calculation
-	// 1. Get all users, targets, credentials
-	// 2. Calculate risk scores based on recent activity
-	// 3. Store in analytics_risk_scores table
+	// Check if repository is available (may be nil in tests)
+	if w.repo == nil || w.repo.Db == nil {
+		w.logger.Debug().Msg("Repository not available, skipping risk score calculation")
+		return nil
+	}
+
+	// Calculate risk scores for users based on recent activity (last 30 days)
+	cutoffDate := time.Now().Add(-30 * 24 * time.Hour)
+
+	// Upsert risk scores based on activity metrics
+	query := `
+		INSERT INTO analytics_risk_scores (
+			id, tenant_id, entity_type, entity_id, score, risk_level,
+			calculated_at, factors, trend, metadata, created_at, updated_at
+		)
+		SELECT
+			gen_random_uuid(),
+			ua.tenant_id,
+			'user' as entity_type,
+			ua.user_id as entity_id,
+			-- Calculate risk score (0-100) based on multiple factors
+			LEAST(100, GREATEST(0,
+				-- Failed authentication rate factor (0-30 points)
+				COALESCE((SELECT COUNT(*) FROM audit_events ae
+					WHERE ae.actor_id = ua.user_id
+					AND ae.tenant_id = ua.tenant_id
+					AND ae.action = 'authenticate'
+					AND ae.outcome = 'failure'
+					AND ae.created_at >= $1
+				) * 5, 0) +
+				-- Off-hours access factor (0-20 points)
+				COALESCE((SELECT COUNT(*) FROM analytics_user_activity uao
+					WHERE uao.user_id = ua.user_id
+					AND uao.tenant_id = ua.tenant_id
+					AND uao.off_hours_access = true
+					AND uao.date >= $1
+				) * 2, 0) +
+				-- High command volume factor (0-25 points)
+				COALESCE((SELECT SUM(commands_executed) FROM analytics_user_activity uac
+					WHERE uac.user_id = ua.user_id
+					AND uac.tenant_id = ua.tenant_id
+					AND uac.date >= $1
+				) / 100, 0) +
+				-- Session count factor (0-25 points)
+				COALESCE((SELECT SUM(sessions_initiated) FROM analytics_user_activity uas
+					WHERE uas.user_id = ua.user_id
+					AND uas.tenant_id = ua.tenant_id
+					AND uas.date >= $1
+				), 0)
+			)) as score,
+			CASE
+			 WHEN LEAST(100, GREATEST(0,
+				COALESCE((SELECT COUNT(*) FROM audit_events ae
+					WHERE ae.actor_id = ua.user_id AND ae.tenant_id = ua.tenant_id
+					AND ae.action = 'authenticate' AND ae.outcome = 'failure' AND ae.created_at >= $1
+				) * 5, 0) +
+				COALESCE((SELECT COUNT(*) FROM analytics_user_activity uao
+					WHERE uao.user_id = ua.user_id AND uao.tenant_id = ua.tenant_id
+					AND uao.off_hours_access = true AND uao.date >= $1
+				) * 2, 0) +
+				COALESCE((SELECT SUM(commands_executed) FROM analytics_user_activity uac
+					WHERE uac.user_id = ua.user_id AND uac.tenant_id = ua.tenant_id AND uac.date >= $1
+				) / 100, 0) +
+				COALESCE((SELECT SUM(sessions_initiated) FROM analytics_user_activity uas
+					WHERE uas.user_id = ua.user_id AND uas.tenant_id = ua.tenant_id AND uas.date >= $1
+				), 0)
+			 )) >= 75 THEN 'critical'
+			 WHEN LEAST(100, GREATEST(0,
+				COALESCE((SELECT COUNT(*) FROM audit_events ae
+					WHERE ae.actor_id = ua.user_id AND ae.tenant_id = ua.tenant_id
+					AND ae.action = 'authenticate' AND ae.outcome = 'failure' AND ae.created_at >= $1
+				) * 5, 0) +
+				COALESCE((SELECT COUNT(*) FROM analytics_user_activity uao
+					WHERE uao.user_id = ua.user_id AND uao.tenant_id = ua.tenant_id
+					AND uao.off_hours_access = true AND uao.date >= $1
+				) * 2, 0) +
+				COALESCE((SELECT SUM(commands_executed) FROM analytics_user_activity uac
+					WHERE uac.user_id = ua.user_id AND uac.tenant_id = ua.tenant_id AND uac.date >= $1
+				) / 100, 0) +
+				COALESCE((SELECT SUM(sessions_initiated) FROM analytics_user_activity uas
+					WHERE uas.user_id = ua.user_id AND uas.tenant_id = ua.tenant_id AND uas.date >= $1
+				), 0)
+			 )) >= 50 THEN 'high'
+			 WHEN LEAST(100, GREATEST(0,
+				COALESCE((SELECT COUNT(*) FROM audit_events ae
+					WHERE ae.actor_id = ua.user_id AND ae.tenant_id = ua.tenant_id
+					AND ae.action = 'authenticate' AND ae.outcome = 'failure' AND ae.created_at >= $1
+				) * 5, 0) +
+				COALESCE((SELECT COUNT(*) FROM analytics_user_activity uao
+					WHERE uao.user_id = ua.user_id AND uao.tenant_id = ua.tenant_id
+					AND uao.off_hours_access = true AND uao.date >= $1
+				) * 2, 0) +
+				COALESCE((SELECT SUM(commands_executed) FROM analytics_user_activity uac
+					WHERE uac.user_id = ua.user_id AND uac.tenant_id = ua.tenant_id AND uac.date >= $1
+				) / 100, 0) +
+				COALESCE((SELECT SUM(sessions_initiated) FROM analytics_user_activity uas
+					WHERE uas.user_id = ua.user_id AND uas.tenant_id = ua.tenant_id AND uas.date >= $1
+				), 0)
+			 )) >= 25 THEN 'medium'
+			 ELSE 'low'
+			END as risk_level,
+			NOW() as calculated_at,
+			jsonb_build_object(
+				'failed_auth_count', COALESCE((SELECT COUNT(*) FROM audit_events ae
+					WHERE ae.actor_id = ua.user_id AND ae.tenant_id = ua.tenant_id
+					AND ae.action = 'authenticate' AND ae.outcome = 'failure' AND ae.created_at >= $1
+				), 0),
+				'off_hours_access_count', COALESCE((SELECT COUNT(*) FROM analytics_user_activity uao
+					WHERE uao.user_id = ua.user_id AND uao.tenant_id = ua.tenant_id
+					AND uao.off_hours_access = true AND uao.date >= $1
+				), 0),
+				'total_commands', COALESCE((SELECT SUM(commands_executed) FROM analytics_user_activity uac
+					WHERE uac.user_id = ua.user_id AND uac.tenant_id = ua.tenant_id AND uac.date >= $1
+				), 0),
+				'total_sessions', COALESCE((SELECT SUM(sessions_initiated) FROM analytics_user_activity uas
+					WHERE uas.user_id = ua.user_id AND uas.tenant_id = ua.tenant_id AND uas.date >= $1
+				), 0)
+			) as factors,
+			'stable' as trend,
+			'{}'::jsonb as metadata,
+			NOW() as created_at,
+			NOW() as updated_at
+		FROM analytics_user_activity ua
+		WHERE ua.date >= $1
+		GROUP BY ua.tenant_id, ua.user_id
+		ON CONFLICT (tenant_id, entity_type, entity_id)
+		DO UPDATE SET
+			score = EXCLUDED.score,
+			risk_level = EXCLUDED.risk_level,
+			calculated_at = EXCLUDED.calculated_at,
+			factors = EXCLUDED.factors,
+			trend = CASE
+				WHEN analytics_risk_scores.score < EXCLUDED.score THEN 'increasing'
+				WHEN analytics_risk_scores.score > EXCLUDED.score THEN 'decreasing'
+				ELSE 'stable'
+			END,
+			updated_at = NOW()
+	`
+
+	_, err := w.repo.Db.ExecContext(ctx, query, cutoffDate)
+	if err != nil {
+		return fmt.Errorf("calculate risk scores: %w", err)
+	}
 
 	return nil
 }
 
 // cleanupOldData removes old analytics data based on retention policy
 func (w *AggregationWorker) cleanupOldData(ctx context.Context) error {
-	// TODO: Implement data cleanup based on retention policy
-	// Default retention: 90 days for detailed metrics, 1 year for summaries
+	// Check if repository is available (may be nil in tests)
+	if w.repo == nil || w.repo.Db == nil {
+		w.logger.Debug().Msg("Repository not available, skipping data cleanup")
+		return nil
+	}
 
-	// Delete old command frequency data (90 days)
-	cutoffDate := time.Now().Add(-90 * 24 * time.Hour)
-	// DELETE FROM command_frequency WHERE recorded_at < $1
+	// Retention policy:
+	// - 90 days for detailed hourly analytics
+	// - 365 days for daily summaries
+	// - 7 days for raw metrics (keep aggregated data only)
 
-	// Delete old metrics (30 days)
-	// metricsCutoff := time.Now().Add(-30 * 24 * time.Hour)
-	_ = time.Now().Add(-30 * 24 * time.Hour)
-	// DELETE FROM analytics_metrics WHERE recorded_at < $1
+	// Delete old hourly session analytics (older than 90 days)
+	sessionCutoff := time.Now().Add(-90 * 24 * time.Hour)
+	sessionQuery := `DELETE FROM analytics_sessions WHERE period_type = 'hour' AND period_start < $1`
+	result, err := w.repo.Db.ExecContext(ctx, sessionQuery, sessionCutoff)
+	if err != nil {
+		w.logger.Error().Err(err).Msg("Failed to cleanup old session analytics")
+	} else {
+		if rows, _ := result.RowsAffected(); rows > 0 {
+			w.logger.Info().Int64("deleted_sessions", rows).Time("cutoff", sessionCutoff).Msg("Cleaned up old session analytics")
+		}
+	}
 
-	w.logger.Info().
-		Time("cutoff", cutoffDate).
-		Msg("Old data cleanup complete")
+	// Delete old hourly event analytics (older than 90 days)
+	eventQuery := `DELETE FROM analytics_events WHERE period_type = 'hour' AND period_start < $1`
+	result, err = w.repo.Db.ExecContext(ctx, eventQuery, sessionCutoff)
+	if err != nil {
+		w.logger.Error().Err(err).Msg("Failed to cleanup old event analytics")
+	} else {
+		if rows, _ := result.RowsAffected(); rows > 0 {
+			w.logger.Info().Int64("deleted_events", rows).Time("cutoff", sessionCutoff).Msg("Cleaned up old event analytics")
+		}
+	}
+
+	// Delete old daily summaries (older than 365 days)
+	dailyCutoff := time.Now().Add(-365 * 24 * time.Hour)
+	dailySessionQuery := `DELETE FROM analytics_sessions WHERE period_type = 'day' AND period_start < $1`
+	result, err = w.repo.Db.ExecContext(ctx, dailySessionQuery, dailyCutoff)
+	if err != nil {
+		w.logger.Error().Err(err).Msg("Failed to cleanup old daily session summaries")
+	} else {
+		if rows, _ := result.RowsAffected(); rows > 0 {
+			w.logger.Info().Int64("deleted_daily_sessions", rows).Time("cutoff", dailyCutoff).Msg("Cleaned up old daily session summaries")
+		}
+	}
+
+	dailyEventQuery := `DELETE FROM analytics_events WHERE period_type = 'day' AND period_start < $1`
+	result, err = w.repo.Db.ExecContext(ctx, dailyEventQuery, dailyCutoff)
+	if err != nil {
+		w.logger.Error().Err(err).Msg("Failed to cleanup old daily event summaries")
+	} else {
+		if rows, _ := result.RowsAffected(); rows > 0 {
+			w.logger.Info().Int64("deleted_daily_events", rows).Time("cutoff", dailyCutoff).Msg("Cleaned up old daily event summaries")
+		}
+	}
+
+	// Delete old user activity (older than 90 days)
+	activityQuery := `DELETE FROM analytics_user_activity WHERE date < $1`
+	result, err = w.repo.Db.ExecContext(ctx, activityQuery, sessionCutoff)
+	if err != nil {
+		w.logger.Error().Err(err).Msg("Failed to cleanup old user activity")
+	} else {
+		if rows, _ := result.RowsAffected(); rows > 0 {
+			w.logger.Info().Int64("deleted_activities", rows).Time("cutoff", sessionCutoff).Msg("Cleaned up old user activity")
+		}
+	}
+
+	// Delete old metrics (older than 30 days)
+	metricsCutoff := time.Now().Add(-30 * 24 * time.Hour)
+	metricsQuery := `DELETE FROM analytics_metrics WHERE recorded_at < $1`
+	result, err = w.repo.Db.ExecContext(ctx, metricsQuery, metricsCutoff)
+	if err != nil {
+		w.logger.Error().Err(err).Msg("Failed to cleanup old metrics")
+	} else {
+		if rows, _ := result.RowsAffected(); rows > 0 {
+			w.logger.Info().Int64("deleted_metrics", rows).Time("cutoff", metricsCutoff).Msg("Cleaned up old metrics")
+		}
+	}
+
+	w.logger.Info().Msg("Data cleanup complete")
 
 	return nil
 }

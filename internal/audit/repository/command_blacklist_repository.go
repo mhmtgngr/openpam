@@ -5,6 +5,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path/filepath"
+	"regexp"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -252,63 +255,59 @@ func (r *CommandBlacklistRepository) commandMatchesPattern(command string, bl *m
 		return command == bl.CommandPattern
 
 	case string(model.PatternTypeGlob):
-		// Simple glob matching - use LIKE with wildcards converted
-		pattern := bl.CommandPattern
-		// In production, use proper glob matching library
-		// For now, simple wildcard matching
-		return r.globMatch(command, pattern)
+		// Use proper glob matching with filepath.Match
+		matched, _ := r.globMatch(command, bl.CommandPattern)
+		return matched
 
 	case string(model.PatternTypeRegex):
-		// For regex, we'd use regexp package in production
-		// Simplified approach: check if pattern is contained in command
-		// This is a placeholder - proper regex matching would go here
-		return r.regexMatch(command, bl.CommandPattern)
+		// Use proper regex matching
+		matched, _ := r.regexMatch(command, bl.CommandPattern)
+		return matched
 	}
 
 	return false
 }
 
-// globMatch performs simple glob pattern matching
-func (r *CommandBlacklistRepository) globMatch(s, pattern string) bool {
-	// Convert glob pattern to SQL LIKE pattern
-	likePattern := pattern
-	likePattern = fmt.Sprintf("%%%s", likePattern) // Add wildcard support
+// auditRegexCache caches compiled regex patterns for performance
+var (
+	auditRegexCache = make(map[string]*regexp.Regexp)
+	auditRegexMu    sync.RWMutex
+)
 
-	// For now, use simple substring matching
-	// In production, use proper glob library (filepath.Match or similar)
-	if pattern == "*" {
-		return true
+// globMatch performs glob pattern matching using filepath.Match
+func (r *CommandBlacklistRepository) globMatch(command, pattern string) (bool, error) {
+	// filepath.Match requires pattern to be a valid glob pattern
+	// It supports * (matches any sequence) and ? (matches single character)
+	matched, err := filepath.Match(pattern, command)
+	if err != nil {
+		// Invalid pattern - treat as no match
+		return false, nil
 	}
-
-	// Simple exact match
-	if s == pattern {
-		return true
-	}
-
-	// Check if pattern contains wildcard
-	if len(pattern) > 0 && pattern[0] == '*' {
-		suffix := pattern[1:]
-		if len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix {
-			return true
-		}
-	}
-
-	if len(pattern) > 0 && pattern[len(pattern)-1] == '*' {
-		prefix := pattern[:len(pattern)-1]
-		if len(s) >= len(prefix) && s[:len(prefix)] == prefix {
-			return true
-		}
-	}
-
-	return false
+	return matched, nil
 }
 
-// regexMatch performs regex pattern matching
-func (r *CommandBlacklistRepository) regexMatch(s, pattern string) bool {
-	// Placeholder for regex matching
-	// In production, use regexp.CompileString and MatchString
-	// For now, return true if pattern is found in string
-	return len(s) >= len(pattern)
+// regexMatch performs regex pattern matching with caching
+func (r *CommandBlacklistRepository) regexMatch(command, pattern string) (bool, error) {
+	auditRegexMu.RLock()
+	re, exists := auditRegexCache[pattern]
+	auditRegexMu.RUnlock()
+
+	if !exists {
+		var err error
+		re, err = regexp.Compile(pattern)
+		if err != nil {
+			r.logger.Warn().Err(err).
+				Str("pattern", pattern).
+				Msg("Invalid regex pattern in blacklist")
+			return false, nil
+		}
+
+		auditRegexMu.Lock()
+		auditRegexCache[pattern] = re
+		auditRegexMu.Unlock()
+	}
+
+	return re.MatchString(command), nil
 }
 
 // GetByAction retrieves blacklist entries by action type

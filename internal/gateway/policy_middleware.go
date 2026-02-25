@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -573,20 +576,66 @@ func (m *PolicyMiddleware) commandMatchesPattern(command string, rule CommandBla
 	case "exact":
 		return strings.TrimSpace(command) == strings.TrimSpace(rule.CommandPattern)
 	case "regex":
-		// For production, use proper regex matching
-		// For now, use substring check
-		return strings.Contains(command, rule.CommandPattern)
-	case "glob":
-		// Simple glob matching
-		if rule.CommandPattern == "*" {
-			return true
+		matched, err := m.regexMatch(command, rule.CommandPattern)
+		if err != nil {
+			m.logger.Warn().Err(err).
+				Str("pattern", rule.CommandPattern).
+				Msg("Invalid regex pattern, treating as no match")
+			return false
 		}
-		// For more complex glob patterns, would use filepath.Match
-		return strings.Contains(command, rule.CommandPattern)
+		return matched
+	case "glob":
+		matched, err := m.globMatch(command, rule.CommandPattern)
+		if err != nil {
+			m.logger.Warn().Err(err).
+				Str("pattern", rule.CommandPattern).
+				Msg("Invalid glob pattern, treating as no match")
+			return false
+		}
+		return matched
 	default:
 		// Default to substring match
 		return strings.Contains(command, rule.CommandPattern)
 	}
+}
+
+// regexCache caches compiled regex patterns for performance
+var (
+	policyRegexCache = make(map[string]*regexp.Regexp)
+	policyRegexMu    sync.RWMutex
+)
+
+// regexMatch performs regex pattern matching with caching
+func (m *PolicyMiddleware) regexMatch(command, pattern string) (bool, error) {
+	policyRegexMu.RLock()
+	re, exists := policyRegexCache[pattern]
+	policyRegexMu.RUnlock()
+
+	if !exists {
+		var err error
+		re, err = regexp.Compile(pattern)
+		if err != nil {
+			return false, fmt.Errorf("invalid regex pattern %q: %w", pattern, err)
+		}
+
+		policyRegexMu.Lock()
+		policyRegexCache[pattern] = re
+		policyRegexMu.Unlock()
+	}
+
+	return re.MatchString(command), nil
+}
+
+// globMatch performs glob pattern matching using filepath.Match
+func (m *PolicyMiddleware) globMatch(command, pattern string) (bool, error) {
+	// filepath.Match requires pattern to be a valid glob pattern
+	// It supports * (matches any sequence) and ? (matches single character)
+	matched, err := filepath.Match(pattern, command)
+	if err != nil {
+		// Invalid pattern - treat as no match
+		return false, nil
+	}
+	return matched, nil
 }
 
 func (m *PolicyMiddleware) isMFAVerified(c *gin.Context) bool {

@@ -226,7 +226,7 @@ func CleanupOldData(ctx context.Context, repo *Repository, logger zerolog.Logger
 
 	// Delete old hourly session analytics (90 days)
 	sessionCutoff := time.Now().Add(-90 * 24 * time.Hour)
-	_, err := repo.db.ExecContext(ctx, `
+	_, err := repo.Db.ExecContext(ctx, `
 		DELETE FROM analytics_sessions
 		WHERE period_type = 'hour' AND period_start < $1
 	`, sessionCutoff)
@@ -237,7 +237,7 @@ func CleanupOldData(ctx context.Context, repo *Repository, logger zerolog.Logger
 	}
 
 	// Delete old hourly event analytics (90 days)
-	_, err = repo.db.ExecContext(ctx, `
+	_, err = repo.Db.ExecContext(ctx, `
 		DELETE FROM analytics_events
 		WHERE period_type = 'hour' AND period_start < $1
 	`, sessionCutoff)
@@ -247,7 +247,7 @@ func CleanupOldData(ctx context.Context, repo *Repository, logger zerolog.Logger
 
 	// Delete old metrics (30 days)
 	metricsCutoff := time.Now().Add(-30 * 24 * time.Hour)
-	_, err = repo.db.ExecContext(ctx, `
+	_, err = repo.Db.ExecContext(ctx, `
 		DELETE FROM analytics_metrics
 		WHERE recorded_at < $1
 	`, metricsCutoff)
@@ -403,7 +403,7 @@ func GetSystemHealth(ctx context.Context, repo *Repository) (*SystemHealth, erro
 	}
 
 	// Check database connectivity
-	if err := repo.db.PingContext(ctx); err != nil {
+	if err := repo.Db.PingContext(ctx); err != nil {
 		health.Components["database"] = ComponentHealth{
 			Status: "unhealthy",
 			Error:  err.Error(),
@@ -417,7 +417,7 @@ func GetSystemHealth(ctx context.Context, repo *Repository) (*SystemHealth, erro
 
 	// Check recent aggregations
 	var aggregationCount int
-	_ = repo.db.GetContext(ctx, &aggregationCount, `
+	_ = repo.Db.GetContext(ctx, &aggregationCount, `
 		SELECT COUNT(*) FROM analytics_sessions
 		WHERE period_start > NOW() - INTERVAL '2 hours'
 	`)
@@ -430,7 +430,7 @@ func GetSystemHealth(ctx context.Context, repo *Repository) (*SystemHealth, erro
 
 	// Check for recent errors
 	var errorCount int
-	_ = repo.db.GetContext(ctx, &errorCount, `
+	_ = repo.Db.GetContext(ctx, &errorCount, `
 		SELECT COUNT(*) FROM analytics_refresh_log
 		WHERE status = 'failed' AND started_at > NOW() - INTERVAL '1 hour'
 	`)

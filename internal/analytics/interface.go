@@ -8,8 +8,32 @@ import (
 	"github.com/openpam/openpam/internal/events"
 )
 
-// AnalyticsService defines the interface for analytics operations
-// This allows for mocking in tests and dependency injection
+// AnalyticsService defines the interface for analytics operations.
+//
+// This is the PRIMARY analytics service interface that should be used for
+// all analytics operations in OpenPAM. The canonical implementation is
+// internal/analytics.Service.
+//
+// NOTE: There is a separate PAM-specific analytics service at
+// internal/pam/analytics.Service which provides domain-specific analytics
+// for privileged access management. That service has a different interface
+// tailored to PAM use cases (session tracking, command monitoring, etc.).
+// The two services serve different purposes:
+//
+//   - internal/analytics.Service (this interface): Comprehensive analytics
+//     including compliance, anomaly detection, ransomware detection, SSH key
+//     analytics, and command blacklisting. Use this for general analytics,
+//     compliance reporting, and security monitoring.
+//
+//   - internal/pam/analytics.Service: PAM-specific analytics focused on
+//     session metrics, user activity, risk scoring, and alerting for
+//     privileged access scenarios. Use this for PAM workflow integration.
+//
+// When choosing which service to use:
+//   - For compliance reports, use internal/analytics.Service
+//   - for PAM session workflows, use internal/pam/analytics.Service
+//   - For command blacklist enforcement, use internal/analytics.Service
+//   - For PAM-specific dashboards, use internal/pam/analytics.Service
 type AnalyticsService interface {
 	// Session Analytics
 	GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, dateFrom, dateTo time.Time) (*SessionSummary, error)

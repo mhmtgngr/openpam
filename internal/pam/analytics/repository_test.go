@@ -19,7 +19,7 @@ func TestNewRepository(t *testing.T) {
 
 		assert.NotNil(t, repo)
 		assert.NotNil(t, repo.logger)
-		assert.Nil(t, repo.db)
+		assert.Nil(t, repo.Db)
 	})
 
 	t.Run("creates repository with database", func(t *testing.T) {
@@ -33,7 +33,7 @@ func TestNewRepository(t *testing.T) {
 		repo := NewRepository(db, logger)
 
 		assert.NotNil(t, repo)
-		assert.NotNil(t, repo.db)
+		assert.NotNil(t, repo.Db)
 		assert.NotNil(t, repo.logger)
 	})
 }
