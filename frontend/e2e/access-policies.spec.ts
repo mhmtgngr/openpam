@@ -329,11 +329,14 @@ test.describe('Access Policy Management', () => {
       // Wait for rule to be added
       await accessPolicyPage.waitForTimeout(500);
 
-      // Set operator to OR - find the Logical Operator select by its adjacent label
+      // Set operator to OR - use a more direct selector
+      // Find the select within the expanded rule that has AND/OR options
       const operatorSelect = accessPolicyPage.locator('.card-body').filter({ hasText: /Rules/i })
-        .locator('*').filter({ hasText: 'Logical Operator' })
-        .locator('..')
-        .locator('select').first();
+        .locator('select').filter(async (select, _) => {
+          const options = await select.locator('option').allTextContents();
+          return options.some(o => o.includes('AND') && o.includes('All conditions')) &&
+                 options.some(o => o.includes('OR') && o.includes('At least one'));
+        }).first();
 
       await operatorSelect.selectOption('OR');
 
