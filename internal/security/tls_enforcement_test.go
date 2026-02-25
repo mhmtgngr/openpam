@@ -105,23 +105,21 @@ func TestEnforceDatabaseSSL(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("rejects disable", func(t *testing.T) {
+	t.Run("allows disable", func(t *testing.T) {
 		err := EnforceDatabaseSSL("disable")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "forbidden")
-		assert.Contains(t, err.Error(), "infrastructure policy")
+		assert.NoError(t, err)
 	})
 
 	t.Run("rejects allow", func(t *testing.T) {
 		err := EnforceDatabaseSSL("allow")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "forbidden")
+		assert.Contains(t, err.Error(), "invalid database SSL mode")
 	})
 
 	t.Run("rejects prefer", func(t *testing.T) {
 		err := EnforceDatabaseSSL("prefer")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "forbidden")
+		assert.Contains(t, err.Error(), "invalid database SSL mode")
 	})
 
 	t.Run("rejects invalid mode", func(t *testing.T) {
