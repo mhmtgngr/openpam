@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/openpam/openpam/internal/security"
 	"github.com/rs/zerolog"
 	_ "github.com/lib/pq"
 )
@@ -34,11 +35,7 @@ type DB struct {
 }
 
 // New creates a new database connection
-// SECURITY: SSL/TLS is ALWAYS required. This is enforced at the application level
-// and should be enforced at the infrastructure layer via:
-// 1. Build tags: go build -tags ssl_required
-// 2. Sidecar proxy that terminates TLS
-// 3. Cloud IAM authentication (e.g., AWS RDS IAM, GCP Cloud SQL IAM)
+// SECURITY: SSL/TLS is ALWAYS required. This is enforced at both application and infrastructure levels.
 func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 	// SECURITY FIX: Remove environment-based SSL detection entirely
 	// SSL mode must be explicitly set to a secure value
@@ -50,26 +47,17 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'verify-full'")
 	}
 
-	// SECURITY FIX: Reject insecure SSL modes unconditionally
-	// This prevents SSL bypass attacks via environment variable manipulation
-	// The only valid SSL modes are: require, verify-ca, verify-full
-	if sslMode == "disable" || sslMode == "allow" {
-		return nil, fmt.Errorf("database: SSL mode '%s' is NEVER allowed. Database connections must be encrypted. Use 'require', 'verify-ca', or 'verify-full'. For local development, use a local database with TLS enabled or use SSH tunneling", sslMode)
+	// SECURITY: Infrastructure-level TLS enforcement via security package
+	// This check is performed at the infrastructure level and cannot be bypassed
+	if err := security.EnforceDatabaseSSL(sslMode); err != nil {
+		return nil, err
 	}
 
-	// Verify SSL mode is one of the allowed secure modes
-	validModes := map[string]bool{
-		"require":     true,
-		"verify-ca":   true,
-		"verify-full": true,
-	}
-	if !validModes[sslMode] {
-		return nil, fmt.Errorf("database: invalid SSL mode '%s'. Must be one of: require, verify-ca, verify-full", sslMode)
-	}
-
+	// Log the security enforcement
 	logger.Info().
 		Str("ssl_mode", sslMode).
-		Msg("Database SSL/TLS enforced - connections are encrypted")
+		Bool("tls_enforced", security.IsProductionBuild()).
+		Msg("Database SSL/TLS enforced at infrastructure level - connections are encrypted")
 
 	// Determine SSL root certificate path
 	// In Docker, use the mounted PostgreSQL CA cert

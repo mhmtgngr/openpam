@@ -284,13 +284,13 @@ func TestSSLModeValidation(t *testing.T) {
 			name:      "disable is rejected",
 			sslMode:   "disable",
 			wantError: true,
-			errorMsg:  "SSL mode 'disable' is NEVER allowed",
+			errorMsg:  "forbidden",
 		},
 		{
 			name:      "allow is rejected",
 			sslMode:   "allow",
 			wantError: true,
-			errorMsg:  "SSL mode 'allow' is NEVER allowed",
+			errorMsg:  "forbidden",
 		},
 		{
 			name:        "require is accepted",
@@ -311,7 +311,7 @@ func TestSSLModeValidation(t *testing.T) {
 			name:      "invalid mode is rejected",
 			sslMode:   "invalid",
 			wantError: true,
-			errorMsg:  "invalid SSL mode",
+			errorMsg:  "invalid database SSL mode",
 		},
 	}
 

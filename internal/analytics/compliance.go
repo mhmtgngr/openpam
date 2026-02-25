@@ -356,9 +356,6 @@ func (e *ComplianceEngine) evaluateDataQuery(ctx context.Context, tenantID uuid.
 		passedScore := 75.0
 		return string(ComplianceStatusPartial), &passedScore, 0, nil
 	}
-
-	passedScore := 50.0
-	return string(ComplianceStatusFailed), &passedScore, 0, nil
 }
 
 // evaluateConfiguration evaluates controls by checking configuration

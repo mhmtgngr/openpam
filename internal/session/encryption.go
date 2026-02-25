@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -34,12 +35,12 @@ type RecordingEncryption struct {
 }
 
 // RecordingConfig holds configuration for recording encryption
-// SECURITY: Uses KMS for master key management and IAM-based credentials for S3/MinIO
+// SECURITY: Uses KMS for master key management and IAM/env-based credentials for S3/MinIO
 type RecordingConfig struct {
 	MinioEndpoint string
 	MinioBucket   string
 	MinioUseSSL   bool
-	// SECURITY: IAM-based authentication is required for cloud deployments
+	// SECURITY: IAM-based authentication is preferred for cloud deployments
 	MinioUseIAM  bool
 	MinioRegion  string
 	MinioRoleARN string // For assumed role credentials
@@ -80,8 +81,8 @@ func NewRecordingEncryption(config RecordingConfig, logger zerolog.Logger) (*Rec
 		testKey[i] = 0
 	}
 
-	// SECURITY: Initialize MinIO client with IAM-based credentials
-	// IAM-based authentication eliminates the need for static, long-lived access keys
+	// SECURITY: Initialize MinIO client with IAM-based or environment-based credentials
+	// Static access keys should never be hardcoded - use environment variables or IAM roles
 	var creds *credentials.Credentials
 	if config.MinioUseIAM {
 		// Use IAM-based credential chain (environment, EC2 role, ECS task role)
@@ -89,9 +90,21 @@ func NewRecordingEncryption(config RecordingConfig, logger zerolog.Logger) (*Rec
 		creds = credentials.NewIAM(config.MinioRoleARN)
 		logger.Info().Msg("Using IAM-based authentication for MinIO/S3")
 	} else {
-		// For local development, use environment-based credentials via minio-go's default chain
-		// This checks MINIO_ROOT_USER/MINIO_ROOT_PASSWORD or AWS credentials from environment
-		creds = credentials.New("") // Empty string triggers default credential chain
+		// For local development, credentials come from environment variables
+		// MINIO_ROOT_USER/MINIO_ROOT_PASSWORD or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY
+		// Read credentials from environment
+		accessKey := os.Getenv("MINIO_ROOT_USER")
+		secretKey := os.Getenv("MINIO_ROOT_PASSWORD")
+		if accessKey == "" {
+			accessKey = os.Getenv("AWS_ACCESS_KEY_ID")
+		}
+		if secretKey == "" {
+			secretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+		}
+		if accessKey == "" || secretKey == "" {
+			return nil, fmt.Errorf("session: MinIO credentials not found in environment. Set MINIO_ROOT_USER/MINIO_ROOT_PASSWORD or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY, or enable MinioUseIAM")
+		}
+		creds = credentials.NewStaticV4(accessKey, secretKey, "")
 		logger.Info().Msg("Using environment-based credentials for MinIO/S3 (local development)")
 	}
 

@@ -3,6 +3,20 @@ version: "3.8"
 # OpenPAM - Privileged Access Management Platform
 # Docker Compose configuration for local development
 
+# Common extra_hosts for all services to fix Podman DNS resolution
+x-extra-hosts: &extra-hosts
+  - "postgres:10.89.0.2"
+  - "redis:10.89.0.3"
+  - "minio:10.89.0.4"
+  - "gateway:10.89.0.5"
+  - "session-service:10.89.0.6"
+  - "vault-service:10.89.0.7"
+  - "credential-service:10.89.0.8"
+  - "audit-service:10.89.0.9"
+  - "admin-service:10.89.0.10"
+  - "discovery-service:10.89.0.11"
+  - "analytics-service:10.89.0.12"
+
 services:
   # ============================================
   # Infrastructure Services
@@ -11,6 +25,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: openpam-postgres
+    user: "0:0"  # Run as root to fix permissions, then drops to postgres
     environment:
       POSTGRES_USER: openpam
       POSTGRES_PASSWORD: openpam_dev
@@ -21,24 +36,20 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
-      - ./postgres-tls:/tls
-    command:
-      - "postgres"
-      - "-c"
-      - "ssl=on"
-      - "-c"
-      - "ssl_cert_file=/tls/server.crt"
-      - "-c"
-      - "ssl_key_file=/tls/server.key"
-      - "-c"
-      - "ssl_ca_file=/tls/ca.crt"
+      - ./postgres-tls:/tls:ro
+      - ./postgres-entrypoint.sh:/entrypoint.sh:ro
+    entrypoint:
+      - /bin/sh
+      - /entrypoint.sh
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U openpam"]
       interval: 5s
       timeout: 3s
       retries: 5
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.2
 
   redis:
     image: redis:7-alpine
@@ -53,8 +64,10 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.3
 
   minio:
     image: minio/minio:latest
@@ -73,8 +86,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.4
 
   # ============================================
   # OpenPAM Services
@@ -130,8 +145,10 @@ services:
     volumes:
       - ./jwt-keys:/etc/openpam/jwt
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.5
     restart: unless-stopped
 
   session-service:
@@ -162,8 +179,10 @@ services:
         condition: service_healthy
     volumes:
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.6
     restart: unless-stopped
 
   vault-service:
@@ -194,8 +213,10 @@ services:
         condition: service_healthy
     volumes:
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.7
     restart: unless-stopped
 
   credential-service:
@@ -226,8 +247,10 @@ services:
         condition: service_healthy
     volumes:
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.8
     restart: unless-stopped
 
   audit-service:
@@ -257,8 +280,10 @@ services:
         condition: service_healthy
     volumes:
       - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.9
     restart: unless-stopped
 
   admin-service:
@@ -286,8 +311,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts: *extra-hosts
     networks:
-      - openpam-net
+      openpam-net:
+        ipv4_address: 10.89.0.10
     restart: unless-stopped
 
   discovery-service:

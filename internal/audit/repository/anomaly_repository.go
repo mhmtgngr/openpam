@@ -38,19 +38,33 @@ func (r *AnomalyRepository) Create(ctx context.Context, anomaly *model.AnomalyDe
 		anomaly.Status = string(model.AnomalyStatusOpen)
 	}
 
+	// Set default deduplication values
+	if anomaly.DuplicateCount == 0 {
+		anomaly.DuplicateCount = 0
+	}
+	if !anomaly.IsDuplicate {
+		anomaly.IsDuplicate = false
+	}
+
 	query := `
 		INSERT INTO anomaly_detections (
 			id, tenant_id, anomaly_type, user_id, session_id, target_host,
 			severity, confidence_score, risk_score, title, description,
 			indicators, detection_method, detected_at, model_version, status,
 			assigned_to, resolution_notes, resolved_at, resolved_by,
-			auto_triggered, auto_action_taken, metadata, created_at, updated_at
+			auto_triggered, auto_action_taken,
+			correlation_id, correlation_key, duplicate_count, is_duplicate,
+			first_detection_id, merged_into_id,
+			metadata, created_at, updated_at
 		) VALUES (
 			:id, :tenant_id, :anomaly_type, :user_id, :session_id, :target_host,
 			:severity, :confidence_score, :risk_score, :title, :description,
 			:indicators, :detection_method, :detected_at, :model_version, :status,
 			:assigned_to, :resolution_notes, :resolved_at, :resolved_by,
-			:auto_triggered, :auto_action_taken, :metadata, :created_at, :updated_at
+			:auto_triggered, :auto_action_taken,
+			:correlation_id, :correlation_key, :duplicate_count, :is_duplicate,
+			:first_detection_id, :merged_into_id,
+			:metadata, :created_at, :updated_at
 		)
 	`
 
@@ -322,14 +336,19 @@ func (r *AnomalyRepository) GetStats(ctx context.Context, tenantID uuid.UUID) (*
 
 // AnomalyStats represents statistics about anomalies
 type AnomalyStats struct {
-	Total              int `db:"total"`
-	OpenCount          int `db:"open_count"`
-	InvestigatingCount int `db:"investigating_count"`
-	ResolvedCount      int `db:"resolved_count"`
-	CriticalCount      int `db:"critical_count"`
-	HighCount          int `db:"high_count"`
-	TodayCount         int `db:"today_count"`
-	WeekCount          int `db:"week_count"`
+	Total              int     `db:"total"`
+	OpenCount          int     `db:"open_count"`
+	InvestigatingCount int     `db:"investigating_count"`
+	ResolvedCount      int     `db:"resolved_count"`
+	CriticalCount      int     `db:"critical_count"`
+	HighCount          int     `db:"high_count"`
+	MediumCount        int     `db:"medium_count"`
+	LowCount           int     `db:"low_count"`
+	TodayCount         int     `db:"today_count"`
+	WeekCount          int     `db:"week_count"`
+	UniqueCorrelations int     `db:"unique_correlations"`
+	TotalDuplicates    int     `db:"total_duplicates"`
+	AvgRiskScore       float64 `db:"avg_risk_score"`
 }
 
 // BatchCreate creates multiple anomalies in a single transaction
@@ -351,13 +370,19 @@ func (r *AnomalyRepository) BatchCreate(ctx context.Context, anomalies []model.A
 			severity, confidence_score, risk_score, title, description,
 			indicators, detection_method, detected_at, model_version, status,
 			assigned_to, resolution_notes, resolved_at, resolved_by,
-			auto_triggered, auto_action_taken, metadata, created_at, updated_at
+			auto_triggered, auto_action_taken,
+			correlation_id, correlation_key, duplicate_count, is_duplicate,
+			first_detection_id, merged_into_id,
+			metadata, created_at, updated_at
 		) VALUES (
 			:id, :tenant_id, :anomaly_type, :user_id, :session_id, :target_host,
 			:severity, :confidence_score, :risk_score, :title, :description,
 			:indicators, :detection_method, :detected_at, :model_version, :status,
 			:assigned_to, :resolution_notes, :resolved_at, :resolved_by,
-			:auto_triggered, :auto_action_taken, :metadata, :created_at, :updated_at
+			:auto_triggered, :auto_action_taken,
+			:correlation_id, :correlation_key, :duplicate_count, :is_duplicate,
+			:first_detection_id, :merged_into_id,
+			:metadata, :created_at, :updated_at
 		)
 	`
 
@@ -369,6 +394,14 @@ func (r *AnomalyRepository) BatchCreate(ctx context.Context, anomalies []model.A
 
 		if anomalies[i].Status == "" {
 			anomalies[i].Status = string(model.AnomalyStatusOpen)
+		}
+
+		// Set default deduplication values
+		if anomalies[i].DuplicateCount == 0 {
+			anomalies[i].DuplicateCount = 0
+		}
+		if !anomalies[i].IsDuplicate {
+			anomalies[i].IsDuplicate = false
 		}
 
 		_, err := tx.NamedExec(query, &anomalies[i])
