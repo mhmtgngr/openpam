@@ -102,14 +102,17 @@ export const AnomalyListPage: React.FC = () => {
   });
 
   // Fetch summary
-  const { data: summary, isLoading: isLoadingSummary } = useQuery({
+  const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useQuery({
     queryKey: ['anomalySummary', { start_date: apiParams.start_date, end_date: apiParams.end_date }],
     queryFn: () => anomalyApi.getSummary({
       start_date: apiParams.start_date as string,
       end_date: apiParams.end_date as string,
     }),
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes,
+    retry: 2,
   });
+
+  const summaryData = summary?.data;
 
   // Bulk update mutation
   const bulkUpdateMutation = useMutation({
@@ -197,6 +200,9 @@ export const AnomalyListPage: React.FC = () => {
   const total = anomaliesResponse?.data?.pagination?.total || 0;
   const hasMore = anomaliesResponse?.data?.pagination?.has_more || false;
 
+  // Show error state if API failed
+  const hasError = (anomaliesResponse as any)?.error || summaryError;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -242,16 +248,16 @@ export const AnomalyListPage: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      {!isLoadingSummary && summary && (
+      {!isLoadingSummary && summaryData && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <SummaryCard title="Total" count={summary.data.total} variant="neutral" />
-          <SummaryCard title="Critical" count={summary.data.by_severity.critical || 0} variant="danger" />
-          <SummaryCard title="High" count={summary.data.by_severity.high || 0} variant="danger" />
-          <SummaryCard title="Medium" count={summary.data.by_severity.medium || 0} variant="warning" />
-          <SummaryCard title="Low" count={summary.data.by_severity.low || 0} variant="neutral" />
+          <SummaryCard title="Total" count={summaryData.total || 0} variant="neutral" />
+          <SummaryCard title="Critical" count={summaryData.by_severity?.critical || 0} variant="danger" />
+          <SummaryCard title="High" count={summaryData.by_severity?.high || 0} variant="danger" />
+          <SummaryCard title="Medium" count={summaryData.by_severity?.medium || 0} variant="warning" />
+          <SummaryCard title="Low" count={summaryData.by_severity?.low || 0} variant="neutral" />
           <SummaryCard
             title="Resolved This Period"
-            count={summary.data.resolved_this_period}
+            count={summaryData.resolved_this_period || 0}
             variant="success"
           />
         </div>

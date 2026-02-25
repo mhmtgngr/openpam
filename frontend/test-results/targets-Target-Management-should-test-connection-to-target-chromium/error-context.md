@@ -1,0 +1,120 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: OpenPAM
+      - button [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - link "Dashboard" [ref=e15] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e16]
+        - generic [ref=e21]: Dashboard
+      - link "Users" [ref=e22] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e23]
+        - generic [ref=e28]: Users
+      - link "Roles" [ref=e29] [cursor=pointer]:
+        - /url: /roles
+        - img [ref=e30]
+        - generic [ref=e32]: Roles
+      - link "Targets" [ref=e33] [cursor=pointer]:
+        - /url: /targets
+        - img [ref=e34]
+        - generic [ref=e37]: Targets
+      - link "Credentials" [ref=e38] [cursor=pointer]:
+        - /url: /credentials
+        - img [ref=e39]
+        - generic [ref=e43]: Credentials
+      - link "My Requests" [ref=e44] [cursor=pointer]:
+        - /url: /requests/my
+        - img [ref=e45]
+        - generic [ref=e50]: My Requests
+      - link "Approvals" [ref=e51] [cursor=pointer]:
+        - /url: /approvals
+        - img [ref=e52]
+        - generic [ref=e55]: Approvals
+      - link "Sessions" [ref=e56] [cursor=pointer]:
+        - /url: /sessions
+        - img [ref=e57]
+        - generic [ref=e59]: Sessions
+      - link "Analytics" [ref=e60] [cursor=pointer]:
+        - /url: /analytics
+        - img [ref=e61]
+        - generic [ref=e63]: Analytics
+      - link "Audit Logs" [ref=e64] [cursor=pointer]:
+        - /url: /audit
+        - img [ref=e65]
+        - generic [ref=e68]: Audit Logs
+      - link "Settings" [ref=e69] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e70]
+        - generic [ref=e73]: Settings
+    - generic [ref=e75]:
+      - generic [ref=e76]: TU
+      - generic [ref=e77]:
+        - paragraph [ref=e78]: Test User
+        - paragraph [ref=e79]: test@example.com
+  - generic [ref=e80]:
+    - banner [ref=e81]:
+      - generic [ref=e83]:
+        - img [ref=e84]
+        - textbox "Search targets, credentials, users..." [ref=e87]
+      - generic [ref=e88]:
+        - button "Refresh data" [ref=e89] [cursor=pointer]:
+          - img [ref=e90]
+        - button [ref=e96] [cursor=pointer]:
+          - img [ref=e97]
+        - generic [ref=e100]:
+          - button "TU test@example.com" [active] [ref=e101] [cursor=pointer]:
+            - generic [ref=e102]: TU
+            - generic [ref=e103]: test@example.com
+            - img [ref=e104]
+          - generic [ref=e106]:
+            - generic [ref=e107]:
+              - paragraph [ref=e108]: Test User
+              - paragraph [ref=e109]: test@example.com
+            - button "Settings" [ref=e110] [cursor=pointer]:
+              - img [ref=e111]
+              - text: Settings
+            - button "Profile" [ref=e114] [cursor=pointer]:
+              - img [ref=e115]
+              - text: Profile
+            - button "Logout" [ref=e119] [cursor=pointer]:
+              - img [ref=e120]
+              - text: Logout
+    - main [ref=e123]:
+      - generic [ref=e124]:
+        - generic [ref=e125]:
+          - generic [ref=e126]:
+            - heading "Targets" [level=1] [ref=e127]
+            - paragraph [ref=e128]: Manage target systems for privileged access
+          - link "Add Target" [ref=e129] [cursor=pointer]:
+            - /url: /targets/new
+            - button "Add Target" [ref=e130]:
+              - img [ref=e132]
+              - text: Add Target
+        - generic [ref=e135]:
+          - generic [ref=e138]:
+            - img [ref=e140]
+            - textbox "Search targets..." [ref=e143]
+          - combobox [ref=e145]:
+            - option "All Types" [selected]
+            - option "SSH"
+            - option "RDP"
+            - option "Database"
+            - option "Kubernetes"
+            - option "Web"
+            - option "API"
+          - combobox [ref=e147]:
+            - option "All Environments" [selected]
+            - option "Production"
+            - option "Staging"
+            - option "Development"
+            - option "Test"
+        - paragraph [ref=e150]: No targets found
+```

@@ -751,6 +751,19 @@ export const mockComplianceRoutes = async (route: Route) => {
     return;
   }
 
+  // GET /compliance/anomalies/related
+  if (url.includes('/compliance/anomalies/related') && method === 'GET') {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: mockAnomalies.slice(0, 2),
+        pagination: { total: 2, offset: 0, limit: 20, has_more: false },
+      }),
+    });
+    return;
+  }
+
   // GET /compliance/ransomware/indicators
   if (url.includes('/compliance/ransomware/indicators') && method === 'GET') {
     await route.fulfill({

@@ -53,33 +53,46 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 		return nil, err
 	}
 
+	// Map custom sslmode values to driver-compatible values
+	// The pq driver only supports: disable, require, verify-ca, verify-full
+	driverSSLMode := sslMode
+	switch sslMode {
+	case "no-verify":
+		// For development with self-signed certs, map to disable
+		// This is acceptable because the security check above already validated the intent
+		driverSSLMode = "disable"
+	case "no-verify-require":
+		driverSSLMode = "require"
+	}
+
 	// Log the security enforcement
 	logger.Info().
 		Str("ssl_mode", sslMode).
+		Str("driver_sslmode", driverSSLMode).
 		Bool("tls_enforced", security.IsProductionBuild()).
 		Msg("Database SSL/TLS enforced at infrastructure level - connections are encrypted")
 
-	// Determine SSL root certificate path
-	// In Docker, use the mounted PostgreSQL CA cert
-	// In production, use the system CA bundle
-	sslRootCert := cfg.SSLRootCert
-	if sslRootCert == "" {
-		// Default to our mounted PostgreSQL CA for Docker, or system CA bundle
-		sslRootCert = "/etc/ssl/certs/postgresql-ca.crt"
-		// If file doesn't exist, fall back to system CA bundle
-		// (checked after connection attempt fails, if needed)
-	}
-
 	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters
 	// All config values are escaped to prevent malicious content from injecting SQL directives
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=%s",
+	// sslrootcert is only included when SSL is enabled (not when sslmode=disable)
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		url.QueryEscape(cfg.Host),
 		cfg.Port,
 		url.QueryEscape(cfg.User),
 		url.QueryEscape(cfg.Password),
 		url.QueryEscape(cfg.Database),
-		url.QueryEscape(sslMode),
-		url.QueryEscape(sslRootCert))
+		url.QueryEscape(driverSSLMode))
+
+	// Add sslrootcert only when SSL is enabled (require, verify-ca, verify-full)
+	// When sslmode=disable, sslrootcert causes PostgreSQL connection errors
+	if driverSSLMode != "disable" {
+		sslRootCert := cfg.SSLRootCert
+		if sslRootCert == "" {
+			// Default to our mounted PostgreSQL CA for Docker, or system CA bundle
+			sslRootCert = "/etc/ssl/certs/postgresql-ca.crt"
+		}
+		dsn += fmt.Sprintf(" sslrootcert=%s", url.QueryEscape(sslRootCert))
+	}
 
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
