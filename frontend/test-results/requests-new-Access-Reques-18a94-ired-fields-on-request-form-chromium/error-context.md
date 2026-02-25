@@ -1,0 +1,137 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Analytics" [ref=e60] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e61]
+          - generic [ref=e63]: Analytics
+        - link "Audit Logs" [ref=e64] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e65]
+          - generic [ref=e68]: Audit Logs
+        - link "Settings" [ref=e69] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e70]
+          - generic [ref=e73]: Settings
+      - generic [ref=e75]:
+        - generic [ref=e76]: TU
+        - generic [ref=e77]:
+          - paragraph [ref=e78]: Test User
+          - paragraph [ref=e79]: test@example.com
+    - generic [ref=e80]:
+      - banner [ref=e81]:
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - textbox "Search targets, credentials, users..." [ref=e87]
+        - generic [ref=e88]:
+          - button "Refresh data" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
+            - generic [ref=e102]: TU
+            - generic [ref=e103]: test@example.com
+            - img [ref=e104]
+      - main [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - link "Back" [ref=e109] [cursor=pointer]:
+              - /url: /requests/my
+              - button "Back" [ref=e110]:
+                - img [ref=e112]
+                - text: Back
+            - generic [ref=e114]:
+              - heading "Request Access" [level=1] [ref=e115]
+              - paragraph [ref=e116]: Submit a request for privileged access
+          - generic [ref=e117]:
+            - generic [ref=e120]:
+              - heading "Request Details" [level=3] [ref=e121]
+              - generic [ref=e122]:
+                - generic [ref=e123]:
+                  - generic [ref=e124]: Request Type
+                  - generic [ref=e125]:
+                    - button "Session Access" [ref=e126] [cursor=pointer]:
+                      - paragraph [ref=e127]: Session Access
+                    - button "Credential Checkout" [ref=e128] [cursor=pointer]:
+                      - paragraph [ref=e129]: Credential Checkout
+                    - button "Elevated Privileges" [ref=e130] [cursor=pointer]:
+                      - paragraph [ref=e131]: Elevated Privileges
+                - generic [ref=e133]:
+                  - generic [ref=e134]: Target
+                  - combobox "Target" [active] [ref=e135]:
+                    - option "Select a target..." [selected]
+                - generic [ref=e136]:
+                  - generic [ref=e137]: Duration
+                  - generic [ref=e138]:
+                    - button "15 minutes" [ref=e139] [cursor=pointer]
+                    - button "30 minutes" [ref=e140] [cursor=pointer]
+                    - button "1 hour" [ref=e141] [cursor=pointer]
+                    - button "2 hours" [ref=e142] [cursor=pointer]
+                    - button "4 hours" [ref=e143] [cursor=pointer]
+                    - button "8 hours" [ref=e144] [cursor=pointer]
+                - generic [ref=e145]:
+                  - switch [ref=e146] [cursor=pointer]
+                  - generic [ref=e147]:
+                    - generic [ref=e148]: Schedule for Later
+                    - generic [ref=e149]: Set a specific start time for this access request
+                - generic [ref=e150]:
+                  - generic [ref=e151]:
+                    - generic [ref=e152]: Reason for Access
+                    - textbox "Reason for Access" [ref=e153]:
+                      - /placeholder: Please provide a detailed reason for this access request...
+                  - paragraph [ref=e154]: Minimum 10 characters. This will be reviewed by approvers.
+            - generic [ref=e155]:
+              - link "Cancel" [ref=e156] [cursor=pointer]:
+                - /url: /requests/my
+                - button "Cancel" [ref=e157]
+              - button "Submit Request" [ref=e158] [cursor=pointer]:
+                - img [ref=e160]
+                - text: Submit Request
+  - generic:
+    - status [ref=e168]: An error occurred
+    - status [ref=e174]: An error occurred
+    - status [ref=e180]: An error occurred
+    - status [ref=e186]: An error occurred
+```

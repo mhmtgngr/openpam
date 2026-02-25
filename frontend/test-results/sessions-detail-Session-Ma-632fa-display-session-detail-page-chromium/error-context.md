@@ -1,0 +1,121 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Analytics" [ref=e60] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e61]
+          - generic [ref=e63]: Analytics
+        - link "Audit Logs" [ref=e64] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e65]
+          - generic [ref=e68]: Audit Logs
+        - link "Settings" [ref=e69] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e70]
+          - generic [ref=e73]: Settings
+      - generic [ref=e75]:
+        - generic [ref=e76]: TU
+        - generic [ref=e77]:
+          - paragraph [ref=e78]: Test User
+          - paragraph [ref=e79]: test@example.com
+    - generic [ref=e80]:
+      - banner [ref=e81]:
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - textbox "Search targets, credentials, users..." [ref=e87]
+        - generic [ref=e88]:
+          - button "Refresh data" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
+            - generic [ref=e102]: TU
+            - generic [ref=e103]: test@example.com
+            - img [ref=e104]
+      - main [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - link "Back" [ref=e110] [cursor=pointer]:
+                - /url: /sessions
+                - button "Back" [ref=e111]:
+                  - img [ref=e113]
+                  - text: Back
+              - generic [ref=e115]:
+                - heading "Session sess-123" [level=1] [ref=e116]
+                - paragraph [ref=e117]: →
+            - button [ref=e119] [cursor=pointer]:
+              - img [ref=e121]
+          - generic [ref=e126]:
+            - generic [ref=e130]:
+              - heading "Session Recording" [level=3] [ref=e132]
+              - paragraph [ref=e134]: No recording available
+            - generic [ref=e138]:
+              - heading "Session Details" [level=3] [ref=e139]
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - term [ref=e142]: Status
+                  - definition [ref=e143]
+                - generic [ref=e145]:
+                  - term [ref=e146]: Type
+                  - definition
+                - generic [ref=e147]:
+                  - term [ref=e148]: User
+                  - definition:
+                    - paragraph
+                - generic [ref=e149]:
+                  - term [ref=e150]: Target
+                  - definition [ref=e151]:
+                    - paragraph [ref=e152]: ":"
+                - generic [ref=e153]:
+                  - term [ref=e154]: Client IP
+                  - definition
+                - generic [ref=e155]:
+                  - term [ref=e156]: Started At
+                  - definition [ref=e157]: Invalid Date
+  - generic:
+    - status [ref=e163]: An error occurred
+    - status [ref=e169]: An error occurred
+```

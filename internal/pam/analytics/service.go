@@ -604,6 +604,91 @@ func (s *Service) UpdateAnomalyStatus(ctx context.Context, id uuid.UUID, status 
 	return nil
 }
 
+// AcknowledgeAnomaly acknowledges an anomaly, transitioning it to investigating state
+func (s *Service) AcknowledgeAnomaly(ctx context.Context, id, acknowledgedBy uuid.UUID, notes string) error {
+	// Get current anomaly to validate state
+	anomaly, err := s.anomalyRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("service.AcknowledgeAnomaly: %w", err)
+	}
+
+	// Validate state transition - only open anomalies can be acknowledged
+	if anomaly.Status != AnomalyStatusOpen {
+		return fmt.Errorf("service.AcknowledgeAnomaly: cannot acknowledge anomaly with status %s, only open anomalies can be acknowledged", anomaly.Status)
+	}
+
+	// Update to investigating status with acknowledged_by tracking
+	err = s.anomalyRepo.UpdateStatus(ctx, id, AnomalyStatusInvestigating, &acknowledgedBy, nil, nil)
+	if err != nil {
+		return fmt.Errorf("service.AcknowledgeAnomaly: %w", err)
+	}
+
+	// Add resolution notes if provided
+	if notes != "" {
+		_ = s.anomalyRepo.Update(ctx, &Anomaly{
+			ID:             id,
+			ResolutionNotes: &notes,
+		})
+	}
+
+	// Invalidate cache for this tenant's anomalies
+	_ = s.cache.Delete(ctx, fmt.Sprintf("analytics:anomalies:%s", anomaly.TenantID))
+
+	s.logger.Info().
+		Str("anomaly_id", id.String()).
+		Str("acknowledged_by", acknowledgedBy.String()).
+		Str("tenant_id", anomaly.TenantID.String()).
+		Msg("Anomaly acknowledged")
+
+	return nil
+}
+
+// ResolveAnomaly resolves an anomaly with the specified resolution
+func (s *Service) ResolveAnomaly(ctx context.Context, id, resolvedBy uuid.UUID, status AnomalyStatus, notes string) error {
+	// Validate status - must be a terminal state
+	if status != AnomalyStatusResolved && status != AnomalyStatusFalsePositive && status != AnomalyStatusIgnored {
+		return fmt.Errorf("service.ResolveAnomaly: invalid resolution status %s, must be resolved, false_positive, or ignored", status)
+	}
+
+	// Get current anomaly to validate state
+	anomaly, err := s.anomalyRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("service.ResolveAnomaly: %w", err)
+	}
+
+	// Any state can transition to a terminal state
+	var notesPtr *string
+	if notes != "" {
+		notesPtr = &notes
+	}
+
+	err = s.anomalyRepo.UpdateStatus(ctx, id, status, nil, &resolvedBy, notesPtr)
+	if err != nil {
+		return fmt.Errorf("service.ResolveAnomaly: %w", err)
+	}
+
+	// Invalidate cache for this tenant's anomalies
+	_ = s.cache.Delete(ctx, fmt.Sprintf("analytics:anomalies:%s", anomaly.TenantID))
+
+	s.logger.Info().
+		Str("anomaly_id", id.String()).
+		Str("resolved_by", resolvedBy.String()).
+		Str("status", string(status)).
+		Str("tenant_id", anomaly.TenantID.String()).
+		Msg("Anomaly resolved")
+
+	return nil
+}
+
+// GetAnomalyStats retrieves statistics about anomalies for a tenant
+func (s *Service) GetAnomalyStats(ctx context.Context, tenantID uuid.UUID) (*AnomalyStats, error) {
+	stats, err := s.anomalyRepo.GetStats(ctx, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("service.GetAnomalyStats: %w", err)
+	}
+	return stats, nil
+}
+
 // RunAnomalyDetection triggers a full anomaly detection run
 func (s *Service) RunAnomalyDetection(ctx context.Context, tenantID uuid.UUID) ([]AnomalyResponse, error) {
 	return s.DetectAnomalies(ctx, tenantID)

@@ -269,6 +269,10 @@ func setupRouter(
 				analytics.GET("/anomalies/stats", handleGetAnomalyStats(analyticsSvc, logger))
 				analytics.POST("/anomalies/detect", handleRunAnomalyDetection(pamAnalyticsSvc, logger))
 
+				// Anomaly acknowledge/resolve operations
+				analytics.POST("/anomalies/:id/acknowledge", handleAcknowledgeAnomaly(pamAnalyticsSvc, logger))
+				analytics.POST("/anomalies/:id/resolve", handleResolveAnomaly(pamAnalyticsSvc, logger))
+
 				// Anomaly bulk operations
 				analytics.PUT("/anomalies/bulk", handleBulkUpdateAnomalies(analyticsSvc, logger))
 
@@ -808,6 +812,89 @@ func handleBulkUpdateAnomalies(svc *audit.AnalyticsService, logger zerolog.Logge
 		}
 
 		c.JSON(http.StatusOK, gin.H{"updated": updated})
+	}
+}
+
+// handleAcknowledgeAnomaly handles POST /api/v1/anomalies/:id/acknowledge
+func handleAcknowledgeAnomaly(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid anomaly ID"}})
+			return
+		}
+
+		// Get user ID from context
+		userIDStr, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "User ID not found in context"}})
+			return
+		}
+
+		userID, err := uuid.Parse(userIDStr.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_USER", "message": "Invalid user ID"}})
+			return
+		}
+
+		var req model.AcknowledgeAnomalyRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		if err := svc.AcknowledgeAnomaly(c.Request.Context(), id, userID, req.Notes); err != nil {
+			logger.Error().Err(err).Str("anomaly_id", id.String()).Msg("Failed to acknowledge anomaly")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to acknowledge anomaly"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Anomaly acknowledged",
+			"id":      id.String(),
+		})
+	}
+}
+
+// handleResolveAnomaly handles POST /api/v1/anomalies/:id/resolve
+func handleResolveAnomaly(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid anomaly ID"}})
+			return
+		}
+
+		// Get user ID from context
+		userIDStr, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "User ID not found in context"}})
+			return
+		}
+
+		userID, err := uuid.Parse(userIDStr.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_USER", "message": "Invalid user ID"}})
+			return
+		}
+
+		var req model.ResolveAnomalyRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		if err := svc.ResolveAnomaly(c.Request.Context(), id, userID, pamanalytics.AnomalyStatus(req.Status), req.Notes); err != nil {
+			logger.Error().Err(err).Str("anomaly_id", id.String()).Msg("Failed to resolve anomaly")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to resolve anomaly"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Anomaly resolved",
+			"id":      id.String(),
+			"status":  req.Status,
+		})
 	}
 }
 

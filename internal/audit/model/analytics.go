@@ -367,6 +367,17 @@ type UpdateAnomalyRequest struct {
 	ResolutionNotes  *string   `json:"resolution_notes"`
 }
 
+// AcknowledgeAnomalyRequest represents a request to acknowledge an anomaly
+type AcknowledgeAnomalyRequest struct {
+	Notes string `json:"notes"`
+}
+
+// ResolveAnomalyRequest represents a request to resolve an anomaly
+type ResolveAnomalyRequest struct {
+	Status string `json:"status" binding:"required,oneof=resolved false_positive ignored"`
+	Notes  string `json:"notes"`
+}
+
 // CreateCommandBlacklistRequest represents a request to create a command blacklist entry
 type CreateCommandBlacklistRequest struct {
 	CommandPattern    string     `json:"command_pattern" binding:"required"`
