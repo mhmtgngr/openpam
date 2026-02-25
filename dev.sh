@@ -2620,13 +2620,16 @@ case "$CMD" in
   smart-improve|smart|focus)
     PR_THRESHOLD="${2:-50}"
     if [ "$FOREGROUND" = false ] && [ "${_DEV_FG:-}" != "1" ]; then
-      _DEV_FG=1 setsid bash "$0" --fg "$CMD" "${2:-50}" </dev/null > /dev/null 2>&1 &
+      PR_THRESHOLD="${2:-50}" _DEV_FG=1 setsid bash "$0" smart-improve "${2:-50}" </dev/null > /dev/null 2>&1 &
       disown
       echo "  🧠 Smart Improve started (detached)"
       echo "  📺 tail -f $SUP_LOG"
       echo "  📊 ./dev.sh status"
       exit 0
     fi
+    echo $$ > "$PID_FILE"
+    trap 'rm -f "$PID_FILE"; exit' EXIT INT TERM
+    slog "🧠 Smart Improve started (PID: $$, threshold: $PR_THRESHOLD%)"
     smart_improve
     ;;
 
@@ -2638,12 +2641,14 @@ case "$CMD" in
   # ── Dual-track ──
   improve|next)
     if [ "$FOREGROUND" = false ] && [ "${_DEV_FG:-}" != "1" ]; then
-      AUTO_PHASES="${2:-3}" _DEV_FG=1 setsid bash "$0" --fg "$CMD" "${2:-3}" "${3:-3}" </dev/null > /dev/null 2>&1 &
+      AUTO_PHASES="${2:-3}" _DEV_FG=1 setsid bash "$0" improve "${2:-3}" "${3:-3}" </dev/null > /dev/null 2>&1 &
       disown
       echo "  🚀 Full improvement started (detached)"
       echo "  📺 tail -f $SUP_LOG"
       exit 0
     fi
+    echo $$ > "$PID_FILE"
+    trap 'rm -f "$PID_FILE"; exit' EXIT INT TERM
     AUTO_PHASES="${2:-3}"
     run_full_improvement "$AUTO_PHASES" "${3:-3}"
     ;;
@@ -2651,21 +2656,25 @@ case "$CMD" in
   # ── Track A ──
   improve-dev|fix-dev)
     if [ "$FOREGROUND" = false ] && [ "${_DEV_FG:-}" != "1" ]; then
-      _DEV_FG=1 setsid bash "$0" --fg "$CMD" "${2:-3}" </dev/null > /dev/null 2>&1 &
+      _DEV_FG=1 setsid bash "$0" improve-dev "${2:-3}" </dev/null > /dev/null 2>&1 &
       disown
       echo "  🔧 Dev.sh improvement started (detached)"
       echo "  📺 tail -f $SUP_LOG"
       exit 0
     fi
+    echo $$ > "$PID_FILE"
+    trap 'rm -f "$PID_FILE"; exit' EXIT INT TERM
     run_dev_improvement "${2:-3}"
     ;;
   analyze-dev)    analyze_dev ;;
   plan-dev)       analyze_dev; plan_dev_improvements "${2:-3}" ;;
   execute-dev)
     if [ "${_DEV_FG:-}" != "1" ]; then
-      _DEV_FG=1 setsid bash "$0" --fg "$CMD" </dev/null > /dev/null 2>&1 &
+      _DEV_FG=1 setsid bash "$0" execute-dev </dev/null > /dev/null 2>&1 &
       disown; echo "  🚀 Executing (detached)"; echo "  📺 tail -f $SUP_LOG"; exit 0
     fi
+    echo $$ > "$PID_FILE"
+    trap 'rm -f "$PID_FILE"; exit' EXIT INT TERM
     execute_dev_improvements
     ;;
   verify-dev)     verify_dev ;;
@@ -2674,21 +2683,25 @@ case "$CMD" in
   # ── Track B ──
   improve-project|project)
     if [ "$FOREGROUND" = false ] && [ "${_DEV_FG:-}" != "1" ]; then
-      _DEV_FG=1 setsid bash "$0" --fg "$CMD" "${2:-3}" </dev/null > /dev/null 2>&1 &
+      _DEV_FG=1 setsid bash "$0" improve-project "${2:-3}" </dev/null > /dev/null 2>&1 &
       disown
       echo "  📦 Project improvement started (detached)"
       echo "  📺 tail -f $SUP_LOG"
       exit 0
     fi
+    echo $$ > "$PID_FILE"
+    trap 'rm -f "$PID_FILE"; exit' EXIT INT TERM
     run_project_improvement "${2:-3}"
     ;;
   diagnose|diag)  diagnose_project ;;
   plan-project)   AUTO_PHASES="${2:-3}"; diagnose_project; plan_improvements "$AUTO_PHASES" ;;
   execute|run)
     if [ "${_DEV_FG:-}" != "1" ]; then
-      _DEV_FG=1 setsid bash "$0" --fg "$CMD" </dev/null > /dev/null 2>&1 &
+      _DEV_FG=1 setsid bash "$0" execute </dev/null > /dev/null 2>&1 &
       disown; echo "  🚀 Executing (detached)"; exit 0
     fi
+    echo $$ > "$PID_FILE"
+    trap 'rm -f "$PID_FILE"; exit' EXIT INT TERM
     execute_planned_phases
     ;;
   verify|check)   verify_results ;;

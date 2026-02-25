@@ -576,13 +576,15 @@ export interface UserActivity {
 }
 
 export interface ActivityHeatmapData {
-  date: string;
   hour: number;
-  session_count: number;
+  day: string;
+  count: number;
 }
 
 export interface CommandFrequency {
+  id: string;
   command: string;
+  base_command: string;
   count: number;
   risk_level: 'critical' | 'high' | 'medium' | 'low' | 'info';
   first_seen_at: string;

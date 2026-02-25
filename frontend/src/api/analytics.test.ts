@@ -42,8 +42,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockMetrics });
 
-      const response = await analyticsApi.getSessionMetrics();
-      const result = response.data;
+      const result = await analyticsApi.getSessionMetrics();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/sessions/metrics', undefined);
       expect(result).toEqual(mockMetrics);
@@ -70,8 +69,7 @@ describe('analyticsApi', () => {
         granularity: 'day' as const,
       };
 
-      const response = await analyticsApi.getSessionMetrics(params);
-      const result = response.data;
+      const result = await analyticsApi.getSessionMetrics(params);
 
       expect(api.get).toHaveBeenCalledWith('/analytics/sessions/metrics', params);
       expect(result).toEqual(mockMetrics);
@@ -96,8 +94,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTrends });
 
-      const response = await analyticsApi.getDashboardTrends();
-      const result = response.data;
+      const result = await analyticsApi.getDashboardTrends();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/dashboard/trends', { period: undefined });
       expect(result).toEqual(mockTrends);
@@ -114,8 +111,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTrends });
 
-      const response = await analyticsApi.getDashboardTrends('month');
-      const result = response.data;
+      const result = await analyticsApi.getDashboardTrends('month');
 
       expect(api.get).toHaveBeenCalledWith('/analytics/dashboard/trends', { period: 'month' });
       expect(result).toEqual(mockTrends);
@@ -125,15 +121,13 @@ describe('analyticsApi', () => {
       const periods: Array<'day' | 'week' | 'month' | 'quarter'> = ['day', 'week', 'month', 'quarter'];
 
       for (const period of periods) {
-        (api.get as any).mockResolvedValue({
-          data: {
-            sessions: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
-            users: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
-            credentials: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
-            requests: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
-            period,
-          },
-        });
+        (api.get as any).mockResolvedValue({ data: {
+          sessions: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
+          users: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
+          credentials: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
+          requests: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
+          period,
+        }});
 
         await analyticsApi.getDashboardTrends(period);
 
@@ -173,19 +167,16 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockImplementation((endpoint: string) => {
         if (endpoint === '/analytics/dashboard') {
-          return Promise.resolve({
-            data: {
-              metrics: mockMetrics,
-              trends: mockTrends,
-              realtime: mockRealtime,
-            },
-          });
+          return Promise.resolve({ data: {
+            metrics: mockMetrics,
+            trends: mockTrends,
+            realtime: mockRealtime,
+          }});
         }
         return Promise.reject(new Error('Unknown endpoint'));
       });
 
-      const result = await analyticsApi.getDashboard();
-      const data = result.data;
+      const data = (await analyticsApi.getDashboard()).data;
 
       expect(data).toEqual({
         metrics: mockMetrics,
@@ -238,12 +229,11 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTimeSeries });
 
-      const response = await analyticsApi.getTimeSeries({
+      const result = await analyticsApi.getTimeSeries({
         metric: 'sessions',
         start_date: '2024-01-01',
         end_date: '2024-01-31',
       });
-      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/timeseries', {
         metric: 'sessions',
@@ -291,8 +281,8 @@ describe('analyticsApi', () => {
       const result = await analyticsApi.getUserActivity();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/activity', undefined);
-      expect(result.data.data).toEqual(mockActivity);
-      expect(result.data.pagination.total).toBe(2);
+      expect(result.data).toEqual(mockActivity);
+      expect(result.pagination.total).toBe(2);
     });
 
     it('should get user activity with filters', async () => {
@@ -318,7 +308,7 @@ describe('analyticsApi', () => {
       const result = await analyticsApi.getUserActivity(params);
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/activity', params);
-      expect(result.data.data).toEqual(mockActivity);
+      expect(result.data).toEqual(mockActivity);
     });
 
     it('should get user activity detail', async () => {
@@ -339,8 +329,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockDetail });
 
-      const response = await analyticsApi.getUserActivityDetail('user-123');
-      const result = response.data;
+      const result = await analyticsApi.getUserActivityDetail('user-123');
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/user-123/activity', undefined);
       expect(result).toEqual(mockDetail);
@@ -380,7 +369,7 @@ describe('analyticsApi', () => {
       const result = await analyticsApi.getCommandFrequency();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/commands/frequency', undefined);
-      expect(result.data.data).toHaveLength(2);
+      expect(result.data).toHaveLength(2);
     });
 
     it('should get command risk summary', async () => {
@@ -395,8 +384,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockSummary });
 
-      const response = await analyticsApi.getCommandRiskSummary();
-      const result = response.data;
+      const result = await analyticsApi.getCommandRiskSummary();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/commands/risk-summary', undefined);
       expect(result.total_commands).toBe(3500);
@@ -411,12 +399,11 @@ describe('analyticsApi', () => {
 
       (api.post as any).mockResolvedValue({ data: mockExport });
 
-      const response = await analyticsApi.exportCommandAnalysis({
+      const result = await analyticsApi.exportCommandAnalysis({
         format: 'csv',
         start_date: '2024-01-01',
         end_date: '2024-01-15',
       });
-      const result = response.data;
 
       expect(api.post).toHaveBeenCalledWith('/analytics/commands/export', {
         format: 'csv',
@@ -448,8 +435,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTopUsers });
 
-      const response = await analyticsApi.getTopUsers(10);
-      const result = response.data;
+      const result = await analyticsApi.getTopUsers(10);
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/top', {
         limit: 10,
@@ -477,11 +463,10 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTopTargets });
 
-      const response = await analyticsApi.getTopTargets(20, {
+      const result = await analyticsApi.getTopTargets(20, {
         start_date: '2024-01-01',
         end_date: '2024-01-31',
       });
-      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/targets/top', {
         limit: 20,
@@ -503,8 +488,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockStats });
 
-      const response = await analyticsApi.getRealtimeStats();
-      const result = response.data;
+      const result = await analyticsApi.getRealtimeStats();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/realtime');
       expect(result.active_sessions).toBe(8);
@@ -553,7 +537,7 @@ describe('analyticsApi', () => {
         start_date: '2024-01-01',
         end_date: '2024-01-31',
       });
-      expect(result.data.data).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
     });
 
     it('should update anomaly status', async () => {
@@ -564,11 +548,10 @@ describe('analyticsApi', () => {
 
       (api.patch as any).mockResolvedValue({ data: mockResponse });
 
-      const response = await analyticsApi.updateAnomalyStatus('anomaly-1', {
+      const result = await analyticsApi.updateAnomalyStatus('anomaly-1', {
         status: 'resolved',
         notes: 'Investigated and confirmed as legitimate',
       });
-      const result = response.data;
 
       expect((api.patch as any).mock.calls[0][0]).toContain('/analytics/anomalies/anomaly-1');
       expect(result.status).toBe('resolved');
@@ -587,8 +570,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockSummary });
 
-      const response = await analyticsApi.getComplianceSummary('SOC2');
-      const result = response.data;
+      const result = await analyticsApi.getComplianceSummary('SOC2');
 
       expect(api.get).toHaveBeenCalledWith('/analytics/compliance/summary', {
         framework: 'SOC2',
@@ -607,8 +589,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockSummary });
 
-      const response = await analyticsApi.getComplianceSummary();
-      const result = response.data;
+      const result = await analyticsApi.getComplianceSummary();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/compliance/summary', {
         framework: undefined,
@@ -733,8 +714,7 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockMetrics });
 
-      const response = await analyticsApi.getSessionMetrics();
-      const result = response.data;
+      const result = await analyticsApi.getSessionMetrics();
 
       // Type check - should have SessionMetrics properties
       expect(result).toHaveProperty('active_sessions');
@@ -767,10 +747,10 @@ describe('analyticsApi', () => {
       const result = await analyticsApi.getUserActivity();
 
       // Type check
-      expect(Array.isArray(result.data.data)).toBe(true);
-      if (result.data.data.length > 0) {
-        expect(result.data.data[0]).toHaveProperty('user_id');
-        expect(result.data.data[0]).toHaveProperty('user_email');
+      expect(Array.isArray(result.data)).toBe(true);
+      if (result.data.length > 0) {
+        expect(result.data[0]).toHaveProperty('user_id');
+        expect(result.data[0]).toHaveProperty('user_email');
       }
     });
   });
@@ -784,13 +764,12 @@ describe('analyticsApi', () => {
 
       (api.post as any).mockResolvedValue({ data: mockExport });
 
-      const response = await analyticsApi.exportUserActivity({
+      const result = await analyticsApi.exportUserActivity({
         format: 'csv',
         start_date: '2024-01-01',
         end_date: '2024-01-15',
         limit: 1000,
       });
-      const result = response.data;
 
       expect(api.post).toHaveBeenCalledWith('/analytics/users/export', {
         format: 'csv',
@@ -809,10 +788,9 @@ describe('analyticsApi', () => {
 
       (api.post as any).mockResolvedValue({ data: mockExport });
 
-      const response = await analyticsApi.exportCommandAnalysis({
+      const result = await analyticsApi.exportCommandAnalysis({
         format: 'json',
       });
-      const result = response.data;
 
       expect((api.post as any).mock.calls[0][1]).toHaveProperty('format', 'json');
       expect(result.download_url).toContain('.json');
