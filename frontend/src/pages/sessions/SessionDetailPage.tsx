@@ -176,7 +176,7 @@ export const SessionDetailPage: React.FC = () => {
   const downloadRecording = async () => {
     try {
       const response = await sessionsApi.getRecordingUrl(id!);
-      const url = response.data.url;
+      const url = response.url;
       const a = document.createElement('a');
       a.href = url;
       a.download = `session-${id}.cast`;

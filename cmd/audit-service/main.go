@@ -79,7 +79,8 @@ func main() {
 	// Initialize PAM analytics service
 	pamAnalyticsRepo := pamanalytics.NewRepository(db.DB, logger)
 	pamAnomalyRepo := pamanalytics.NewAnomalyRepository(db.DB, logger)
-	pamAnalyticsSvc := pamanalytics.NewService(pamAnalyticsRepo, pamAnomalyRepo, redisCache, logger)
+	pamReportRepo := pamanalytics.NewReportRepository(db.DB, logger)
+	pamAnalyticsSvc := pamanalytics.NewService(pamAnalyticsRepo, pamAnomalyRepo, pamReportRepo, redisCache, logger)
 
 	// Setup router
 	router := setupRouter(config, db, redisCache, auditSvc, analyticsSvc, pamAnalyticsSvc, logger)

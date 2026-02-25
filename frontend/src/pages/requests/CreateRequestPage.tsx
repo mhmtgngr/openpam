@@ -68,7 +68,7 @@ export const CreateRequestPage: React.FC = () => {
     mutationFn: requestsApi.create,
     onSuccess: (data) => {
       toast.success('Access request created successfully');
-      navigate(`/requests/${data.data.id}`);
+      navigate(`/requests/${data.id}`);
     },
   });
 
