@@ -296,10 +296,10 @@ test.describe('Reports Page', () => {
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible();
 
     // Check status summary cards
-    await expect(page.getByText('Total Reports').toBeVisible());
-    await expect(page.getByText('Completed').toBeVisible();
-    await expect(page.getByText('In Progress').toBeVisible();
-    await expect(page.getByText('Failed').toBeVisible();
+    await expect(page.getByText('Total Reports')).toBeVisible();
+    await expect(page.getByText('Completed')).toBeVisible();
+    await expect(page.getByText('In Progress')).toBeVisible();
+    await expect(page.getByText('Failed')).toBeVisible();
 
     // Check that reports are displayed
     await expect(page.getByText('SOC 2 Compliance Report')).toBeVisible();
