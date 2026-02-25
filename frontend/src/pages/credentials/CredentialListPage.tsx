@@ -45,7 +45,7 @@ export const CredentialListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['credentials', { search, type: typeFilter, status: statusFilter, offset, limit }],
     queryFn: () =>
-      credentialsApi.list({ search, type: typeFilter, status: statusFilter, offset, limit }).then((res) => res.data),
+      credentialsApi.list({ search, type: typeFilter, status: statusFilter, offset, limit }),
   });
 
   const rotateMutation = useMutation({

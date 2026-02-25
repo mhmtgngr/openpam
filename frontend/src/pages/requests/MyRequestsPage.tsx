@@ -37,7 +37,7 @@ export const MyRequestsPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['my-requests', { status: statusFilter, offset, limit }],
     queryFn: () =>
-      requestsApi.myRequests({ status: statusFilter, offset, limit }).then((res) => res.data),
+      requestsApi.myRequests({ status: statusFilter, offset, limit }),
   });
 
   const cancelMutation = useMutation({

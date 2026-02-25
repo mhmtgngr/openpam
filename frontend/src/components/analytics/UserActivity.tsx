@@ -204,7 +204,11 @@ const ActivityRow: React.FC<ActivityRowProps> = ({ activity, expanded, onToggle 
                 <div>
                   <h4 className="mb-2 text-sm font-medium text-gray-300">Activity Heatmap (Last 14 Days)</h4>
                   <ActivityHeatmap
-                    data={activity.activity_heatmap}
+                    data={activity.activity_heatmap.map((h) => ({
+                      date: h.day,
+                      hour: h.hour,
+                      session_count: h.count,
+                    }))}
                     startDate={subDays(new Date(), 14)}
                     endDate={new Date()}
                   />
@@ -235,7 +239,7 @@ export const UserActivity: React.FC = () => {
         limit,
         offset,
         include_heatmap: true,
-      }).then((res) => res.data),
+      }),
   });
 
   const totalUsers = data?.pagination?.total || 0;

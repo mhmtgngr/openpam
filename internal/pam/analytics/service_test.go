@@ -19,8 +19,10 @@ func TestNewService(t *testing.T) {
 	t.Run("creates service with valid inputs", func(t *testing.T) {
 		logger := zerolog.Nop()
 		repo := &Repository{}
+		anomalyRepo := &AnomalyRepository{}
+		reportRepo := &ReportRepository{}
 
-		service := NewService(repo, nil, nil, logger)
+		service := NewService(repo, anomalyRepo, reportRepo, nil, logger)
 
 		assert.NotNil(t, service)
 		assert.NotNil(t, service.logger)
@@ -30,8 +32,10 @@ func TestNewService(t *testing.T) {
 	t.Run("service initializes with workers not running", func(t *testing.T) {
 		logger := zerolog.Nop()
 		repo := &Repository{}
+		anomalyRepo := &AnomalyRepository{}
+		reportRepo := &ReportRepository{}
 
-		service := NewService(repo, nil, nil, logger)
+		service := NewService(repo, anomalyRepo, reportRepo, nil, logger)
 
 		assert.False(t, service.aggregationWorkerRunning)
 		assert.False(t, service.alertEvaluatorRunning)

@@ -329,20 +329,23 @@ func TestReportGenerator_ReportSnapshotStructure(t *testing.T) {
 		reportID := uuid.New()
 		tenantID := uuid.New()
 		fileSize := int64(2048)
-		generatedAt := time.Now()
+		generatedBy := uuid.New()
+		format := "pdf"
 
 		snapshot := ReportSnapshot{
 			ID:            uuid.New(),
 			ReportID:      reportID,
 			TenantID:      tenantID,
-			Status:        "completed",
+			Status:        ReportSnapshotStatusCompleted,
 			FileSizeBytes: &fileSize,
-			GeneratedAt:   &generatedAt,
+			GeneratedAt:   time.Now(),
+			GeneratedBy:   generatedBy,
+			FileFormat:    &format,
 		}
 
 		assert.Equal(t, reportID, snapshot.ReportID)
 		assert.Equal(t, tenantID, snapshot.TenantID)
-		assert.Equal(t, "completed", snapshot.Status)
+		assert.Equal(t, ReportSnapshotStatusCompleted, snapshot.Status)
 		assert.Equal(t, int64(2048), *snapshot.FileSizeBytes)
 	})
 }

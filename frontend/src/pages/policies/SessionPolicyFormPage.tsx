@@ -33,7 +33,7 @@ export const SessionPolicyFormPage: React.FC = () => {
   // Fetch existing policy for editing
   const { data: existingPolicy, isLoading: isLoadingPolicy } = useQuery({
     queryKey: ['sessionPolicy', id],
-    queryFn: () => policiesApi.session.get(id!).then((res) => res.data),
+    queryFn: () => policiesApi.session.get(id!),
     enabled: isEditing,
   });
 

@@ -22,13 +22,13 @@ export const RequestDetailPage: React.FC = () => {
   // Fetch request details
   const { data: request, isLoading } = useQuery({
     queryKey: ['request', id],
-    queryFn: () => requestsApi.get(id!).then((res) => res.data),
+    queryFn: () => requestsApi.get(id!),
   });
 
   // Fetch users for delegation
   const { data: users } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list({ limit: 100 }).then((res) => res.data),
+    queryFn: () => usersApi.list({ limit: 100 }),
   });
 
   // Approve mutation

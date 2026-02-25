@@ -49,14 +49,14 @@ export const RoleFormPage: React.FC = () => {
   // Fetch existing role for editing
   const { data: existingRole, isLoading: isLoadingRole } = useQuery({
     queryKey: ['role', id],
-    queryFn: () => rolesApi.get(id!).then((res) => res.data),
+    queryFn: () => rolesApi.get(id!),
     enabled: isEditing,
   });
 
   // Fetch all available permissions
   const { data: allPermissions, isLoading: isLoadingPermissions } = useQuery({
     queryKey: ['permissions'],
-    queryFn: () => rolesApi.listPermissions().then((res) => res.data),
+    queryFn: () => rolesApi.listPermissions(),
   });
 
   // Populate form when editing

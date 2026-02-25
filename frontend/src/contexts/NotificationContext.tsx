@@ -33,8 +33,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
     setIsLoading(true);
     try {
       const response = await api.get<{ data: Notification[] }>('/notifications');
-      setNotifications(response.data.data);
-      setUnreadCount(response.data.data.filter((n) => !n.read).length);
+      setNotifications(response.data);
+      setUnreadCount(response.data.filter((n) => !n.read).length);
     } catch {
       // Handle error silently
     } finally {

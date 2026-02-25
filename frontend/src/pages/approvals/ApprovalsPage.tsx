@@ -18,7 +18,7 @@ export const ApprovalsPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['pending-approvals'],
     queryFn: () =>
-      requestsApi.pendingApprovals().then((res) => res.data),
+      requestsApi.pendingApprovals(),
     refetchInterval: 30000, // Poll every 30 seconds
   });
 

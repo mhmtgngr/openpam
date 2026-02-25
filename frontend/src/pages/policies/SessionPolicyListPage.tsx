@@ -14,7 +14,7 @@ export const SessionPolicyListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['sessionPolicies', { search }],
     queryFn: () =>
-      policiesApi.session.list({ search }).then((res) => res.data),
+      policiesApi.session.list({ search }),
   });
 
   const setDefaultMutation = useMutation({

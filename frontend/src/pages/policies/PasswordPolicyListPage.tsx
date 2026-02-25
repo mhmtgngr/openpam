@@ -14,7 +14,7 @@ export const PasswordPolicyListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['passwordPolicies', { search }],
     queryFn: () =>
-      policiesApi.password.list({ search }).then((res) => res.data),
+      policiesApi.password.list({ search }),
   });
 
   const setDefaultMutation = useMutation({

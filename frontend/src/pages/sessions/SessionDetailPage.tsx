@@ -28,7 +28,7 @@ export const SessionDetailPage: React.FC = () => {
   // Fetch session details
   const { data: session, isLoading } = useQuery({
     queryKey: ['session', id],
-    queryFn: () => sessionsApi.get(id!).then((res) => res.data),
+    queryFn: () => sessionsApi.get(id!),
     refetchInterval: (query) => {
       // Refetch every 5 seconds if session is active
       const session = query.state.data as Session | undefined;
@@ -40,7 +40,7 @@ export const SessionDetailPage: React.FC = () => {
   const { data: events } = useQuery({
     queryKey: ['session', id, 'events'],
     queryFn: () =>
-      sessionsApi.getEvents(id!, { limit: 100 }).then((res) => res.data),
+      sessionsApi.getEvents(id!, { limit: 100 }),
     enabled: !!id,
   });
 

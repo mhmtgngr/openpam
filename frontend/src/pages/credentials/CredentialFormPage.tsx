@@ -105,26 +105,26 @@ export const CredentialFormPage: React.FC = () => {
   // Fetch existing credential for editing
   const { data: existingCredential, isLoading: isLoadingCredential } = useQuery({
     queryKey: ['credential', id],
-    queryFn: () => credentialsApi.get(id!).then((res) => res.data),
+    queryFn: () => credentialsApi.get(id!),
     enabled: isEditing,
   });
 
   // Fetch targets
   const { data: targets } = useQuery({
     queryKey: ['targets'],
-    queryFn: () => targetsApi.list({ limit: 100 }).then((res) => res.data),
+    queryFn: () => targetsApi.list({ limit: 100 }),
   });
 
   // Fetch folders
   const { data: folders } = useQuery({
     queryKey: ['folders', 'credentials'],
-    queryFn: () => foldersApi.list('credentials').then((res) => res.data),
+    queryFn: () => foldersApi.list('credentials'),
   });
 
   // Fetch users for approvers
   const { data: users } = useQuery({
     queryKey: ['users'],
-    queryFn: () => usersApi.list({ limit: 100 }).then((res) => res.data),
+    queryFn: () => usersApi.list({ limit: 100 }),
   });
 
   // Populate form when editing
@@ -161,7 +161,7 @@ export const CredentialFormPage: React.FC = () => {
     onSuccess: (data) => {
       toast.success('Credential created successfully');
       queryClient.invalidateQueries({ queryKey: ['credentials'] });
-      navigate(`/credentials/${data.data.id}`);
+      navigate(`/credentials/${data.id}`);
     },
   });
 

@@ -23,9 +23,9 @@ export const MFASetup: React.FC<MFASetupProps> = ({ onComplete, onCancel }) => {
     setIsLoading(true);
     try {
       const response = await authApi.setupTOTP();
-      setQrCodeUrl(response.data.qr_code_url);
-      setSecret(response.data.secret);
-      setBackupCodes(response.data.backup_codes);
+      setQrCodeUrl(response.qr_code_url);
+      setSecret(response.secret);
+      setBackupCodes(response.backup_codes);
       setStep('verify');
     } catch {
       // Error handled by interceptor

@@ -64,7 +64,7 @@ export const AccessPolicyFormPage: React.FC = () => {
   // Fetch existing policy for editing
   const { data: existingPolicy, isLoading: isLoadingPolicy } = useQuery({
     queryKey: ['accessPolicy', id],
-    queryFn: () => policiesApi.access.get(id!).then((res) => res.data),
+    queryFn: () => policiesApi.access.get(id!),
     enabled: isEditing,
   });
 
@@ -86,8 +86,7 @@ export const AccessPolicyFormPage: React.FC = () => {
   // Validate mutation
   const validateMutation = useMutation({
     mutationFn: (data: CreateAccessPolicyData) => policiesApi.access.validate(data),
-    onSuccess: (response) => {
-      const result = response.data;
+    onSuccess: (result) => {
       if (result.valid) {
         setValidationErrors([]);
         if (isEditing) {

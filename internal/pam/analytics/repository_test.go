@@ -747,15 +747,17 @@ func TestRepository_UpdateAlertRequestStructure(t *testing.T) {
 // TestRepository_GenerateReportRequestStructure tests generate report request structure
 func TestRepository_GenerateReportRequestStructure(t *testing.T) {
 	t.Run("creates valid generate report request", func(t *testing.T) {
+		reportID := uuid.New()
 		req := &GenerateReportRequest{
-			StartDate: time.Now().Add(-7 * 24 * time.Hour),
-			EndDate:   time.Now(),
-			Format:    "pdf",
+			ReportID:   reportID,
+			PeriodStart: time.Now().Add(-7 * 24 * time.Hour),
+			PeriodEnd:   time.Now(),
+			Format:      ReportFormatPDF,
 		}
 
-		assert.Equal(t, "pdf", req.Format)
-		assert.False(t, req.StartDate.IsZero())
-		assert.False(t, req.EndDate.IsZero())
+		assert.Equal(t, ReportFormatPDF, req.Format)
+		assert.False(t, req.PeriodStart.IsZero())
+		assert.False(t, req.PeriodEnd.IsZero())
 	})
 }
 

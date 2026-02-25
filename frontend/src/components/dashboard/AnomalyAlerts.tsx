@@ -43,7 +43,7 @@ export const AnomalyAlerts: React.FC<AnomalyAlertsProps> = ({
         if (limit) params.limit = String(limit);
 
         const response = await analyticsApi.listAnomalies(params);
-        setAnomalies(response.data?.data || []);
+        setAnomalies((response as { data?: typeof anomalies }).data || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load anomalies');
       } finally {

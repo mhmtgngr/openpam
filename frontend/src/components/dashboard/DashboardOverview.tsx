@@ -42,7 +42,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         if (dateTo) params.end_date = dateTo;
 
         const response = await analyticsApi.getDashboard(params);
-        setData(response.data);
+        setData(response);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load dashboard metrics');
       } finally {

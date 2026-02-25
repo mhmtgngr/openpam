@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       const response = await authApi.me();
-      setUser(response.data);
+      setUser(response);
     } catch {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateMfaDevices = useCallback(async () => {
     try {
       const response = await authApi.listMFADevices();
-      setMfaDevices(response.data.devices);
+      setMfaDevices(response.devices);
     } catch {
       // Handle error silently
     }
@@ -65,14 +65,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authApi.login(email, password, mfaCode);
 
-      if (response.data.mfa_required && !mfaCode) {
+      if (response.mfa_required && !mfaCode) {
         setMfaRequired(true);
         return;
       }
 
-      localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('refresh_token', response.data.refresh_token);
-      setUser(response.data.user);
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('refresh_token', response.refresh_token);
+      setUser(response.user);
       setMfaRequired(false);
 
       const redirectTo = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';

@@ -77,24 +77,24 @@ const QuickStat: React.FC<QuickStatProps> = ({ title, value, change, icon: Icon,
 const OverviewTab: React.FC = () => {
   const { data: trends, isLoading } = useQuery({
     queryKey: ['dashboardTrends'],
-    queryFn: () => analyticsApi.getDashboardTrends('week').then((res) => res.data),
+    queryFn: () => analyticsApi.getDashboardTrends('week'),
   });
 
   const { data: realtime } = useQuery({
     queryKey: ['realtimeStats'],
-    queryFn: () => analyticsApi.getRealtimeStats().then((res) => res.data),
+    queryFn: () => analyticsApi.getRealtimeStats(),
     refetchInterval: 30 * 1000, // Refresh every 30 seconds
   });
 
   const { data: anomalySummary } = useQuery({
     queryKey: ['anomalySummary'],
-    queryFn: () => complianceApi.getAnomalySummary().then((res) => res.data),
+    queryFn: () => complianceApi.getAnomalySummary(),
     refetchInterval: 5 * 60 * 1000,
   });
 
   const { data: commandSummary } = useQuery({
     queryKey: ['commandRiskSummary'],
-    queryFn: () => analyticsApi.getCommandRiskSummary().then((res) => res.data),
+    queryFn: () => analyticsApi.getCommandRiskSummary(),
     refetchInterval: 5 * 60 * 1000,
   });
 

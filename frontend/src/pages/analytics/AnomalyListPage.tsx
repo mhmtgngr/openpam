@@ -112,14 +112,14 @@ export const AnomalyListPage: React.FC = () => {
     retry: 2,
   });
 
-  const summaryData = summary?.data;
+  const summaryData = summary;
 
   // Bulk update mutation
   const bulkUpdateMutation = useMutation({
     mutationFn: (data: { ids: string[]; status: string; notes?: string }) =>
       anomalyApi.bulkUpdate(data.ids, { status: data.status as any, resolution_notes: data.notes }),
     onSuccess: (response) => {
-      toast.success(`Updated ${response.data.updated} anomalies`);
+      toast.success(`Updated ${response.updated} anomalies`);
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['anomalies'] });
       queryClient.invalidateQueries({ queryKey: ['anomalySummary'] });
@@ -134,9 +134,9 @@ export const AnomalyListPage: React.FC = () => {
     mutationFn: (format: 'csv' | 'json') =>
       anomalyApi.export({ ...apiParams, format }),
     onSuccess: (response) => {
-      toast.success(`Export ready: ${response.data.download_url}`);
+      toast.success(`Export ready: ${response.download_url}`);
       // Optionally trigger download
-      window.open(response.data.download_url, '_blank');
+      window.open(response.download_url, '_blank');
     },
     onError: () => {
       toast.error('Failed to export anomalies');
@@ -165,7 +165,7 @@ export const AnomalyListPage: React.FC = () => {
 
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
-      setSelectedIds(new Set(anomaliesResponse?.data?.data?.map((a: AnomalyDetection) => a.id) || []));
+      setSelectedIds(new Set(anomaliesResponse?.data?.map((a: AnomalyDetection) => a.id) || []));
     } else {
       setSelectedIds(new Set());
     }
@@ -196,9 +196,9 @@ export const AnomalyListPage: React.FC = () => {
     exportMutation.mutate(format);
   };
 
-  const anomalies = anomaliesResponse?.data?.data || [];
-  const total = anomaliesResponse?.data?.pagination?.total || 0;
-  const hasMore = anomaliesResponse?.data?.pagination?.has_more || false;
+  const anomalies = anomaliesResponse?.data || [];
+  const total = anomaliesResponse?.pagination?.total || 0;
+  const hasMore = anomaliesResponse?.pagination?.has_more || false;
 
   // Show error state if API failed
   const hasError = (anomaliesResponse as any)?.error || summaryError;

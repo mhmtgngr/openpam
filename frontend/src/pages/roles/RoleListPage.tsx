@@ -22,7 +22,7 @@ export const RoleListPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['roles', { search, offset, limit }],
     queryFn: () =>
-      rolesApi.list({ search, offset, limit }).then((res) => res.data),
+      rolesApi.list({ search, offset, limit }),
   });
 
   const deleteMutation = useMutation({

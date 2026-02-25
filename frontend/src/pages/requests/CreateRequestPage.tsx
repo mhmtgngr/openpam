@@ -49,14 +49,14 @@ export const CreateRequestPage: React.FC = () => {
   // Fetch targets
   const { data: targets } = useQuery({
     queryKey: ['targets'],
-    queryFn: () => targetsApi.list({ limit: 100, status: 'online' }).then((res) => res.data),
+    queryFn: () => targetsApi.list({ limit: 100, status: 'online' }),
   });
 
   // Fetch credentials for selected target
   const { data: credentials } = useQuery({
     queryKey: ['credentials', formData.target_id],
     queryFn: () =>
-      credentialsApi.list({ target_id: formData.target_id, limit: 50 }).then((res) => res.data),
+      credentialsApi.list({ target_id: formData.target_id, limit: 50 }),
     enabled: !!formData.target_id,
   });
 

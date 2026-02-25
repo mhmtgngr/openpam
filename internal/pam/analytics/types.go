@@ -216,31 +216,6 @@ type Report struct {
 	DeletedAt *time.Time `db:"deleted_at" json:"deleted_at,omitempty"`
 }
 
-// ReportSnapshot represents a generated report snapshot
-type ReportSnapshot struct {
-	ID           uuid.UUID  `db:"id" json:"id"`
-	ReportID     uuid.UUID  `db:"report_id" json:"report_id"`
-	TenantID     uuid.UUID  `db:"tenant_id" json:"tenant_id"`
-	PeriodStart  time.Time  `db:"period_start" json:"period_start"`
-	PeriodEnd    time.Time  `db:"period_end" json:"period_end"`
-
-	// Report data
-	Data    json.RawMessage `db:"data" json:"data"`
-	Summary json.RawMessage `db:"summary" json:"summary,omitempty"`
-
-	// File storage
-	FileURL       *string `db:"file_url" json:"file_url,omitempty"`
-	FileFormat    *string `db:"file_format" json:"file_format,omitempty"`
-	FileSizeBytes *int64  `db:"file_size_bytes" json:"file_size_bytes,omitempty"`
-
-	// Status
-	Status        string     `db:"status" json:"status"` // pending, generating, completed, failed
-	GeneratedAt   *time.Time `db:"generated_at" json:"generated_at,omitempty"`
-	ErrorMessage  *string    `db:"error_message" json:"error_message,omitempty"`
-
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-}
-
 // Dashboard represents an analytics dashboard
 type Dashboard struct {
 	ID          uuid.UUID  `db:"id" json:"id"`
@@ -683,13 +658,6 @@ type UpdateAlertRequest struct {
 	Tags                       json.RawMessage `json:"tags"`
 }
 
-// GenerateReportRequest represents a request to generate a report
-type GenerateReportRequest struct {
-	StartDate time.Time `json:"start_date" binding:"required"`
-	EndDate   time.Time `json:"end_date" binding:"required"`
-	Format    string    `json:"format" binding:"omitempty,oneof=pdf csv xlsx json"`
-}
-
 // WidgetDataResponse represents widget data response
 type WidgetDataResponse struct {
 	WidgetID   uuid.UUID          `json:"widget_id"`
@@ -1119,6 +1087,24 @@ type ExceptionApprovalRequest struct {
 	Status    ExceptionStatus `json:"status" binding:"required,oneof=approved denied"`
 	ExpiresAt *time.Time      `json:"expires_at"`
 	Notes     string          `json:"notes"`
+}
+
+// ComplianceExceptionResponse represents a compliance exception response
+type ComplianceExceptionResponse struct {
+	ID               uuid.UUID  `json:"id"`
+	TenantID         uuid.UUID  `json:"tenant_id"`
+	ControlID        string     `json:"control_id"`
+	ControlName      string     `json:"control_name"`
+	Framework        string     `json:"framework"`
+	Status           string     `json:"status"`
+	RiskLevel        string     `json:"risk_level"`
+	RequestedBy      uuid.UUID  `json:"requested_by"`
+	RequestedAt      time.Time  `json:"requested_at"`
+	ApprovedBy       *uuid.UUID `json:"approved_by,omitempty"`
+	ApprovedAt       *time.Time `json:"approved_at,omitempty"`
+	Justification    string     `json:"justification"`
+	BusinessReason   string     `json:"business_reason,omitempty"`
+	ReviewDate       *time.Time `json:"review_date,omitempty"`
 }
 
 // ReportScheduleRequest represents a request to create/update a report schedule

@@ -149,7 +149,7 @@ export const AnomalyDetailPage: React.FC = () => {
     enabled: !!id,
   });
 
-  const anomaly = anomalyResponse?.data;
+  const anomaly = anomalyResponse;
 
   // Update form state when anomaly data changes
   useEffect(() => {
@@ -242,7 +242,7 @@ export const AnomalyDetailPage: React.FC = () => {
     );
   }
 
-  const severityInfo = severityConfig[anomaly.severity];
+  const severityInfo = severityConfig[anomaly.severity as AnomalySeverity];
   const StatusIcon = statusConfig[anomaly.status].icon;
   const SeverityIcon = severityInfo.icon;
 
@@ -373,7 +373,7 @@ export const AnomalyDetailPage: React.FC = () => {
             <Card>
               <CardHeader title="Detection Indicators" />
               <div className="card-body space-y-3">
-                {anomaly.indicators.map((indicator, idx) => (
+                {anomaly.indicators.map((indicator, idx: number) => (
                   <IndicatorCard key={idx} indicator={indicator} />
                 ))}
               </div>

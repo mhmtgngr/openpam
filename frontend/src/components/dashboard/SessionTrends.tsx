@@ -33,7 +33,7 @@ export const SessionTrends: React.FC<SessionTrendsProps> = ({
         if (dateTo) params.to = dateTo;
 
         const response = await analyticsApi.getTimeSeries(params);
-        setData(response.data || []);
+        setData(response || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load trends');
       } finally {

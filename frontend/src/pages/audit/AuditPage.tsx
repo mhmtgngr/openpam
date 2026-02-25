@@ -38,13 +38,13 @@ export const AuditPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['audit', { search, outcome: outcomeFilter, resource_type: resourceFilter, offset, limit }],
     queryFn: () =>
-      auditApi.list({ search, outcome: outcomeFilter, resource_type: resourceFilter, offset, limit }).then((res) => res.data),
+      auditApi.list({ search, outcome: outcomeFilter, resource_type: resourceFilter, offset, limit }),
   });
 
   const handleExport = async () => {
     try {
       const response = await auditApi.export({ search, outcome: outcomeFilter, resource_type: resourceFilter, format: 'csv' });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const url = window.URL.createObjectURL(new Blob([response as unknown as ArrayBuffer]));
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `audit-log-${format(new Date(), 'yyyy-MM-dd')}.csv`);

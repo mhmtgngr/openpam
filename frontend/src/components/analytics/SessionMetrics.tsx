@@ -134,7 +134,7 @@ export const SessionMetrics: React.FC = () => {
         start_date: startDate.toISOString(),
         end_date: endDate.toISOString(),
         granularity,
-      }).then((res) => res.data),
+      }),
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
 
@@ -166,7 +166,7 @@ export const SessionMetrics: React.FC = () => {
     );
   }
 
-  const timeSeriesData = data.sessions_over_time.map((d) => ({
+  const timeSeriesData = data.sessions_over_time.map((d: { timestamp: string; count: number }) => ({
     timestamp: d.timestamp,
     value: d.count,
   }));
@@ -265,7 +265,7 @@ export const SessionMetrics: React.FC = () => {
                       {type}
                     </Badge>
                   </span>
-                  <span className="text-sm font-medium text-white">{count}</span>
+                  <span className="text-sm font-medium text-white">{count as number}</span>
                 </div>
               ))}
               {Object.keys(data.sessions_by_type).length === 0 && (
@@ -289,11 +289,11 @@ export const SessionMetrics: React.FC = () => {
                 return (
                   <div key={env} className="flex items-center justify-between">
                     <span className="flex items-center gap-2 text-sm text-gray-400">
-                      <Badge variant={envColors[env] as any} className="text-xs">
+                      <Badge variant={(envColors[env] as 'danger' | 'warning' | 'success' | 'neutral') || 'neutral'} className="text-xs">
                         {env}
                       </Badge>
                     </span>
-                    <span className="text-sm font-medium text-white">{count}</span>
+                    <span className="text-sm font-medium text-white">{count as number}</span>
                   </div>
                 );
               })}
@@ -344,7 +344,7 @@ export const SessionMetrics: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {data.sessions_over_time.slice(0, 10).map((entry, idx) => (
+                {data.sessions_over_time.slice(0, 10).map((entry: { timestamp: string; count: number; duration_seconds: number }, idx: number) => (
                   <tr key={idx}>
                     <td className="py-3 text-white">
                       {format(new Date(entry.timestamp), 'MMM d, HH:mm')}

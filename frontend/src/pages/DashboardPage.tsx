@@ -19,19 +19,19 @@ export const DashboardPage: React.FC = () => {
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard', 'stats'],
-    queryFn: () => dashboardApi.getStats().then((res) => res.data),
+    queryFn: () => dashboardApi.getStats(),
   });
 
   const { data: activity } = useQuery({
     queryKey: ['dashboard', 'activity'],
     queryFn: () =>
-      dashboardApi.getActivity({ limit: 10 }).then((res) => res.data),
+      dashboardApi.getActivity({ limit: 10 }),
   });
 
   const { data: pendingRequests } = useQuery({
     queryKey: ['dashboard', 'pending'],
     queryFn: () =>
-      dashboardApi.getPendingRequests().then((res) => res.data),
+      dashboardApi.getPendingRequests(),
     enabled: ['admin', 'super_admin', 'operator'].includes(user?.role || ''),
   });
 
@@ -140,7 +140,7 @@ export const DashboardPage: React.FC = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Pending Approvals */}
-        {pendingRequests && pendingRequests.data.length > 0 && (
+        {pendingRequests && pendingRequests.data && pendingRequests.data.length > 0 && (
           <Card>
             <CardHeader
               title="Pending Approvals"
@@ -155,7 +155,7 @@ export const DashboardPage: React.FC = () => {
               }
             />
             <div className="divide-y divide-gray-700">
-              {pendingRequests.data.slice(0, 5).map((request: unknown) => {
+              {pendingRequests.data.slice(0, 5).map((request) => {
                 const req = request as { id: string; user?: { first_name: string; last_name: string }; target?: { name: string }; created_at: string };
                 return (
                   <Link
@@ -187,7 +187,7 @@ export const DashboardPage: React.FC = () => {
         <Card>
           <CardHeader title="Recent Activity" />
           <div className="divide-y divide-gray-700">
-            {activity && activity.data.length > 0 ? (
+            {activity && activity.data && activity.data.length > 0 ? (
               activity.data.slice(0, 5).map((item) => (
                 <div key={item.id} className="px-6 py-4">
                   <p className="text-sm text-white">{item.message}</p>

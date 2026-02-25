@@ -32,7 +32,7 @@ export const PasswordPolicyFormPage: React.FC = () => {
   // Fetch existing policy for editing
   const { data: existingPolicy, isLoading: isLoadingPolicy } = useQuery({
     queryKey: ['passwordPolicy', id],
-    queryFn: () => policiesApi.password.get(id!).then((res) => res.data),
+    queryFn: () => policiesApi.password.get(id!),
     enabled: isEditing,
   });
 

@@ -37,7 +37,7 @@ export const ComplianceSummary: React.FC<ComplianceSummaryProps> = ({
       setError(null);
       try {
         const response = await analyticsApi.getComplianceSummary();
-        setSummary(response.data);
+        setSummary(response);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load compliance summary');
       } finally {

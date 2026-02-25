@@ -38,6 +38,7 @@ import (
 type Service struct {
 	repo            *Repository
 	anomalyRepo     *AnomalyRepository
+	reportRepo      *ReportRepository
 	cache           *cache.Cache
 	logger          zerolog.Logger
 
@@ -48,10 +49,11 @@ type Service struct {
 }
 
 // NewService creates a new analytics service
-func NewService(repo *Repository, anomalyRepo *AnomalyRepository, cache *cache.Cache, logger zerolog.Logger) *Service {
+func NewService(repo *Repository, anomalyRepo *AnomalyRepository, reportRepo *ReportRepository, cache *cache.Cache, logger zerolog.Logger) *Service {
 	return &Service{
 		repo:        repo,
 		anomalyRepo: anomalyRepo,
+		reportRepo:  reportRepo,
 		cache:       cache,
 		logger:      logger,
 	}
@@ -357,11 +359,35 @@ func (s *Service) GenerateComplianceReport(ctx context.Context, tenantID, genera
 		return nil, fmt.Errorf("service.GenerateComplianceReport: %w", err)
 	}
 
+	// Marshal report data for storage
+	reportData := mustMarshalJSON(map[string]interface{}{
+		"by_policy": status.ByPolicy,
+		"violations": status.Violations,
+	})
+
+	// Create the database report record
+	dbReport := &ComplianceReport{
+		TenantID:       tenantID,
+		Framework:      framework,
+		Status:         "completed",
+		GeneratedAt:    time.Now(),
+		PeriodStart:    startDate,
+		PeriodEnd:      endDate,
+		OverallScore:   status.OverallPercentage,
+		PassedControls: status.PassedChecks,
+		FailedControls: status.TotalChecks - status.PassedChecks,
+		Data:           reportData,
+	}
+
+	if err := s.reportRepo.CreateComplianceReport(ctx, dbReport); err != nil {
+		return nil, fmt.Errorf("service.GenerateComplianceReport: %w", err)
+	}
+
 	report := &ComplianceReportResponse{
-		ID:              uuid.New(),
+		ID:              dbReport.ID,
 		TenantID:        tenantID,
 		Framework:       framework,
-		GeneratedAt:     time.Now(),
+		GeneratedAt:     dbReport.GeneratedAt,
 		GeneratedBy:     generatedBy,
 		PeriodStart:     startDate,
 		PeriodEnd:       endDate,
@@ -372,9 +398,6 @@ func (s *Service) GenerateComplianceReport(ctx context.Context, tenantID, genera
 		Violations:      status.Violations,
 		Status:          "completed",
 	}
-
-	// Store report
-	// TODO: Add report persistence
 
 	return report, nil
 }
@@ -403,15 +426,94 @@ func (s *Service) GetComplianceSummary(ctx context.Context, tenantID uuid.UUID) 
 }
 
 // ListComplianceReports lists compliance reports for a tenant
-func (s *Service) ListComplianceReports(ctx context.Context, tenantID uuid.UUID, framework string) ([]ComplianceReportResponse, error) {
-	// TODO: Implement report persistence and retrieval
-	return []ComplianceReportResponse{}, nil
+func (s *Service) ListComplianceReports(ctx context.Context, tenantID uuid.UUID, framework string, limit, offset int) ([]ComplianceReportResponse, int, error) {
+	filter := ComplianceReportFilter{
+		TenantID:  tenantID,
+		Framework: framework,
+		Limit:     limit,
+		Offset:    offset,
+	}
+
+	reports, total, err := s.reportRepo.ListComplianceReports(ctx, tenantID, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("service.ListComplianceReports: %w", err)
+	}
+
+	responses := make([]ComplianceReportResponse, len(reports))
+	for i, report := range reports {
+		// Unmarshal report data
+		var byPolicy map[string]CompliancePolicyStatus
+		var violations []ComplianceViolation
+		if len(report.Data) > 0 {
+			var data struct {
+				ByPolicy   map[string]CompliancePolicyStatus `json:"by_policy"`
+				Violations []ComplianceViolation            `json:"violations"`
+			}
+			_ = json.Unmarshal(report.Data, &data)
+			byPolicy = data.ByPolicy
+			violations = data.Violations
+		}
+
+		responses[i] = ComplianceReportResponse{
+			ID:              report.ID,
+			TenantID:        report.TenantID,
+			Framework:       report.Framework,
+			GeneratedAt:     report.GeneratedAt,
+			GeneratedBy:     uuid.Nil, // Not tracked in database
+			PeriodStart:     report.PeriodStart,
+			PeriodEnd:       report.PeriodEnd,
+			OverallScore:    report.OverallScore,
+			PassedControls:  report.PassedControls,
+			FailedControls:  report.FailedControls,
+			ByPolicy:        byPolicy,
+			Violations:      violations,
+			Status:          report.Status,
+		}
+	}
+
+	return responses, total, nil
 }
 
 // GetComplianceReport retrieves a specific compliance report
-func (s *Service) GetComplianceReport(ctx context.Context, id uuid.UUID) (*ComplianceReportResponse, error) {
-	// TODO: Implement report retrieval
-	return nil, fmt.Errorf("not implemented")
+func (s *Service) GetComplianceReport(ctx context.Context, id, tenantID uuid.UUID) (*ComplianceReportResponse, error) {
+	report, err := s.reportRepo.GetComplianceReportByID(ctx, id, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("service.GetComplianceReport: %w", err)
+	}
+
+	// Unmarshal report data
+	var byPolicy map[string]CompliancePolicyStatus
+	var violations []ComplianceViolation
+	if len(report.Data) > 0 {
+		var data struct {
+			ByPolicy   map[string]CompliancePolicyStatus `json:"by_policy"`
+			Violations []ComplianceViolation            `json:"violations"`
+		}
+		_ = json.Unmarshal(report.Data, &data)
+		byPolicy = data.ByPolicy
+		violations = data.Violations
+	}
+
+	return &ComplianceReportResponse{
+		ID:              report.ID,
+		TenantID:        report.TenantID,
+		Framework:       report.Framework,
+		GeneratedAt:     report.GeneratedAt,
+		GeneratedBy:     uuid.Nil, // Not tracked in database
+		PeriodStart:     report.PeriodStart,
+		PeriodEnd:       report.PeriodEnd,
+		OverallScore:    report.OverallScore,
+		PassedControls:  report.PassedControls,
+		FailedControls:  report.FailedControls,
+		ByPolicy:        byPolicy,
+		Violations:      violations,
+		Status:          report.Status,
+	}, nil
+}
+
+// DeleteComplianceReport deletes a compliance report
+func (s *Service) DeleteComplianceReport(ctx context.Context, id, tenantID uuid.UUID) error {
+	return s.reportRepo.DeleteComplianceReport(ctx, id, tenantID)
 }
 
 // CreateComplianceException creates a new compliance exception
@@ -434,32 +536,6 @@ func (s *Service) CreateComplianceException(ctx context.Context, tenantID, creat
 	// TODO: Add exception persistence
 
 	return exception, nil
-}
-
-type CreateComplianceExceptionRequest struct {
-	ControlID      string  `json:"control_id" binding:"required"`
-	ControlName    string  `json:"control_name" binding:"required"`
-	Framework      string  `json:"framework" binding:"required"`
-	RiskLevel      string  `json:"risk_level" binding:"required"`
-	Justification  string  `json:"justification" binding:"required"`
-	BusinessReason string  `json:"business_reason"`
-}
-
-type ComplianceExceptionResponse struct {
-	ID               uuid.UUID  `json:"id"`
-	TenantID         uuid.UUID  `json:"tenant_id"`
-	ControlID        string     `json:"control_id"`
-	ControlName      string     `json:"control_name"`
-	Framework        string     `json:"framework"`
-	Status           string     `json:"status"`
-	RiskLevel        string     `json:"risk_level"`
-	RequestedBy      uuid.UUID  `json:"requested_by"`
-	RequestedAt      time.Time  `json:"requested_at"`
-	ApprovedBy       *uuid.UUID `json:"approved_by,omitempty"`
-	ApprovedAt       *time.Time `json:"approved_at,omitempty"`
-	Justification    string     `json:"justification"`
-	BusinessReason   string     `json:"business_reason,omitempty"`
-	ReviewDate       *time.Time `json:"review_date,omitempty"`
 }
 
 // ListComplianceExceptions lists all compliance exceptions for a tenant
@@ -1383,32 +1459,50 @@ func (s *Service) GenerateReportSnapshot(ctx context.Context, reportID, createdB
 	}
 
 	snapshot := &ReportSnapshot{
-		ReportID:    reportID,
-		TenantID:    report.TenantID,
-		PeriodStart: startDate,
-		PeriodEnd:   endDate,
-		Status:      "pending",
+		ReportID:     reportID,
+		TenantID:     report.TenantID,
+		SnapshotName: report.Name,
+		Framework:    string(report.ReportType),
+		GeneratedAt:  time.Now(),
+		GeneratedBy:  createdBy,
+		PeriodStart:  startDate,
+		PeriodEnd:    endDate,
+		Status:       ReportSnapshotStatusPending,
+		FileFormat:   &format,
 	}
 
-	if err := s.repo.CreateReportSnapshot(ctx, snapshot); err != nil {
+	if err := s.reportRepo.CreateReportSnapshot(ctx, snapshot); err != nil {
 		return nil, err
 	}
 
 	// TODO: Generate report data asynchronously
 	// For now, mark as completed with placeholder data
-	_ = s.repo.UpdateReportSnapshotStatus(ctx, snapshot.ID, "completed", nil, nil, nil)
+	_ = s.reportRepo.UpdateReportSnapshotStatus(ctx, snapshot.ID, report.TenantID, ReportSnapshotStatusCompleted, nil, nil, nil)
 
 	return snapshot, nil
 }
 
-// ListReportSnapshots lists snapshots for a report
-func (s *Service) ListReportSnapshots(ctx context.Context, reportID uuid.UUID, limit, offset int) ([]ReportSnapshot, error) {
-	return s.repo.ListReportSnapshots(ctx, reportID, limit, offset)
+// ListReportSnapshots lists snapshots for a tenant with filters
+func (s *Service) ListReportSnapshots(ctx context.Context, tenantID uuid.UUID, filter ReportSnapshotFilter) ([]ReportSnapshot, int, error) {
+	if filter.Limit == 0 {
+		filter.Limit = 50
+	}
+	return s.reportRepo.ListReportSnapshots(ctx, tenantID, filter)
 }
 
 // GetReportSnapshot retrieves a report snapshot
-func (s *Service) GetReportSnapshot(ctx context.Context, snapshotID uuid.UUID) (*ReportSnapshot, error) {
-	return s.repo.GetReportSnapshot(ctx, snapshotID)
+func (s *Service) GetReportSnapshot(ctx context.Context, snapshotID, tenantID uuid.UUID) (*ReportSnapshot, error) {
+	return s.reportRepo.GetReportSnapshotByID(ctx, snapshotID, tenantID)
+}
+
+// UpdateReportSnapshotStatus updates the status of a report snapshot
+func (s *Service) UpdateReportSnapshotStatus(ctx context.Context, snapshotID, tenantID uuid.UUID, status ReportSnapshotStatus, fileURL *string, fileSizeBytes *int64, errorMsg *string) error {
+	return s.reportRepo.UpdateReportSnapshotStatus(ctx, snapshotID, tenantID, status, fileURL, fileSizeBytes, errorMsg)
+}
+
+// GetReportSnapshotStats retrieves statistics for report snapshots
+func (s *Service) GetReportSnapshotStats(ctx context.Context, tenantID uuid.UUID) (*ReportSnapshotStats, error) {
+	return s.reportRepo.GetReportSnapshotStats(ctx, tenantID)
 }
 
 // Alert Methods
@@ -1681,6 +1775,152 @@ func (s *Service) checkScheduledReports(ctx context.Context) {
 	// TODO: Implement scheduled report checking
 
 	s.logger.Debug().Msg("Scheduled reports check complete")
+}
+
+// =============================================================================
+// Report Generation Job Methods
+// =============================================================================
+
+// CreateReportGenerationJob creates a new report generation job
+func (s *Service) CreateReportGenerationJob(ctx context.Context, tenantID uuid.UUID, jobType string, format string, options json.RawMessage) (*ReportGenerationJob, error) {
+	job := &ReportGenerationJob{
+		TenantID:  tenantID,
+		JobType:   jobType,
+		Format:    format,
+		Status:    ReportJobStatusQueued,
+		Progress:  0,
+		Options:   options,
+		MaxRetries: 3,
+	}
+
+	if err := s.reportRepo.CreateReportGenerationJob(ctx, job); err != nil {
+		return nil, fmt.Errorf("service.CreateReportGenerationJob: %w", err)
+	}
+
+	return job, nil
+}
+
+// GetReportGenerationJob retrieves a report generation job
+func (s *Service) GetReportGenerationJob(ctx context.Context, jobID, tenantID uuid.UUID) (*ReportGenerationJob, error) {
+	return s.reportRepo.GetReportGenerationJobByID(ctx, jobID, tenantID)
+}
+
+// ListReportGenerationJobs lists report generation jobs
+func (s *Service) ListReportGenerationJobs(ctx context.Context, tenantID uuid.UUID, filter ReportJobFilter) ([]ReportGenerationJob, int, error) {
+	if filter.Limit == 0 {
+		filter.Limit = 50
+	}
+	filter.TenantID = tenantID
+	return s.reportRepo.ListReportGenerationJobs(ctx, tenantID, filter)
+}
+
+// UpdateReportGenerationJobStatus updates job status and progress
+func (s *Service) UpdateReportGenerationJobStatus(ctx context.Context, jobID, tenantID uuid.UUID, status ReportJobStatus, progress int, errorMsg *string, snapshotID *uuid.UUID) error {
+	return s.reportRepo.UpdateReportGenerationJobStatus(ctx, jobID, tenantID, status, progress, errorMsg, snapshotID)
+}
+
+// =============================================================================
+// Report Schedule Methods
+// =============================================================================
+
+// CreateReportSchedule creates a new report schedule
+func (s *Service) CreateReportSchedule(ctx context.Context, tenantID, createdBy, ownedBy uuid.UUID, req *ReportScheduleRequest) (*ReportSchedule, error) {
+	schedule := &ReportSchedule{
+		TenantID:            tenantID,
+		ScheduleName:        req.ScheduleName,
+		Framework:           req.Framework,
+		ReportID:            req.ReportID,
+		ScheduleType:        req.ScheduleType,
+		CronExpression:      req.CronExpression,
+		Format:              string(req.Format),
+		Options:             mustMarshalJSON(req.Options),
+		Recipients:          req.Recipients,
+		NotifyOnCompletion:  req.NotifyOnCompletion,
+		NotifyOnFailure:     req.NotifyOnFailure,
+		Status:              ReportScheduleStatusActive,
+		RetentionDays:       req.RetentionDays,
+		CreatedBy:           createdBy,
+		OwnedBy:             ownedBy,
+	}
+
+	// Calculate next run time based on schedule type
+	nextRunAt, err := s.calculateNextRunTime(req.ScheduleType, req.CronExpression)
+	if err != nil {
+		return nil, fmt.Errorf("service.CreateReportSchedule: %w", err)
+	}
+	schedule.NextRunAt = nextRunAt
+
+	if err := s.reportRepo.CreateReportSchedule(ctx, schedule); err != nil {
+		return nil, fmt.Errorf("service.CreateReportSchedule: %w", err)
+	}
+
+	return schedule, nil
+}
+
+// GetReportSchedule retrieves a report schedule
+func (s *Service) GetReportSchedule(ctx context.Context, scheduleID, tenantID uuid.UUID) (*ReportSchedule, error) {
+	return s.reportRepo.GetReportScheduleByID(ctx, scheduleID, tenantID)
+}
+
+// ListReportSchedules lists report schedules
+func (s *Service) ListReportSchedules(ctx context.Context, tenantID uuid.UUID, filter ReportScheduleFilter) ([]ReportSchedule, int, error) {
+	if filter.Limit == 0 {
+		filter.Limit = 50
+	}
+	filter.TenantID = tenantID
+	return s.reportRepo.ListReportSchedules(ctx, tenantID, filter)
+}
+
+// UpdateReportSchedule updates a report schedule
+func (s *Service) UpdateReportSchedule(ctx context.Context, scheduleID, tenantID uuid.UUID, req *ReportScheduleRequest) error {
+	schedule, err := s.reportRepo.GetReportScheduleByID(ctx, scheduleID, tenantID)
+	if err != nil {
+		return fmt.Errorf("service.UpdateReportSchedule: %w", err)
+	}
+
+	schedule.ScheduleName = req.ScheduleName
+	schedule.Framework = req.Framework
+	schedule.ReportID = req.ReportID
+	schedule.ScheduleType = req.ScheduleType
+	schedule.CronExpression = req.CronExpression
+	schedule.Format = string(req.Format)
+	schedule.Options = mustMarshalJSON(req.Options)
+	schedule.Recipients = req.Recipients
+	schedule.NotifyOnCompletion = req.NotifyOnCompletion
+	schedule.NotifyOnFailure = req.NotifyOnFailure
+	schedule.RetentionDays = req.RetentionDays
+
+	if err := s.reportRepo.UpdateReportSchedule(ctx, schedule); err != nil {
+		return fmt.Errorf("service.UpdateReportSchedule: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteReportSchedule deletes a report schedule
+func (s *Service) DeleteReportSchedule(ctx context.Context, scheduleID, tenantID uuid.UUID) error {
+	return s.reportRepo.DeleteReportSchedule(ctx, scheduleID, tenantID)
+}
+
+// calculateNextRunTime calculates the next run time based on schedule type
+func (s *Service) calculateNextRunTime(scheduleType ReportScheduleType, cronExpression *string) (time.Time, error) {
+	now := time.Now()
+
+	switch scheduleType {
+	case ReportScheduleDaily:
+		return now.Add(24 * time.Hour).Truncate(24 * time.Hour), nil
+	case ReportScheduleWeekly:
+		return now.Add(7 * 24 * time.Hour).Truncate(24 * time.Hour), nil
+	case ReportScheduleMonthly:
+		return now.AddDate(0, 1, 0).Truncate(24 * time.Hour), nil
+	case ReportScheduleQuarterly:
+		return now.AddDate(0, 3, 0).Truncate(24 * time.Hour), nil
+	case ReportScheduleYearly:
+		return now.AddDate(1, 0, 0).Truncate(24 * time.Hour), nil
+	default:
+		// Default to daily
+		return now.Add(24 * time.Hour).Truncate(24 * time.Hour), nil
+	}
 }
 
 // Helper functions

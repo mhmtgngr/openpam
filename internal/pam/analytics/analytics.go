@@ -27,7 +27,8 @@ import (
 func InitService(db *sqlx.DB, cache *cache.Cache, logger zerolog.Logger) (*Service, *AggregationWorker, *AlertEvaluator, *ReportScheduler) {
 	repo := NewRepository(db, logger)
 	anomalyRepo := NewAnomalyRepository(db, logger)
-	service := NewService(repo, anomalyRepo, cache, logger)
+	reportRepo := NewReportRepository(db, logger)
+	service := NewService(repo, anomalyRepo, reportRepo, cache, logger)
 
 	// Initialize background workers
 	aggregationWorker := NewAggregationWorker(repo, cache, logger)

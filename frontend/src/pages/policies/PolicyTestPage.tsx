@@ -63,7 +63,7 @@ export const PolicyTestPage: React.FC = () => {
   // Fetch policy for testing
   const { data: policy, isLoading: isLoadingPolicy } = useQuery({
     queryKey: ['accessPolicy', policyId],
-    queryFn: () => policiesApi.access.get(policyId).then((res) => res.data),
+    queryFn: () => policiesApi.access.get(policyId),
     enabled: !!policyId,
   });
 
@@ -77,8 +77,7 @@ export const PolicyTestPage: React.FC = () => {
   const testMutation = useMutation({
     mutationFn: (data: { policy: AccessPolicy; test_scenarios: TestScenario[] }) =>
       policiesApi.access.test(data),
-    onSuccess: (response) => {
-      const results = response.data;
+    onSuccess: (results) => {
       setTestResults(
         results.map((result: any, index: number) => ({
           scenario_name: testScenarios[index]?.name || `Scenario ${index + 1}`,
@@ -103,8 +102,7 @@ export const PolicyTestPage: React.FC = () => {
     };
 
     try {
-      const response = await policiesApi.access.evaluate(request);
-      const result = response.data;
+      const result = await policiesApi.access.evaluate(request);
 
       setTestResults((prev) => {
         const newResults = [...prev];

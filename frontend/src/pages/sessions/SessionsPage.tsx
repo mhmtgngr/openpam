@@ -44,7 +44,7 @@ export const SessionsPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['sessions', { search, status: statusFilter, type: typeFilter, offset, limit }],
     queryFn: () =>
-      sessionsApi.list({ search, status: statusFilter, type: typeFilter, offset, limit }).then((res) => res.data),
+      sessionsApi.list({ search, status: statusFilter, type: typeFilter, offset, limit }),
     refetchInterval: (query) => {
       // Refetch more frequently when there are active sessions
       const hasActive = query.state.data?.data?.some((s: Session) => s.status === 'active');

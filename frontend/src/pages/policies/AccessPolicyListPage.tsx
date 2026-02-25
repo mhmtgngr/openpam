@@ -34,7 +34,7 @@ export const AccessPolicyListPage: React.FC = () => {
     queryFn: () =>
       policiesApi.access
         .list({ search, status: statusFilter === 'all' ? undefined : statusFilter })
-        .then((res) => res.data),
+        ,
   });
 
   const activateMutation = useMutation({
