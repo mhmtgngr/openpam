@@ -113,6 +113,9 @@ func (c *PolicyCache) DeletePolicy(ctx context.Context, id uuid.UUID) error {
 
 // GetPolicyList retrieves a policy list from cache
 func (c *PolicyCache) GetPolicyList(ctx context.Context, tenantID uuid.UUID, filterKey string) ([]Policy, int, error) {
+	if c.cache == nil {
+		return nil, 0, errors.New("cache: not available")
+	}
 	key := c.policyListKey(tenantID, filterKey)
 
 	var cached struct {
@@ -130,6 +133,9 @@ func (c *PolicyCache) GetPolicyList(ctx context.Context, tenantID uuid.UUID, fil
 
 // SetPolicyList stores a policy list in cache
 func (c *PolicyCache) SetPolicyList(ctx context.Context, tenantID uuid.UUID, filterKey string, policies []Policy, total int, ttl time.Duration) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	key := c.policyListKey(tenantID, filterKey)
 
 	if ttl == 0 {
@@ -158,6 +164,9 @@ func (c *PolicyCache) InvalidPolicyList(ctx context.Context, tenantID uuid.UUID)
 
 // GetApplicablePolicies retrieves applicable policies from cache
 func (c *PolicyCache) GetApplicablePolicies(ctx context.Context, tenantID, userID uuid.UUID, resourceID uuid.UUID) ([]Policy, error) {
+	if c.cache == nil {
+		return nil, errors.New("cache: not available")
+	}
 	key := c.applicablePoliciesKey(tenantID, userID, resourceID)
 
 	var policies []Policy
@@ -171,6 +180,9 @@ func (c *PolicyCache) GetApplicablePolicies(ctx context.Context, tenantID, userI
 
 // SetApplicablePolicies stores applicable policies in cache
 func (c *PolicyCache) SetApplicablePolicies(ctx context.Context, tenantID, userID uuid.UUID, resourceID uuid.UUID, policies []Policy, ttl time.Duration) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	key := c.applicablePoliciesKey(tenantID, userID, resourceID)
 
 	if ttl == 0 {
@@ -191,6 +203,9 @@ func (c *PolicyCache) InvalidateApplicablePolicies(ctx context.Context, tenantID
 
 // GetEvalResult retrieves an evaluation result from cache
 func (c *PolicyCache) GetEvalResult(ctx context.Context, cacheKey string) (*EvaluationResponse, error) {
+	if c.cache == nil {
+		return nil, errors.New("cache: not available")
+	}
 	key := c.evalKey(cacheKey)
 
 	var result EvaluationResponse
@@ -204,6 +219,9 @@ func (c *PolicyCache) GetEvalResult(ctx context.Context, cacheKey string) (*Eval
 
 // SetEvalResult stores an evaluation result in cache
 func (c *PolicyCache) SetEvalResult(ctx context.Context, cacheKey string, result *EvaluationResponse, ttl time.Duration) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	key := c.evalKey(cacheKey)
 
 	if ttl == 0 {
@@ -215,6 +233,9 @@ func (c *PolicyCache) SetEvalResult(ctx context.Context, cacheKey string, result
 
 // InvalidateTenant removes all policy-related cache entries for a tenant
 func (c *PolicyCache) InvalidateTenant(ctx context.Context, tenantID uuid.UUID) error {
+	if c.cache == nil {
+		return nil // Silently fail if cache not available
+	}
 	// Invalidate all cache keys for this tenant
 	patterns := []string{
 		c.policyListKey(tenantID, "*"),

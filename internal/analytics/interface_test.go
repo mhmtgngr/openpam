@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/openpam/openpam/internal/events"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestAnalyticsService_Interface verifies the interface is properly defined
 func TestAnalyticsService_Interface(t *testing.T) {
 	t.Run("interface is defined", func(t *testing.T) {
 		// This is a compile-time check - the interface should be defined
+		// The following line will cause a compilation error if Service doesn't implement AnalyticsService
 		var _ AnalyticsService = (*Service)(nil)
-		assert.NotNil(t, AnalyticsService(nil))
+		assert.True(t, true, "Service implements AnalyticsService interface")
 	})
 }
 
@@ -181,12 +182,13 @@ func TestAnalyticsService_EventHandlers(t *testing.T) {
 func TestComplianceFramework(t *testing.T) {
 	t.Run("compliance framework types exist", func(t *testing.T) {
 		frameworks := []ComplianceFramework{
-			ComplianceFrameworkSOC2,
-			ComplianceFrameworkISO27001,
-			ComplianceFrameworkHIPAA,
-			ComplianceFrameworkPCIDSS,
-			ComplianceFrameworkGDPR,
-			ComplianceFrameworkNIST80053,
+			FrameworkSOC2,
+			FrameworkISO27001,
+			FrameworkHIPAA,
+			FrameworkPCIDSS,
+			FrameworkGDPR,
+			FrameworkNIST,
+			FrameworkCustom,
 		}
 
 		for _, fw := range frameworks {
@@ -203,7 +205,7 @@ func TestAnomalyStatus(t *testing.T) {
 			AnomalyStatusInvestigating,
 			AnomalyStatusResolved,
 			AnomalyStatusFalsePositive,
-			AnomalyStatusDismissed,
+			AnomalyStatusIgnored,
 		}
 
 		for _, status := range statuses {
@@ -216,98 +218,100 @@ func TestAnomalyStatus(t *testing.T) {
 func TestSessionSummary(t *testing.T) {
 	t.Run("session summary structure", func(t *testing.T) {
 		summary := &SessionSummary{
-			TotalSessions:    100,
-			ActiveSessions:   10,
-			CompletedSessions: 90,
-			FailedSessions:   5,
-			AverageDuration:  30 * time.Minute,
+			TotalSessions:  100,
+			ActiveSessions: 10,
+			AvgDuration:    1800.0,
+			PeakConcurrent: 15,
+			SessionsByType: map[string]int{"ssh": 80, "rdp": 20},
 		}
 
 		assert.Equal(t, 100, summary.TotalSessions)
 		assert.Equal(t, 10, summary.ActiveSessions)
-		assert.Equal(t, 90, summary.CompletedSessions)
-		assert.Equal(t, 5, summary.FailedSessions)
-		assert.Equal(t, 30*time.Minute, summary.AverageDuration)
+		assert.Equal(t, 1800.0, summary.AvgDuration)
+		assert.Equal(t, 15, summary.PeakConcurrent)
+		assert.Equal(t, 80, summary.SessionsByType["ssh"])
+		assert.Equal(t, 20, summary.SessionsByType["rdp"])
 	})
 }
 
 // TestComplianceReport tests compliance report structure
 func TestComplianceReport(t *testing.T) {
 	t.Run("compliance report structure", func(t *testing.T) {
+		score := 95.0
 		report := &ComplianceReport{
-			ID:              uuid.New(),
-			TenantID:        uuid.New(),
-			Framework:       ComplianceFrameworkSOC2,
-			Status:          ComplianceStatusDraft,
-			PeriodStart:     time.Now().Add(-30 * 24 * time.Hour),
-			PeriodEnd:       time.Now(),
-			GeneratedAt:     time.Now(),
-			GeneratedBy:     uuid.New(),
-			TotalEvents:     1000,
-			PassedEvents:    950,
-			FailedEvents:    50,
-			ComplianceScore: 95.0,
+			ID:             uuid.New(),
+			TenantID:       uuid.New(),
+			Framework:      string(FrameworkSOC2),
+			Status:         string(ComplianceStatusPassed),
+			PeriodStart:    time.Now().Add(-30 * 24 * time.Hour),
+			PeriodEnd:      time.Now(),
+			GeneratedAt:    time.Now(),
+			GeneratedBy:    uuid.New(),
+			OverallScore:   &score,
+			TotalControls:  100,
+			PassedControls: 95,
+			FailedControls: 5,
 		}
 
 		assert.NotEqual(t, uuid.Nil, report.ID)
 		assert.NotEqual(t, uuid.Nil, report.TenantID)
-		assert.Equal(t, ComplianceFrameworkSOC2, report.Framework)
-		assert.Equal(t, ComplianceStatusDraft, report.Status)
-		assert.Equal(t, 1000, report.TotalEvents)
-		assert.Equal(t, 950, report.PassedEvents)
-		assert.Equal(t, 50, report.FailedEvents)
-		assert.Equal(t, 95.0, report.ComplianceScore)
+		assert.Equal(t, string(FrameworkSOC2), report.Framework)
+		assert.Equal(t, string(ComplianceStatusPassed), report.Status)
+		assert.Equal(t, 100, report.TotalControls)
+		assert.Equal(t, 95, report.PassedControls)
+		assert.Equal(t, 5, report.FailedControls)
+		assert.Equal(t, 95.0, *report.OverallScore)
 	})
 }
 
 // TestAnomalyDetection tests anomaly detection structure
 func TestAnomalyDetection(t *testing.T) {
 	t.Run("anomaly detection structure", func(t *testing.T) {
+		description := "Unusual access pattern detected"
 		anomaly := &AnomalyDetection{
-			ID:            uuid.New(),
-			TenantID:      uuid.New(),
-			Type:          AnomalyTypeUnusualAccessTime,
-			Status:        AnomalyStatusOpen,
-			Severity:      AnomalySeverityHigh,
-			UserID:        uuid.New(),
-			Description:   "Unusual access pattern detected",
-			DetectedAt:    time.Now(),
-			RiskScore:     85.0,
-			RequiresAction: true,
+			ID:              uuid.New(),
+			TenantID:        uuid.New(),
+			AnomalyType:     string(AnomalyTypeTemporal),
+			Severity:        string(RiskLevelHigh),
+			UserID:          uuidPtr(uuid.New()),
+			Description:     &description,
+			DetectedAt:      time.Now(),
+			ConfidenceScore: 0.85,
+			Status:          string(AnomalyStatusOpen),
+			AutoTriggered:   true,
 		}
 
 		assert.NotEqual(t, uuid.Nil, anomaly.ID)
 		assert.NotEqual(t, uuid.Nil, anomaly.TenantID)
-		assert.Equal(t, AnomalyTypeUnusualAccessTime, anomaly.Type)
-		assert.Equal(t, AnomalyStatusOpen, anomaly.Status)
-		assert.Equal(t, AnomalySeverityHigh, anomaly.Severity)
-		assert.NotEqual(t, uuid.Nil, anomaly.UserID)
-		assert.NotEmpty(t, anomaly.Description)
-		assert.True(t, anomaly.RequiresAction)
+		assert.Equal(t, string(AnomalyTypeTemporal), anomaly.AnomalyType)
+		assert.Equal(t, string(RiskLevelHigh), anomaly.Severity)
+		assert.NotNil(t, anomaly.UserID)
+		assert.NotNil(t, anomaly.Description)
+		assert.Equal(t, "Unusual access pattern detected", *anomaly.Description)
+		assert.True(t, anomaly.AutoTriggered)
 	})
 }
 
 // TestCommandBlacklist tests command blacklist structure
 func TestCommandBlacklist(t *testing.T) {
 	t.Run("command blacklist structure", func(t *testing.T) {
+		tenantID := uuid.New()
 		blacklist := &CommandBlacklist{
-			ID:          uuid.New(),
-			TenantID:    uuid.New(),
-			Pattern:     "rm -rf /",
-			PatternType: BlacklistPatternTypeExact,
-			Action:      BlacklistActionBlock,
-			Enabled:     true,
-			CreatedBy:   uuid.New(),
-			CreatedAt:   time.Now(),
-			UpdatedBy:   uuid.New(),
-			UpdatedAt:   time.Now(),
+			ID:             uuid.New(),
+			TenantID:       &tenantID,
+			CommandPattern: "rm -rf /",
+			PatternType:    string(PatternTypeExact),
+			Action:         string(CommandActionBlock),
+			Enabled:        true,
+			CreatedBy:      uuid.New(),
+			CreatedAt:      time.Now(),
 		}
 
 		assert.NotEqual(t, uuid.Nil, blacklist.ID)
-		assert.NotEqual(t, uuid.Nil, blacklist.TenantID)
-		assert.NotEmpty(t, blacklist.Pattern)
-		assert.Equal(t, BlacklistPatternTypeExact, blacklist.PatternType)
-		assert.Equal(t, BlacklistActionBlock, blacklist.Action)
+		assert.NotNil(t, blacklist.TenantID)
+		assert.NotEmpty(t, blacklist.CommandPattern)
+		assert.Equal(t, string(PatternTypeExact), blacklist.PatternType)
+		assert.Equal(t, string(CommandActionBlock), blacklist.Action)
 		assert.True(t, blacklist.Enabled)
 	})
 }
@@ -315,36 +319,40 @@ func TestCommandBlacklist(t *testing.T) {
 // TestSSHKeyAnalytics tests SSH key analytics structure
 func TestSSHKeyAnalytics(t *testing.T) {
 	t.Run("SSH key analytics structure", func(t *testing.T) {
-		analytics := []SSHKeyAnalytics{
-			{
-				SSHKeyID:       uuid.New(),
-				UserID:         uuid.New(),
-				Target:         "server.example.com",
-				SessionCount:   10,
-				TotalDuration:  5 * time.Hour,
-				AvgDuration:    30 * time.Minute,
-				FailedAttempts: 1,
-				LastUsed:       time.Now(),
-			},
+		lastUse := time.Now()
+		avgDuration := 1800.0
+		analytics := &SSHKeyAnalytics{
+			ID:                      uuid.New(),
+			TenantID:                uuid.New(),
+			SSHKeyID:                uuid.New(),
+			Date:                    time.Now(),
+			UsageCount:              10,
+			UniqueUsers:             5,
+			UniqueTargets:           3,
+			LastUseTime:             &lastUse,
+			AvgSessionDurationSeconds: &avgDuration,
+			FailedAttempts:          1,
 		}
 
-		require.NotEmpty(t, analytics)
-		assert.NotEqual(t, uuid.Nil, analytics[0].SSHKeyID)
-		assert.NotEqual(t, uuid.Nil, analytics[0].UserID)
-		assert.NotEmpty(t, analytics[0].Target)
-		assert.Equal(t, 10, analytics[0].SessionCount)
-		assert.Equal(t, 5*time.Hour, analytics[0].TotalDuration)
+		assert.NotEqual(t, uuid.Nil, analytics.ID)
+		assert.NotEqual(t, uuid.Nil, analytics.TenantID)
+		assert.NotEqual(t, uuid.Nil, analytics.SSHKeyID)
+		assert.Equal(t, 10, analytics.UsageCount)
+		assert.Equal(t, 5, analytics.UniqueUsers)
+		assert.Equal(t, 3, analytics.UniqueTargets)
+		assert.NotNil(t, analytics.LastUseTime)
+		assert.NotNil(t, analytics.AvgSessionDurationSeconds)
 	})
 }
 
-// TestInterfaceComplianceStatus tests compliance status types
-func TestInterfaceComplianceStatus(t *testing.T) {
+// TestComplianceStatusTypes tests compliance status types
+func TestComplianceStatusTypes(t *testing.T) {
 	t.Run("compliance status types exist", func(t *testing.T) {
 		statuses := []ComplianceStatus{
-			ComplianceStatusDraft,
 			ComplianceStatusPending,
-			ComplianceStatusApproved,
-			ComplianceStatusRejected,
+			ComplianceStatusPassed,
+			ComplianceStatusFailed,
+			ComplianceStatusPartial,
 		}
 
 		for _, status := range statuses {
@@ -353,21 +361,20 @@ func TestInterfaceComplianceStatus(t *testing.T) {
 	})
 }
 
-// TestInterfaceAnomalyType tests anomaly type constants
-func TestInterfaceAnomalyType(t *testing.T) {
+// TestAnomalyTypeConstants tests anomaly type constants
+func TestAnomalyTypeConstants(t *testing.T) {
 	t.Run("anomaly type constants exist", func(t *testing.T) {
-		types := []string{
-			AnomalyTypeUnusualAccessTime,
-			AnomalyTypeImpossibleTravel,
-			AnomalyTypeMassFileDeletion,
-			AnomalyTypeUnusualCommand,
-			AnomalyTypeMultipleFailedLogins,
-			AnomalyTypePrivilegeEscalation,
-			AnomalyTypeExcessiveDownloads,
+		types := []AnomalyType{
+			AnomalyTypeBehavioral,
+			AnomalyTypeTemporal,
+			AnomalyTypeSpatial,
+			AnomalyTypePattern,
+			AnomalyTypeVolumetric,
+			AnomalyTypeRansomware,
 		}
 
 		for _, anomalyType := range types {
-			assert.NotEmpty(t, anomalyType)
+			assert.NotEmpty(t, string(anomalyType))
 		}
 	})
 }
@@ -421,9 +428,9 @@ type MockAnalyticsService struct {
 	GetCacheStatsFunc   func(ctx context.Context, tenantID uuid.UUID) (map[string]interface{}, error)
 
 	// Event Handlers
-	HandleSessionStartedFunc func(ctx context.Context, event interface{}) error
-	HandleSessionEndedFunc   func(ctx context.Context, event interface{}) error
-	HandleCommandExecutedFunc func(ctx context.Context, event interface{}) error
+	HandleSessionStartedFunc func(ctx context.Context, event events.Event) error
+	HandleSessionEndedFunc   func(ctx context.Context, event events.Event) error
+	HandleCommandExecutedFunc func(ctx context.Context, event events.Event) error
 }
 
 func (m *MockAnalyticsService) GetSessionMetrics(ctx context.Context, tenantID uuid.UUID, dateFrom, dateTo time.Time) (*SessionSummary, error) {
@@ -650,21 +657,21 @@ func (m *MockAnalyticsService) GetCacheStats(ctx context.Context, tenantID uuid.
 	return map[string]interface{}{}, nil
 }
 
-func (m *MockAnalyticsService) HandleSessionStarted(ctx context.Context, event interface{}) error {
+func (m *MockAnalyticsService) HandleSessionStarted(ctx context.Context, event events.Event) error {
 	if m.HandleSessionStartedFunc != nil {
 		return m.HandleSessionStartedFunc(ctx, event)
 	}
 	return nil
 }
 
-func (m *MockAnalyticsService) HandleSessionEnded(ctx context.Context, event interface{}) error {
+func (m *MockAnalyticsService) HandleSessionEnded(ctx context.Context, event events.Event) error {
 	if m.HandleSessionEndedFunc != nil {
 		return m.HandleSessionEndedFunc(ctx, event)
 	}
 	return nil
 }
 
-func (m *MockAnalyticsService) HandleCommandExecuted(ctx context.Context, event interface{}) error {
+func (m *MockAnalyticsService) HandleCommandExecuted(ctx context.Context, event events.Event) error {
 	if m.HandleCommandExecutedFunc != nil {
 		return m.HandleCommandExecutedFunc(ctx, event)
 	}
@@ -686,4 +693,17 @@ func TestMockAnalyticsService(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, summary)
 	})
+}
+
+// Helper functions for pointers
+func uuidPtr(id uuid.UUID) *uuid.UUID {
+	return &id
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

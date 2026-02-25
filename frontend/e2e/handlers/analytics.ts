@@ -672,6 +672,29 @@ export const mockComplianceRoutes = async (route: Route) => {
     return;
   }
 
+  // POST /compliance/anomalies/bulk-update
+  if (url.includes('/compliance/anomalies/bulk-update') && method === 'POST') {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ updated: 2, failed: [] }),
+    });
+    return;
+  }
+
+  // POST /compliance/anomalies/export
+  if (url.includes('/compliance/anomalies/export') && method === 'POST') {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        download_url: '/exports/anomalies.csv',
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      }),
+    });
+    return;
+  }
+
   // GET /compliance/ransomware/indicators
   if (url.includes('/compliance/ransomware/indicators') && method === 'GET') {
     await route.fulfill({

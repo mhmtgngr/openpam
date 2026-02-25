@@ -20,7 +20,7 @@ func TestNewService(t *testing.T) {
 		logger := zerolog.Nop()
 		repo := &Repository{}
 
-		service := NewService(repo, nil, logger)
+		service := NewService(repo, nil, nil, logger)
 
 		assert.NotNil(t, service)
 		assert.NotNil(t, service.logger)
@@ -31,7 +31,7 @@ func TestNewService(t *testing.T) {
 		logger := zerolog.Nop()
 		repo := &Repository{}
 
-		service := NewService(repo, nil, logger)
+		service := NewService(repo, nil, nil, logger)
 
 		assert.False(t, service.aggregationWorkerRunning)
 		assert.False(t, service.alertEvaluatorRunning)
