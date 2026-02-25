@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -1284,6 +1285,484 @@ func (h *AnalyticsHandler) GenerateComplianceReport(c *gin.Context) {
 		"message": "Compliance report generation started",
 		"report_id": report.ID,
 		"status": "pending",
+	})
+}
+
+// =============================================================================
+// Report Snapshot Handlers
+// =============================================================================
+
+// GenerateReportSnapshot handles POST /api/v1/analytics/reports/generate
+func (h *AnalyticsHandler) GenerateReportSnapshot(c *gin.Context) {
+	var req model.GenerateReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+		return
+	}
+
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	userID, err := getUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "User not authenticated"}})
+		return
+	}
+
+	snapshot, err := h.analyticsService.GenerateReport(
+		c.Request.Context(),
+		tenantID,
+		req.ReportID,
+		userID,
+		req.SnapshotName,
+		req.Format,
+		req.Options,
+		req.RetentionDays,
+	)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to generate report snapshot")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to generate report"}})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"snapshot": snapshot})
+}
+
+// QueueReportGeneration handles POST /api/v1/analytics/reports/queue
+func (h *AnalyticsHandler) QueueReportGeneration(c *gin.Context) {
+	var req model.GenerateReportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+		return
+	}
+
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	job, err := h.analyticsService.QueueReportGeneration(
+		c.Request.Context(),
+		tenantID,
+		req.ReportID,
+		req.SnapshotName,
+		req.Format,
+		req.Options,
+	)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to queue report generation")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to queue report generation"}})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"job_id":  job.ID,
+		"status":  job.Status,
+		"message": "Report generation queued",
+	})
+}
+
+// GetReportSnapshot handles GET /api/v1/analytics/reports/snapshots/:id
+func (h *AnalyticsHandler) GetReportSnapshot(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid snapshot ID"}})
+		return
+	}
+
+	snapshot, err := h.analyticsService.GetReportSnapshot(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get report snapshot")
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Snapshot not found"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"snapshot": snapshot})
+}
+
+// ListReportSnapshots handles GET /api/v1/analytics/reports/snapshots
+func (h *AnalyticsHandler) ListReportSnapshots(c *gin.Context) {
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	filter := model.ReportSnapshotFilter{TenantID: &tenantID}
+
+	if reportID := c.Query("report_id"); reportID != "" {
+		if id, err := uuid.Parse(reportID); err == nil {
+			filter.ReportID = &id
+		}
+	}
+	if framework := c.Query("framework"); framework != "" {
+		filter.Framework = &framework
+	}
+	if status := c.Query("status"); status != "" {
+		filter.Status = &status
+	}
+	if format := c.Query("format"); format != "" {
+		filter.Format = &format
+	}
+	if dateFrom := c.Query("date_from"); dateFrom != "" {
+		if t, err := time.Parse(time.RFC3339, dateFrom); err == nil {
+			filter.DateFrom = &t
+		}
+	}
+	if dateTo := c.Query("date_to"); dateTo != "" {
+		if t, err := time.Parse(time.RFC3339, dateTo); err == nil {
+			filter.DateTo = &t
+		}
+	}
+	filter.IncludeExpired = c.Query("include_expired") == "true"
+
+	limit := getIntQuery(c, "limit", 50)
+	offset := getIntQuery(c, "offset", 0)
+
+	snapshots, total, err := h.analyticsService.ListReportSnapshots(c.Request.Context(), tenantID, filter, limit, offset)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to list report snapshots")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list snapshots"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"snapshots": snapshots,
+		"total":     total,
+		"limit":     limit,
+		"offset":    offset,
+	})
+}
+
+// DeleteReportSnapshot handles DELETE /api/v1/analytics/reports/snapshots/:id
+func (h *AnalyticsHandler) DeleteReportSnapshot(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid snapshot ID"}})
+		return
+	}
+
+	if err := h.analyticsService.DeleteReportSnapshot(c.Request.Context(), id); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to delete report snapshot")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete snapshot"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Snapshot deleted"})
+}
+
+// GetReportSnapshotStats handles GET /api/v1/analytics/reports/stats
+func (h *AnalyticsHandler) GetReportSnapshotStats(c *gin.Context) {
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	stats, err := h.analyticsService.GetReportSnapshotStats(c.Request.Context(), tenantID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get report snapshot stats")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get stats"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"stats": stats})
+}
+
+// =============================================================================
+// Report Generation Job Handlers
+// =============================================================================
+
+// GetReportGenerationJob handles GET /api/v1/analytics/reports/jobs/:id
+func (h *AnalyticsHandler) GetReportGenerationJob(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid job ID"}})
+		return
+	}
+
+	job, err := h.analyticsService.GetReportGenerationJob(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get report generation job")
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Job not found"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"job": job})
+}
+
+// ListReportGenerationJobs handles GET /api/v1/analytics/reports/jobs
+func (h *AnalyticsHandler) ListReportGenerationJobs(c *gin.Context) {
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	filter := model.ReportGenerationJobFilter{TenantID: &tenantID}
+
+	if jobType := c.Query("job_type"); jobType != "" {
+		filter.JobType = &jobType
+	}
+	if status := c.Query("status"); status != "" {
+		filter.Status = &status
+	}
+	if dateFrom := c.Query("date_from"); dateFrom != "" {
+		if t, err := time.Parse(time.RFC3339, dateFrom); err == nil {
+			filter.DateFrom = &t
+		}
+	}
+	if dateTo := c.Query("date_to"); dateTo != "" {
+		if t, err := time.Parse(time.RFC3339, dateTo); err == nil {
+			filter.DateTo = &t
+		}
+	}
+
+	limit := getIntQuery(c, "limit", 50)
+	offset := getIntQuery(c, "offset", 0)
+
+	jobs, total, err := h.analyticsService.ListReportGenerationJobs(c.Request.Context(), tenantID, filter, limit, offset)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to list report generation jobs")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list jobs"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"jobs":   jobs,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+// DeleteReportGenerationJob handles DELETE /api/v1/analytics/reports/jobs/:id
+func (h *AnalyticsHandler) DeleteReportGenerationJob(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid job ID"}})
+		return
+	}
+
+	if err := h.analyticsService.DeleteReportGenerationJob(c.Request.Context(), id); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to delete report generation job")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete job"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Job deleted"})
+}
+
+// =============================================================================
+// Report Schedule Handlers
+// =============================================================================
+
+// CreateReportSchedule handles POST /api/v1/analytics/reports/schedules
+func (h *AnalyticsHandler) CreateReportSchedule(c *gin.Context) {
+	var req model.CreateReportScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+		return
+	}
+
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	userID, err := getUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "UNAUTHORIZED", "message": "User not authenticated"}})
+		return
+	}
+
+	// Marshal options
+	var optionsBytes []byte
+	if req.Options != nil {
+		optionsBytes, _ = json.Marshal(req.Options)
+	}
+
+	// Set default retention
+	retentionDays := req.RetentionDays
+	if retentionDays == 0 {
+		retentionDays = 90
+	}
+
+	schedule := &model.ReportSchedule{
+		TenantID:           tenantID,
+		ScheduleName:       req.ScheduleName,
+		ReportID:           req.ReportID,
+		ScheduleType:       req.ScheduleType,
+		CronExpression:     req.CronExpression,
+		Format:             req.Format,
+		Options:            optionsBytes,
+		Recipients:         req.Recipients,
+		NotifyOnCompletion: req.NotifyOnCompletion,
+		NotifyOnFailure:    req.NotifyOnFailure,
+		Status:             string(model.ScheduleStatusActive),
+		NextRunAt:          req.NextRunAt,
+		CreatedBy:          userID,
+		OwnedBy:            userID,
+		RetentionDays:      retentionDays,
+	}
+
+	if err := h.analyticsService.CreateReportSchedule(c.Request.Context(), schedule); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to create report schedule")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create schedule"}})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"schedule": schedule})
+}
+
+// GetReportSchedule handles GET /api/v1/analytics/reports/schedules/:id
+func (h *AnalyticsHandler) GetReportSchedule(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid schedule ID"}})
+		return
+	}
+
+	schedule, err := h.analyticsService.GetReportSchedule(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get report schedule")
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Schedule not found"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"schedule": schedule})
+}
+
+// UpdateReportSchedule handles PATCH /api/v1/analytics/reports/schedules/:id
+func (h *AnalyticsHandler) UpdateReportSchedule(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid schedule ID"}})
+		return
+	}
+
+	// Get existing schedule
+	schedule, err := h.analyticsService.GetReportSchedule(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get report schedule")
+		c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Schedule not found"}})
+		return
+	}
+
+	var req model.UpdateReportScheduleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+		return
+	}
+
+	// Update fields from request
+	if req.ScheduleName != nil {
+		schedule.ScheduleName = *req.ScheduleName
+	}
+	if req.ScheduleType != nil {
+		schedule.ScheduleType = *req.ScheduleType
+	}
+	if req.CronExpression != nil {
+		schedule.CronExpression = req.CronExpression
+	}
+	if req.Format != nil {
+		schedule.Format = *req.Format
+	}
+	if req.Options != nil {
+		optionsBytes, _ := json.Marshal(req.Options)
+		schedule.Options = optionsBytes
+	}
+	if req.Recipients != nil {
+		schedule.Recipients = req.Recipients
+	}
+	if req.NotifyOnCompletion != nil {
+		schedule.NotifyOnCompletion = *req.NotifyOnCompletion
+	}
+	if req.NotifyOnFailure != nil {
+		schedule.NotifyOnFailure = *req.NotifyOnFailure
+	}
+	if req.Status != nil {
+		schedule.Status = *req.Status
+	}
+	if req.NextRunAt != nil {
+		schedule.NextRunAt = *req.NextRunAt
+	}
+	if req.RetentionDays != nil {
+		schedule.RetentionDays = *req.RetentionDays
+	}
+
+	if err := h.analyticsService.UpdateReportSchedule(c.Request.Context(), schedule); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to update report schedule")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to update schedule"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"schedule": schedule})
+}
+
+// DeleteReportSchedule handles DELETE /api/v1/analytics/reports/schedules/:id
+func (h *AnalyticsHandler) DeleteReportSchedule(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid schedule ID"}})
+		return
+	}
+
+	if err := h.analyticsService.DeleteReportSchedule(c.Request.Context(), id); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to delete report schedule")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete schedule"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Schedule deleted"})
+}
+
+// ListReportSchedules handles GET /api/v1/analytics/reports/schedules
+func (h *AnalyticsHandler) ListReportSchedules(c *gin.Context) {
+	tenantID, err := getTenantID(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+		return
+	}
+
+	filter := model.ReportScheduleFilter{TenantID: &tenantID}
+
+	if framework := c.Query("framework"); framework != "" {
+		filter.Framework = &framework
+	}
+	if status := c.Query("status"); status != "" {
+		filter.Status = &status
+	}
+	if scheduleType := c.Query("schedule_type"); scheduleType != "" {
+		filter.ScheduleType = &scheduleType
+	}
+	if ownedBy := c.Query("owned_by"); ownedBy != "" {
+		if id, err := uuid.Parse(ownedBy); err == nil {
+			filter.OwnedBy = &id
+		}
+	}
+	filter.IncludeActive = c.Query("active") == "true"
+
+	limit := getIntQuery(c, "limit", 50)
+	offset := getIntQuery(c, "offset", 0)
+
+	schedules, total, err := h.analyticsService.ListReportSchedules(c.Request.Context(), tenantID, filter, limit, offset)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to list report schedules")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list schedules"}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"schedules": schedules,
+		"total":     total,
+		"limit":     limit,
+		"offset":    offset,
 	})
 }
 

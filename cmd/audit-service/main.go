@@ -67,6 +67,15 @@ func main() {
 	// Initialize analytics service (audit analytics for anomaly persistence)
 	analyticsSvc := audit.NewAnalyticsService(db.DB, redisCache, logger)
 
+	// Wire up report generator with storage configuration
+	reportGenerator := audit.NewReportGenerator(db.DB, logger, &audit.StorageConfig{
+		BaseURL:      config.ReportStorageBaseURL,
+		StoragePath:  config.ReportStoragePath,
+		MaxFileSize:  config.ReportStorageMaxSize,
+		RetentionDays: config.ReportRetentionDays,
+	})
+	analyticsSvc.SetReportGenerator(reportGenerator)
+
 	// Initialize PAM analytics service
 	pamAnalyticsRepo := pamanalytics.NewRepository(db.DB, logger)
 	pamAnomalyRepo := pamanalytics.NewAnomalyRepository(db.DB, logger)
@@ -121,6 +130,12 @@ type Config struct {
 	RedisPort     int
 	RedisPassword string
 	RedisDB       int
+
+	// Report Storage Configuration
+	ReportStorageBaseURL   string
+	ReportStoragePath      string
+	ReportStorageMaxSize   int64
+	ReportRetentionDays    int
 }
 
 func loadConfig() Config {
@@ -140,6 +155,12 @@ func loadConfig() Config {
 		RedisPort:     getEnvInt("REDIS_PORT", 6379),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisDB:       getEnvInt("REDIS_DB", 0),
+
+		// Report storage defaults
+		ReportStorageBaseURL:  getEnv("REPORT_STORAGE_BASE_URL", "/api/v1/analytics/reports/download"),
+		ReportStoragePath:     getEnv("REPORT_STORAGE_PATH", "/var/lib/openpam/reports"),
+		ReportStorageMaxSize:  int64(getEnvInt("REPORT_STORAGE_MAX_SIZE_MB", 100) * 1024 * 1024),
+		ReportRetentionDays:   getEnvInt("REPORT_RETENTION_DAYS", 90),
 	}
 }
 

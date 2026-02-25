@@ -27,13 +27,17 @@ type AnalyticsService struct {
 	anomalyRepo       *repository.AnomalyRepository
 	sshKeyRepo        *repository.SSHKeyAnalyticsRepository
 	blacklistRepo     *repository.CommandBlacklistRepository
+	snapshotRepo      *repository.ReportSnapshotRepository
+
+	// Report Generator
+	reportGenerator   *ReportGenerator
 }
 
 // NewAnalyticsService creates a new analytics service
 func NewAnalyticsService(db *sqlx.DB, coreCache *corecache.Cache, logger zerolog.Logger) *AnalyticsService {
 	analyticsCache := analyticscache.NewAnalyticsCache(coreCache, logger)
 
-	return &AnalyticsService{
+	s := &AnalyticsService{
 		db:     db,
 		cache:  analyticsCache,
 		logger: logger,
@@ -44,7 +48,24 @@ func NewAnalyticsService(db *sqlx.DB, coreCache *corecache.Cache, logger zerolog
 		anomalyRepo:    repository.NewAnomalyRepository(db, logger),
 		sshKeyRepo:     repository.NewSSHKeyAnalyticsRepository(db, logger),
 		blacklistRepo:  repository.NewCommandBlacklistRepository(db, logger),
+		snapshotRepo:   repository.NewReportSnapshotRepository(db, logger),
 	}
+
+	// Initialize report generator with default storage config
+	storageConfig := &StorageConfig{
+		BaseURL:      "/api/v1/analytics/reports/download",
+		StoragePath:  "/var/lib/openpam/reports",
+		MaxFileSize:  100 * 1024 * 1024, // 100MB
+		RetentionDays: 90,
+	}
+	s.reportGenerator = NewReportGenerator(db, logger, storageConfig)
+
+	return s
+}
+
+// SetReportGenerator sets a custom report generator (for testing or custom configs)
+func (s *AnalyticsService) SetReportGenerator(generator *ReportGenerator) {
+	s.reportGenerator = generator
 }
 
 // =============================================================================
@@ -794,4 +815,145 @@ func boolToInt(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// =============================================================================
+// Report Snapshot Methods
+// =============================================================================
+
+// GenerateReport generates a new report snapshot from a compliance report
+func (s *AnalyticsService) GenerateReport(ctx context.Context, tenantID, reportID, userID uuid.UUID, snapshotName, format string, options map[string]interface{}, retentionDays *int) (*model.ReportSnapshot, error) {
+	req := &GenerateReportRequest{
+		TenantID:      tenantID,
+		ReportID:      reportID,
+		SnapshotName:  snapshotName,
+		Format:        format,
+		GeneratedBy:   userID,
+		Options:       options,
+		RetentionDays: retentionDays,
+	}
+
+	result, err := s.reportGenerator.GenerateReport(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Snapshot, nil
+}
+
+// QueueReportGeneration queues a report for async generation
+func (s *AnalyticsService) QueueReportGeneration(ctx context.Context, tenantID, reportID uuid.UUID, snapshotName, format string, options map[string]interface{}) (*model.ReportGenerationJob, error) {
+	req := &GenerateReportRequest{
+		TenantID:     tenantID,
+		ReportID:     reportID,
+		SnapshotName: snapshotName,
+		Format:       format,
+		GeneratedBy:  uuid.Nil, // System-generated
+		Options:      options,
+	}
+
+	job, err := s.reportGenerator.QueueReportGeneration(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
+// GetReportSnapshot retrieves a report snapshot by ID
+func (s *AnalyticsService) GetReportSnapshot(ctx context.Context, id uuid.UUID) (*model.ReportSnapshot, error) {
+	return s.snapshotRepo.GetByID(ctx, id)
+}
+
+// ListReportSnapshots retrieves report snapshots with filtering
+func (s *AnalyticsService) ListReportSnapshots(ctx context.Context, tenantID uuid.UUID, filter model.ReportSnapshotFilter, limit, offset int) ([]model.ReportSnapshot, int, error) {
+	return s.snapshotRepo.List(ctx, tenantID, filter, limit, offset)
+}
+
+// GetSnapshotsByReportID retrieves all snapshots for a specific report
+func (s *AnalyticsService) GetSnapshotsByReportID(ctx context.Context, reportID uuid.UUID) ([]model.ReportSnapshot, error) {
+	return s.snapshotRepo.GetByReportID(ctx, reportID)
+}
+
+// UpdateReportSnapshotStatus updates the status of a report snapshot
+func (s *AnalyticsService) UpdateReportSnapshotStatus(ctx context.Context, id uuid.UUID, status string, fileURL *string, fileSizeBytes *int64, errorMessage *string) error {
+	return s.snapshotRepo.UpdateStatus(ctx, id, status, fileURL, fileSizeBytes, errorMessage)
+}
+
+// DeleteReportSnapshot deletes a report snapshot
+func (s *AnalyticsService) DeleteReportSnapshot(ctx context.Context, id uuid.UUID) error {
+	return s.snapshotRepo.Delete(ctx, id)
+}
+
+// GetReportSnapshotStats returns statistics about report snapshots
+func (s *AnalyticsService) GetReportSnapshotStats(ctx context.Context, tenantID uuid.UUID) (*repository.SnapshotStats, error) {
+	return s.snapshotRepo.GetSnapshotStats(ctx, tenantID)
+}
+
+// ExpireOldSnapshots expires old report snapshots
+func (s *AnalyticsService) ExpireOldSnapshots(ctx context.Context) (int, error) {
+	return s.snapshotRepo.ExpireOldSnapshots(ctx)
+}
+
+// =============================================================================
+// Report Generation Job Methods
+// =============================================================================
+
+// GetReportGenerationJob retrieves a report generation job by ID
+func (s *AnalyticsService) GetReportGenerationJob(ctx context.Context, id uuid.UUID) (*model.ReportGenerationJob, error) {
+	return s.snapshotRepo.GetJobByID(ctx, id)
+}
+
+// ListReportGenerationJobs retrieves report generation jobs with filtering
+func (s *AnalyticsService) ListReportGenerationJobs(ctx context.Context, tenantID uuid.UUID, filter model.ReportGenerationJobFilter, limit, offset int) ([]model.ReportGenerationJob, int, error) {
+	return s.snapshotRepo.ListJobs(ctx, tenantID, filter, limit, offset)
+}
+
+// ProcessReportJob processes a queued report generation job
+func (s *AnalyticsService) ProcessReportJob(ctx context.Context, jobID uuid.UUID) error {
+	return s.reportGenerator.ProcessJob(ctx, jobID)
+}
+
+// GetNextQueuedReportJob retrieves the next job to process
+func (s *AnalyticsService) GetNextQueuedReportJob(ctx context.Context) (*model.ReportGenerationJob, error) {
+	return s.reportGenerator.GetNextQueuedJob(ctx)
+}
+
+// DeleteReportGenerationJob deletes a report generation job
+func (s *AnalyticsService) DeleteReportGenerationJob(ctx context.Context, id uuid.UUID) error {
+	return s.snapshotRepo.DeleteJob(ctx, id)
+}
+
+// =============================================================================
+// Report Schedule Methods
+// =============================================================================
+
+// CreateReportSchedule creates a new report schedule
+func (s *AnalyticsService) CreateReportSchedule(ctx context.Context, schedule *model.ReportSchedule) error {
+	return s.snapshotRepo.CreateSchedule(ctx, schedule)
+}
+
+// GetReportSchedule retrieves a report schedule by ID
+func (s *AnalyticsService) GetReportSchedule(ctx context.Context, id uuid.UUID) (*model.ReportSchedule, error) {
+	return s.snapshotRepo.GetScheduleByID(ctx, id)
+}
+
+// UpdateReportSchedule updates a report schedule
+func (s *AnalyticsService) UpdateReportSchedule(ctx context.Context, schedule *model.ReportSchedule) error {
+	return s.snapshotRepo.UpdateSchedule(ctx, schedule)
+}
+
+// DeleteReportSchedule deletes a report schedule
+func (s *AnalyticsService) DeleteReportSchedule(ctx context.Context, id uuid.UUID) error {
+	return s.snapshotRepo.DeleteSchedule(ctx, id)
+}
+
+// ListReportSchedules retrieves report schedules with filtering
+func (s *AnalyticsService) ListReportSchedules(ctx context.Context, tenantID uuid.UUID, filter model.ReportScheduleFilter, limit, offset int) ([]model.ReportSchedule, int, error) {
+	return s.snapshotRepo.ListSchedules(ctx, tenantID, filter, limit, offset)
+}
+
+// ProcessDueReportSchedules processes all schedules that are due for execution
+func (s *AnalyticsService) ProcessDueReportSchedules(ctx context.Context) (int, error) {
+	return s.reportGenerator.ProcessDueSchedules(ctx)
 }

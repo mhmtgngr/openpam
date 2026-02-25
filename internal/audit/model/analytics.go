@@ -167,6 +167,89 @@ type SSHKeyAnalytics struct {
 }
 
 // =============================================================================
+// Report Snapshot Models
+// ============================================================================
+
+// ReportSnapshot represents a generated compliance or analytics report instance
+type ReportSnapshot struct {
+	ID            uuid.UUID  `db:"id" json:"id"`
+	TenantID      uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	ReportID      uuid.UUID  `db:"report_id" json:"report_id"`
+	SnapshotName  string     `db:"snapshot_name" json:"snapshot_name"`
+	Framework     string     `db:"framework" json:"framework"`
+	GeneratedAt   time.Time  `db:"generated_at" json:"generated_at"`
+	GeneratedBy   uuid.UUID  `db:"generated_by" json:"generated_by"`
+	Status        string     `db:"status" json:"status"` // pending, completed, failed, expired
+	FileURL       *string    `db:"file_url" json:"file_url,omitempty"`
+	FileSizeBytes *int64     `db:"file_size_bytes" json:"file_size_bytes,omitempty"`
+	FileFormat    *string    `db:"file_format" json:"file_format,omitempty"`
+	StoragePath   *string    `db:"storage_path" json:"storage_path,omitempty"`
+	PeriodStart   time.Time  `db:"period_start" json:"period_start"`
+	PeriodEnd     time.Time  `db:"period_end" json:"period_end"`
+	Summary       *string    `db:"summary" json:"summary,omitempty"`
+	Metadata      []byte     `db:"metadata" json:"metadata,omitempty"`
+	ExpiresAt     *time.Time `db:"expires_at" json:"expires_at,omitempty"`
+	ErrorMessage  *string    `db:"error_message" json:"error_message,omitempty"`
+	ErrorDetails  []byte     `db:"error_details" json:"error_details,omitempty"`
+	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
+}
+
+// ReportGenerationJob represents an asynchronous report generation job
+type ReportGenerationJob struct {
+	ID            uuid.UUID  `db:"id" json:"id"`
+	TenantID      uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	JobType       string     `db:"job_type" json:"job_type"` // compliance, analytics, custom
+	SnapshotID    *uuid.UUID `db:"snapshot_id" json:"snapshot_id,omitempty"`
+	ReportID      *uuid.UUID `db:"report_id" json:"report_id,omitempty"`
+	Status        string     `db:"status" json:"status"` // queued, processing, completed, failed, cancelled
+	Progress      int        `db:"progress" json:"progress"` // 0-100
+	Format        string     `db:"format" json:"format"` // pdf, xlsx, csv, html, json
+	Options       []byte     `db:"options" json:"options,omitempty"`
+	QueuedAt      time.Time  `db:"queued_at" json:"queued_at"`
+	StartedAt     *time.Time `db:"started_at" json:"started_at,omitempty"`
+	CompletedAt   *time.Time  `db:"completed_at" json:"completed_at,omitempty"`
+	ErrorMessage  *string    `db:"error_message" json:"error_message,omitempty"`
+	ErrorDetails  []byte     `db:"error_details" json:"error_details,omitempty"`
+	RetryCount    int        `db:"retry_count" json:"retry_count"`
+	MaxRetries    int        `db:"max_retries" json:"max_retries"`
+	WorkerID      *string    `db:"worker_id" json:"worker_id,omitempty"`
+	CorrelationID *uuid.UUID `db:"correlation_id" json:"correlation_id,omitempty"`
+	Metadata      []byte     `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time  `db:"updated_at" json:"updated_at"`
+}
+
+// ReportSchedule represents a scheduled recurring report generation
+type ReportSchedule struct {
+	ID                    uuid.UUID  `db:"id" json:"id"`
+	TenantID              uuid.UUID  `db:"tenant_id" json:"tenant_id"`
+	ScheduleName          string     `db:"schedule_name" json:"schedule_name"`
+	Framework             string     `db:"framework" json:"framework"`
+	ReportID              uuid.UUID  `db:"report_id" json:"report_id"`
+	ScheduleType          string     `db:"schedule_type" json:"schedule_type"` // daily, weekly, monthly, quarterly, yearly, custom
+	CronExpression        *string    `db:"cron_expression" json:"cron_expression,omitempty"`
+	Format                string     `db:"format" json:"format"`
+	Options               []byte     `db:"options" json:"options,omitempty"`
+	Recipients            []string   `db:"recipients" json:"recipients,omitempty"`
+	NotifyOnCompletion    bool       `db:"notify_on_completion" json:"notify_on_completion"`
+	NotifyOnFailure       bool       `db:"notify_on_failure" json:"notify_on_failure"`
+	Status                string     `db:"status" json:"status"` // active, paused, disabled
+	NextRunAt             time.Time  `db:"next_run_at" json:"next_run_at"`
+	LastRunAt             *time.Time `db:"last_run_at" json:"last_run_at,omitempty"`
+	LastSuccessfulRunAt   *time.Time `db:"last_successful_run_at" json:"last_successful_run_at,omitempty"`
+	TotalRuns             int        `db:"total_runs" json:"total_runs"`
+	SuccessfulRuns        int        `db:"successful_runs" json:"successful_runs"`
+	FailedRuns            int        `db:"failed_runs" json:"failed_runs"`
+	CreatedBy             uuid.UUID  `db:"created_by" json:"created_by"`
+	OwnedBy               uuid.UUID  `db:"owned_by" json:"owned_by"`
+	RetentionDays         int        `db:"retention_days" json:"retention_days"`
+	Metadata              []byte     `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt             time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt             time.Time  `db:"updated_at" json:"updated_at"`
+}
+
+// =============================================================================
 // Command Blacklist Models
 // =============================================================================
 
@@ -279,6 +362,68 @@ const (
 )
 
 type CommandAction string
+
+// Report Snapshot Status values
+const (
+	ReportSnapshotStatusPending   ReportSnapshotStatus = "pending"
+	ReportSnapshotStatusCompleted ReportSnapshotStatus = "completed"
+	ReportSnapshotStatusFailed    ReportSnapshotStatus = "failed"
+	ReportSnapshotStatusExpired   ReportSnapshotStatus = "expired"
+)
+
+type ReportSnapshotStatus string
+
+// Report Job Status values
+const (
+	ReportJobStatusQueued     ReportJobStatus = "queued"
+	ReportJobStatusProcessing ReportJobStatus = "processing"
+	ReportJobStatusCompleted  ReportJobStatus = "completed"
+	ReportJobStatusFailed     ReportJobStatus = "failed"
+	ReportJobStatusCancelled  ReportJobStatus = "cancelled"
+)
+
+type ReportJobStatus string
+
+// Report Job Type values
+const (
+	ReportJobTypeCompliance ReportJobType = "compliance"
+	ReportJobTypeAnalytics  ReportJobType = "analytics"
+	ReportJobTypeCustom     ReportJobType = "custom"
+)
+
+type ReportJobType string
+
+// Report Format values
+const (
+	ReportFormatPDF  ReportFormat = "pdf"
+	ReportFormatXLSX ReportFormat = "xlsx"
+	ReportFormatCSV  ReportFormat = "csv"
+	ReportFormatHTML ReportFormat = "html"
+	ReportFormatJSON ReportFormat = "json"
+)
+
+type ReportFormat string
+
+// Schedule Type values
+const (
+	ScheduleTypeDaily     ScheduleType = "daily"
+	ScheduleTypeWeekly    ScheduleType = "weekly"
+	ScheduleTypeMonthly   ScheduleType = "monthly"
+	ScheduleTypeQuarterly ScheduleType = "quarterly"
+	ScheduleTypeYearly    ScheduleType = "yearly"
+	ScheduleTypeCustom    ScheduleType = "custom"
+)
+
+type ScheduleType string
+
+// Schedule Status values
+const (
+	ScheduleStatusActive   ScheduleStatus = "active"
+	ScheduleStatusPaused   ScheduleStatus = "paused"
+	ScheduleStatusDisabled ScheduleStatus = "disabled"
+)
+
+type ScheduleStatus string
 
 // =============================================================================
 // Filter Types
@@ -409,4 +554,94 @@ type UpdateCommandBlacklistRequest struct {
 	Reason            *string      `json:"reason"`
 	RiskCategory      *string      `json:"risk_category"`
 	Enabled           *bool        `json:"enabled"`
+}
+
+// ReportSnapshotFilter filters report snapshot queries
+type ReportSnapshotFilter struct {
+	TenantID   *uuid.UUID
+	ReportID   *uuid.UUID
+	Framework  *string
+	Status     *string
+	Format     *string
+	DateFrom   *time.Time
+	DateTo     *time.Time
+	IncludeExpired bool
+}
+
+// ReportGenerationJobFilter filters report generation job queries
+type ReportGenerationJobFilter struct {
+	TenantID *uuid.UUID
+	JobType  *string
+	Status   *string
+	DateFrom *time.Time
+	DateTo   *time.Time
+}
+
+// ReportScheduleFilter filters report schedule queries
+type ReportScheduleFilter struct {
+	TenantID      *uuid.UUID
+	Framework     *string
+	Status        *string
+	ScheduleType  *string
+	OwnedBy       *uuid.UUID
+	IncludeActive bool
+}
+
+// =============================================================================
+// Report Snapshot Request/Response DTOs
+// ============================================================================
+
+// GenerateReportRequest represents a request to generate a report snapshot
+type GenerateReportRequest struct {
+	ReportID    uuid.UUID `json:"report_id" binding:"required"`
+	SnapshotName string   `json:"snapshot_name" binding:"required"`
+	Format      string    `json:"format" binding:"required,oneof=pdf xlsx csv html json"`
+	Options     map[string]interface{} `json:"options"`
+	RetentionDays *int   `json:"retention_days"`
+}
+
+// GenerateReportResponse represents the response for a report generation request
+type GenerateReportResponse struct {
+	SnapshotID  uuid.UUID `json:"snapshot_id"`
+	JobID       uuid.UUID `json:"job_id"`
+	Status      string    `json:"status"`
+	Message     string    `json:"message"`
+}
+
+// CreateReportScheduleRequest represents a request to create a report schedule
+type CreateReportScheduleRequest struct {
+	ScheduleName       string            `json:"schedule_name" binding:"required"`
+	ReportID           uuid.UUID         `json:"report_id" binding:"required"`
+	ScheduleType       string            `json:"schedule_type" binding:"required,oneof=daily weekly monthly quarterly yearly custom"`
+	CronExpression     *string           `json:"cron_expression"`
+	Format             string            `json:"format" binding:"required,oneof=pdf xlsx csv html json"`
+	Options            map[string]interface{} `json:"options"`
+	Recipients         []string          `json:"recipients"`
+	NotifyOnCompletion bool              `json:"notify_on_completion"`
+	NotifyOnFailure    bool              `json:"notify_on_failure"`
+	RetentionDays      int               `json:"retention_days"`
+	NextRunAt          time.Time         `json:"next_run_at" binding:"required"`
+}
+
+// UpdateReportScheduleRequest represents a request to update a report schedule
+type UpdateReportScheduleRequest struct {
+	ScheduleName       *string           `json:"schedule_name"`
+	ScheduleType       *string           `json:"schedule_type"`
+	CronExpression     *string           `json:"cron_expression"`
+	Format             *string           `json:"format"`
+	Options            map[string]interface{} `json:"options"`
+	Recipients         []string          `json:"recipients"`
+	NotifyOnCompletion *bool             `json:"notify_on_completion"`
+	NotifyOnFailure    *bool             `json:"notify_on_failure"`
+	Status             *string           `json:"status"`
+	NextRunAt          *time.Time        `json:"next_run_at"`
+	RetentionDays      *int              `json:"retention_days"`
+}
+
+// UpdateReportSnapshotStatusRequest represents a request to update snapshot status
+type UpdateReportSnapshotStatusRequest struct {
+	Status       *string `json:"status"`
+	FileURL      *string `json:"file_url"`
+	FileSizeBytes *int64 `json:"file_size_bytes"`
+	ErrorMessage *string `json:"error_message"`
 }

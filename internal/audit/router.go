@@ -65,6 +65,26 @@ type AnalyticsHandler interface {
 	RunAnomalyDetection(*gin.Context)
 	GenerateComplianceReport(*gin.Context)
 	GetCacheStats(*gin.Context)
+
+	// Report Snapshots
+	GenerateReportSnapshot(*gin.Context)
+	QueueReportGeneration(*gin.Context)
+	GetReportSnapshot(*gin.Context)
+	ListReportSnapshots(*gin.Context)
+	DeleteReportSnapshot(*gin.Context)
+	GetReportSnapshotStats(*gin.Context)
+
+	// Report Generation Jobs
+	GetReportGenerationJob(*gin.Context)
+	ListReportGenerationJobs(*gin.Context)
+	DeleteReportGenerationJob(*gin.Context)
+
+	// Report Schedules
+	CreateReportSchedule(*gin.Context)
+	GetReportSchedule(*gin.Context)
+	UpdateReportSchedule(*gin.Context)
+	DeleteReportSchedule(*gin.Context)
+	ListReportSchedules(*gin.Context)
 }
 
 // RegisterAnalyticsRoutes registers all analytics API routes
@@ -196,6 +216,47 @@ func RegisterAnalyticsRoutes(r *gin.RouterGroup, handler AnalyticsHandler, logge
 	analyticsGroup.GET("/summary", handler.GetDashboardSummary)
 	analyticsGroup.GET("/export/compliance", handler.ExportComplianceReport)
 	analyticsGroup.GET("/export/anomalies", handler.ExportAnomalies)
+
+	// ============================================================================
+	// Report Snapshots and Generation Routes
+	// ============================================================================
+	reportsGroup := analyticsGroup.Group("/reports")
+	reportsGroup.Use(middleware.Pagination(config))
+	{
+		// Report Snapshots
+		snapshotsGroup := reportsGroup.Group("/snapshots")
+		{
+			snapshotsGroup.GET("", handler.ListReportSnapshots)
+			snapshotsGroup.POST("", handler.GenerateReportSnapshot)
+			snapshotsGroup.GET("/:id", handler.GetReportSnapshot)
+			snapshotsGroup.DELETE("/:id", handler.DeleteReportSnapshot)
+			snapshotsGroup.GET("/stats", handler.GetReportSnapshotStats)
+		}
+
+		// Report Generation Queue
+		queueGroup := reportsGroup.Group("/queue")
+		{
+			queueGroup.POST("", handler.QueueReportGeneration)
+		}
+
+		// Report Generation Jobs
+		jobsGroup := reportsGroup.Group("/jobs")
+		{
+			jobsGroup.GET("", handler.ListReportGenerationJobs)
+			jobsGroup.GET("/:id", handler.GetReportGenerationJob)
+			jobsGroup.DELETE("/:id", handler.DeleteReportGenerationJob)
+		}
+
+		// Report Schedules
+		schedulesGroup := reportsGroup.Group("/schedules")
+		{
+			schedulesGroup.GET("", handler.ListReportSchedules)
+			schedulesGroup.POST("", handler.CreateReportSchedule)
+			schedulesGroup.GET("/:id", handler.GetReportSchedule)
+			schedulesGroup.PATCH("/:id", handler.UpdateReportSchedule)
+			schedulesGroup.DELETE("/:id", handler.DeleteReportSchedule)
+		}
+	}
 
 	// ============================================================================
 	// Admin Routes (require admin role)
