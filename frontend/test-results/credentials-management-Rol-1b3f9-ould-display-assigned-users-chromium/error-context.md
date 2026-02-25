@@ -1,113 +1,25 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e2]:
-  - generic [ref=e3]:
-    - complementary [ref=e4]:
-      - generic [ref=e5]:
-        - generic [ref=e6]:
-          - img [ref=e8]
-          - generic [ref=e10]: OpenPAM
-        - button [ref=e11] [cursor=pointer]:
-          - img [ref=e12]
-      - navigation [ref=e14]:
-        - link "Dashboard" [ref=e15] [cursor=pointer]:
-          - /url: /dashboard
-          - img [ref=e16]
-          - generic [ref=e21]: Dashboard
-        - link "Users" [ref=e22] [cursor=pointer]:
-          - /url: /users
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e7]
+    - heading "OpenPAM" [level=1] [ref=e9]
+    - paragraph [ref=e10]: Sign in to your account
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]: Email
+      - textbox "Email" [ref=e16]:
+        - /placeholder: you@example.com
+        - text: test@example.com
+    - generic [ref=e17]:
+      - generic [ref=e18]: Password
+      - generic [ref=e19]:
+        - textbox "Password" [active] [ref=e20]:
+          - /placeholder: ••••••••
+          - text: testpassword123
+        - button [ref=e22] [cursor=pointer]:
           - img [ref=e23]
-          - generic [ref=e28]: Users
-        - link "Roles" [ref=e29] [cursor=pointer]:
-          - /url: /roles
-          - img [ref=e30]
-          - generic [ref=e32]: Roles
-        - link "Targets" [ref=e33] [cursor=pointer]:
-          - /url: /targets
-          - img [ref=e34]
-          - generic [ref=e37]: Targets
-        - link "Credentials" [ref=e38] [cursor=pointer]:
-          - /url: /credentials
-          - img [ref=e39]
-          - generic [ref=e43]: Credentials
-        - link "My Requests" [ref=e44] [cursor=pointer]:
-          - /url: /requests/my
-          - img [ref=e45]
-          - generic [ref=e50]: My Requests
-        - link "Approvals" [ref=e51] [cursor=pointer]:
-          - /url: /approvals
-          - img [ref=e52]
-          - generic [ref=e55]: Approvals
-        - link "Sessions" [ref=e56] [cursor=pointer]:
-          - /url: /sessions
-          - img [ref=e57]
-          - generic [ref=e59]: Sessions
-        - link "Analytics" [ref=e60] [cursor=pointer]:
-          - /url: /analytics
-          - img [ref=e61]
-          - generic [ref=e63]: Analytics
-        - link "Audit Logs" [ref=e64] [cursor=pointer]:
-          - /url: /audit
-          - img [ref=e65]
-          - generic [ref=e68]: Audit Logs
-        - link "Settings" [ref=e69] [cursor=pointer]:
-          - /url: /settings
-          - img [ref=e70]
-          - generic [ref=e73]: Settings
-      - generic [ref=e75]:
-        - generic [ref=e76]: TU
-        - generic [ref=e77]:
-          - paragraph [ref=e78]: Test User
-          - paragraph [ref=e79]: test@example.com
-    - generic [ref=e80]:
-      - banner [ref=e81]:
-        - generic [ref=e83]:
-          - img [ref=e84]
-          - textbox "Search targets, credentials, users..." [ref=e87]
-        - generic [ref=e88]:
-          - button "Refresh data" [ref=e89] [cursor=pointer]:
-            - img [ref=e90]
-          - button [ref=e96] [cursor=pointer]:
-            - img [ref=e97]
-          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
-            - generic [ref=e102]: TU
-            - generic [ref=e103]: test@example.com
-            - img [ref=e104]
-      - main [ref=e106]:
-        - generic [ref=e107]:
-          - generic [ref=e108]:
-            - link "Back" [ref=e109] [cursor=pointer]:
-              - /url: /roles
-              - button "Back" [ref=e110]:
-                - img [ref=e112]
-                - text: Back
-            - generic [ref=e114]:
-              - img [ref=e116]
-              - generic [ref=e118]:
-                - heading "Edit Role" [level=1] [ref=e119]
-                - paragraph [ref=e120]: Update role permissions and settings
-          - generic [ref=e121]:
-            - generic [ref=e124]:
-              - heading "Basic Information" [level=3] [ref=e125]
-              - generic [ref=e126]:
-                - generic [ref=e128]:
-                  - generic [ref=e129]: Role Name
-                  - textbox "Role Name" [ref=e131]:
-                    - /placeholder: e.g., Database Administrator
-                - generic [ref=e133]:
-                  - generic [ref=e134]: Description
-                  - textbox "Description" [ref=e135]:
-                    - /placeholder: Optional description of this role...
-            - generic [ref=e139]:
-              - heading "Permissions" [level=3] [ref=e140]
-              - generic [ref=e141]: 0 permissions selected
-            - generic [ref=e142]:
-              - link "Cancel" [ref=e143] [cursor=pointer]:
-                - /url: /roles
-                - button "Cancel" [ref=e144]
-              - button "Save Changes" [ref=e145] [cursor=pointer]:
-                - img [ref=e147]
-                - text: Save Changes
-  - status [ref=e156]: An error occurred
+    - button "Sign In" [ref=e26] [cursor=pointer]
+  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
 ```

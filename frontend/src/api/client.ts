@@ -71,13 +71,18 @@ client.interceptors.response.use(
   }
 );
 
-// Generic API helpers
+// Generic API helpers - unwrap response.data for cleaner API
 export const api = {
-  get: <T>(url: string, params?: unknown) => client.get<T>(url, { params }),
-  post: <T>(url: string, data?: unknown) => client.post<T>(url, data),
-  put: <T>(url: string, data?: unknown) => client.put<T>(url, data),
-  patch: <T>(url: string, data?: unknown) => client.patch<T>(url, data),
-  delete: <T>(url: string) => client.delete<T>(url),
+  get: <T>(url: string, params?: unknown) =>
+    client.get<T>(url, { params }).then((res) => res.data),
+  post: <T>(url: string, data?: unknown) =>
+    client.post<T>(url, data).then((res) => res.data),
+  put: <T>(url: string, data?: unknown) =>
+    client.put<T>(url, data).then((res) => res.data),
+  patch: <T>(url: string, data?: unknown) =>
+    client.patch<T>(url, data).then((res) => res.data),
+  delete: <T>(url: string) =>
+    client.delete<T>(url).then((res) => res.data),
 };
 
 export default client;

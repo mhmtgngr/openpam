@@ -1,160 +1,25 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e2]:
-  - generic [ref=e3]:
-    - complementary [ref=e4]:
-      - generic [ref=e5]:
-        - generic [ref=e6]:
-          - img [ref=e8]
-          - generic [ref=e10]: OpenPAM
-        - button [ref=e11] [cursor=pointer]:
-          - img [ref=e12]
-      - navigation [ref=e14]:
-        - link "Dashboard" [ref=e15] [cursor=pointer]:
-          - /url: /dashboard
-          - img [ref=e16]
-          - generic [ref=e21]: Dashboard
-        - link "Users" [ref=e22] [cursor=pointer]:
-          - /url: /users
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e7]
+    - heading "OpenPAM" [level=1] [ref=e9]
+    - paragraph [ref=e10]: Sign in to your account
+  - generic [ref=e12]:
+    - generic [ref=e13]:
+      - generic [ref=e14]: Email
+      - textbox "Email" [ref=e16]:
+        - /placeholder: you@example.com
+        - text: test@example.com
+    - generic [ref=e17]:
+      - generic [ref=e18]: Password
+      - generic [ref=e19]:
+        - textbox "Password" [active] [ref=e20]:
+          - /placeholder: ••••••••
+          - text: testpassword123
+        - button [ref=e22] [cursor=pointer]:
           - img [ref=e23]
-          - generic [ref=e28]: Users
-        - link "Roles" [ref=e29] [cursor=pointer]:
-          - /url: /roles
-          - img [ref=e30]
-          - generic [ref=e32]: Roles
-        - link "Targets" [ref=e33] [cursor=pointer]:
-          - /url: /targets
-          - img [ref=e34]
-          - generic [ref=e37]: Targets
-        - link "Credentials" [ref=e38] [cursor=pointer]:
-          - /url: /credentials
-          - img [ref=e39]
-          - generic [ref=e43]: Credentials
-        - link "My Requests" [ref=e44] [cursor=pointer]:
-          - /url: /requests/my
-          - img [ref=e45]
-          - generic [ref=e50]: My Requests
-        - link "Approvals" [ref=e51] [cursor=pointer]:
-          - /url: /approvals
-          - img [ref=e52]
-          - generic [ref=e55]: Approvals
-        - link "Sessions" [ref=e56] [cursor=pointer]:
-          - /url: /sessions
-          - img [ref=e57]
-          - generic [ref=e59]: Sessions
-        - link "Analytics" [ref=e60] [cursor=pointer]:
-          - /url: /analytics
-          - img [ref=e61]
-          - generic [ref=e63]: Analytics
-        - link "Audit Logs" [ref=e64] [cursor=pointer]:
-          - /url: /audit
-          - img [ref=e65]
-          - generic [ref=e68]: Audit Logs
-        - link "Settings" [ref=e69] [cursor=pointer]:
-          - /url: /settings
-          - img [ref=e70]
-          - generic [ref=e73]: Settings
-      - generic [ref=e75]:
-        - generic [ref=e76]: TU
-        - generic [ref=e77]:
-          - paragraph [ref=e78]: Test User
-          - paragraph [ref=e79]: test@example.com
-    - generic [ref=e80]:
-      - banner [ref=e81]:
-        - generic [ref=e83]:
-          - img [ref=e84]
-          - textbox "Search targets, credentials, users..." [ref=e87]
-        - generic [ref=e88]:
-          - button "Refresh data" [ref=e89] [cursor=pointer]:
-            - img [ref=e90]
-          - button [ref=e96] [cursor=pointer]:
-            - img [ref=e97]
-          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
-            - generic [ref=e102]: TU
-            - generic [ref=e103]: test@example.com
-            - img [ref=e104]
-      - main [ref=e106]:
-        - generic [ref=e107]:
-          - generic [ref=e108]:
-            - generic [ref=e109]:
-              - heading "Credential Vault" [level=1] [ref=e110]
-              - paragraph [ref=e111]: Securely store and manage credentials
-            - link "Add Credential" [ref=e112] [cursor=pointer]:
-              - /url: /credentials/new
-              - button "Add Credential" [ref=e113]:
-                - img [ref=e115]
-                - text: Add Credential
-          - generic [ref=e118]:
-            - generic [ref=e121]:
-              - img [ref=e123]
-              - textbox "Search credentials..." [ref=e126]
-            - combobox [ref=e128]:
-              - option "All Types" [selected]
-              - option "Password"
-              - option "SSH Key"
-              - option "API Key"
-              - option "Certificate"
-              - option "Database"
-              - option "Service Account"
-            - combobox [ref=e130]:
-              - option "All Status" [selected]
-              - option "Active"
-              - option "Expiring Soon"
-              - option "Expired"
-          - table [ref=e133]:
-            - rowgroup [ref=e134]:
-              - row "Credential Type Rotation Last Rotated Status" [ref=e135]:
-                - columnheader "Credential" [ref=e136]
-                - columnheader "Type" [ref=e137]
-                - columnheader "Rotation" [ref=e138]
-                - columnheader "Last Rotated" [ref=e139]
-                - columnheader "Status" [ref=e140]
-                - columnheader [ref=e141]
-            - rowgroup [ref=e142]:
-              - row "Production Database admin@Unknown database undefined Never active Rotate View" [ref=e143]:
-                - cell "Production Database admin@Unknown" [ref=e144]:
-                  - generic [ref=e145]:
-                    - img [ref=e147]
-                    - generic [ref=e151]:
-                      - paragraph [ref=e152]: Production Database
-                      - paragraph [ref=e153]: admin@Unknown
-                - cell "database" [ref=e154]:
-                  - generic [ref=e155]: database
-                - cell "undefined" [ref=e156]
-                - cell "Never" [ref=e157]
-                - cell "active" [ref=e158]:
-                  - generic [ref=e159]: active
-                - cell "Rotate View" [ref=e160]:
-                  - generic [ref=e161]:
-                    - button "Rotate" [ref=e162] [cursor=pointer]:
-                      - img [ref=e164]
-                      - text: Rotate
-                    - link "View" [ref=e169] [cursor=pointer]:
-                      - /url: /credentials/cred-1
-                      - button "View" [ref=e170]
-              - row "SSH Server Root root@Unknown ssh undefined Never expiring Rotate View" [ref=e171]:
-                - cell "SSH Server Root root@Unknown" [ref=e172]:
-                  - generic [ref=e173]:
-                    - img [ref=e175]
-                    - generic [ref=e179]:
-                      - paragraph [ref=e180]: SSH Server Root
-                      - paragraph [ref=e181]: root@Unknown
-                - cell "ssh" [ref=e182]:
-                  - generic [ref=e183]: ssh
-                - cell "undefined" [ref=e184]
-                - cell "Never" [ref=e185]
-                - cell "expiring" [ref=e186]:
-                  - generic [ref=e187]: expiring
-                - cell "Rotate View" [ref=e188]:
-                  - generic [ref=e189]:
-                    - button "Rotate" [ref=e190] [cursor=pointer]:
-                      - img [ref=e192]
-                      - text: Rotate
-                    - link "View" [ref=e197] [cursor=pointer]:
-                      - /url: /credentials/cred-2
-                      - button "View" [ref=e198]
-  - generic:
-    - status [ref=e204]: An error occurred
-    - status [ref=e210]: An error occurred
+    - button "Sign In" [ref=e26] [cursor=pointer]
+  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
 ```

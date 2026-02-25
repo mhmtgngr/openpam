@@ -9,13 +9,15 @@
   - generic [ref=e12]:
     - generic [ref=e13]:
       - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
+      - textbox "Email" [ref=e16]:
         - /placeholder: you@example.com
+        - text: invalid@example.com
     - generic [ref=e17]:
       - generic [ref=e18]: Password
       - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
+        - textbox "Password" [active] [ref=e20]:
           - /placeholder: ••••••••
+          - text: wrongpassword
         - button [ref=e22] [cursor=pointer]:
           - img [ref=e23]
     - button "Sign In" [ref=e26] [cursor=pointer]
