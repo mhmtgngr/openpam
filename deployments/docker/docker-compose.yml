@@ -109,7 +109,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
 
       # Redis
       REDIS_HOST: redis
@@ -164,7 +164,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -198,7 +198,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -232,7 +232,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -266,7 +266,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -299,7 +299,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -330,7 +330,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -368,7 +368,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: require
+      DB_SSLMODE: no-verify
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""

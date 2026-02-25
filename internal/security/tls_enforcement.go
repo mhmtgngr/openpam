@@ -98,14 +98,17 @@ func EnforceDatabaseSSL(sslMode string) error {
 	}
 
 	// Allowed modes
+	// no-verify is allowed for development with self-signed certificates
+	// It requires SSL but doesn't verify the certificate chain
 	allowedModes := map[string]bool{
 		"require":     true,
 		"verify-ca":   true,
 		"verify-full": true,
+		"no-verify":   true, // For development with self-signed certs
 	}
 
 	if !allowedModes[sslMode] {
-		return fmt.Errorf("security: invalid database SSL mode '%s'. Must be one of: require, verify-ca, verify-full", sslMode)
+		return fmt.Errorf("security: invalid database SSL mode '%s'. Must be one of: require, verify-ca, verify-full, no-verify", sslMode)
 	}
 
 	return nil

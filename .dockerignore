@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Frontend test artifacts (not needed in Go service images)
+frontend/test-results/
+frontend/playwright-report/
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+frontend/out/
+
+# Documentation
+README.md
+CLAUDE.md
+docs/
+*.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local files
+.env.local
+.env.*.local
+*.log
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+Jenkinsfile
+
+# Deployment files (don't include in images)
+deployments/docker/docker-compose*.yml
+deployments/k8s/
+deployments/helm/
+
+# Tests
+*_test.go
+test/
+coverage/
+.coverage
+*.test
+
+# Temporary files
+tmp/
+temp/
+*.tmp
