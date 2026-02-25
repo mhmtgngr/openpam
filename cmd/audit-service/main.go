@@ -18,9 +18,6 @@ import (
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/database"
 	"github.com/openpam/openpam/internal/middleware"
-	analytics "github.com/openpam/openpam/internal/pam/analytics"
-	analyticsrepository "github.com/openpam/openpam/internal/pam/analytics/repository"
-	reportcache "github.com/openpam/openpam/pkg/cache"
 	pamanalytics "github.com/openpam/openpam/internal/pam/analytics"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -72,9 +69,9 @@ func main() {
 
 	// Wire up report generator with storage configuration
 	reportGenerator := audit.NewReportGenerator(db.DB, logger, &audit.StorageConfig{
-		BaseURL:      config.ReportStorageBaseURL,
-		StoragePath:  config.ReportStoragePath,
-		MaxFileSize:  config.ReportStorageMaxSize,
+		BaseURL:       config.ReportStorageBaseURL,
+		StoragePath:   config.ReportStoragePath,
+		MaxFileSize:   config.ReportStorageMaxSize,
 		RetentionDays: config.ReportRetentionDays,
 	})
 	analyticsSvc.SetReportGenerator(reportGenerator)
@@ -84,39 +81,8 @@ func main() {
 	pamAnomalyRepo := pamanalytics.NewAnomalyRepository(db.DB, logger)
 	pamAnalyticsSvc := pamanalytics.NewService(pamAnalyticsRepo, pamAnomalyRepo, redisCache, logger)
 
-	// Initialize report persistence components
-	reportRepo := analyticsrepository.NewReportRepository(db.DB, logger)
-	exceptionRepo := analyticsrepository.NewExceptionRepository(db.DB, logger)
-	reportCache := reportcache.NewReportCache(redisCache, logger)
-	reportSvc := analytics.NewReportService(reportRepo, exceptionRepo, reportCache, logger)
-
-	// Initialize report distributor
-	distributorConfig := analytics.DistributionConfig{
-		WebhookTimeout: 30 * time.Second,
-		WebhookRetries: 3,
-	}
-	reportDistributor := analytics.NewReportDistributor(reportRepo, distributorConfig, logger)
-
-	// Initialize report scheduler
-	reportScheduler := analytics.NewReportScheduler(reportRepo, reportSvc, logger)
-
-	// Initialize report generator worker
-	workerConfig := analytics.WorkerConfig{
-		WorkerID:          fmt.Sprintf("audit-%s", uuid.New().String()[:8]),
-		CheckInterval:     10 * time.Second,
-		MaxConcurrentJobs: 5,
-		OutputDir:         config.ReportStoragePath,
-	}
-	reportWorker := analytics.NewReportGeneratorWorker(reportRepo, reportSvc, reportDistributor, workerConfig, logger)
-
-	// Start background workers
-	ctx := context.Background()
-	reportScheduler.Start(ctx)
-	reportWorker.Start(ctx)
-	logger.Info().Msg("Report scheduler and worker started")
-
 	// Setup router
-	router := setupRouter(config, db, redisCache, auditSvc, analyticsSvc, pamAnalyticsSvc, reportSvc, reportScheduler, reportDistributor, reportWorker, logger)
+	router := setupRouter(config, db, redisCache, auditSvc, analyticsSvc, pamAnalyticsSvc, logger)
 
 	// Start server
 	srv := &http.Server{
@@ -136,11 +102,6 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	logger.Info().Msg("Shutting down...")
-
-	// Stop background workers
-	reportScheduler.Stop()
-	reportWorker.Stop()
-	logger.Info().Msg("Background workers stopped")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -237,10 +198,6 @@ func setupRouter(
 	auditSvc *audit.Service,
 	analyticsSvc *audit.AnalyticsService,
 	pamAnalyticsSvc *pamanalytics.Service,
-	reportSvc *analytics.ReportService,
-	reportScheduler *analytics.ReportScheduler,
-	reportDistributor *analytics.ReportDistributor,
-	reportWorker *analytics.ReportGeneratorWorker,
 	logger zerolog.Logger,
 ) *gin.Engine {
 	if config.LogLevel == "debug" {
