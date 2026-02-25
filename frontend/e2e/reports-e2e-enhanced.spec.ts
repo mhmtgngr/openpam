@@ -449,7 +449,7 @@ test.describe('ReportDistributionDialog', () => {
 
     // Look for generate report button
     const generateButton = authenticatedPage.getByRole('button', { name: /generate report/i }).or(
-      authenticatedPage.getByRole('button', { name: /new report/i)
+      authenticatedPage.getByRole('button', { name: /new report/i })
     ).or(
       authenticatedPage.getByTestId('generate-report-button')
     );
@@ -544,7 +544,7 @@ test.describe('ReportScheduleDialog', () => {
 
     // Look for schedule button
     const scheduleButton = authenticatedPage.getByRole('button', { name: /schedule/i }).or(
-      authenticatedPage.getByRole('button', { name: /automation/i)
+      authenticatedPage.getByRole('button', { name: /automation/i })
     ).or(
       authenticatedPage.getByTestId('schedule-button')
     );
