@@ -12,22 +12,22 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// ExcelFormatter generates Excel reports using excelize
-type ExcelFormatter struct {
+// DedicatedExcelFormatter generates Excel reports using excelize
+type DedicatedExcelFormatter struct {
 	storage ReportStorage
 	logger  zerolog.Logger
 }
 
 // NewDedicatedExcelFormatter creates a new dedicated Excel formatter
-func NewDedicatedExcelFormatter(storage ReportStorage, logger zerolog.Logger) *ExcelFormatter {
-	return &ExcelFormatter{
+func NewDedicatedExcelFormatter(storage ReportStorage, logger zerolog.Logger) *DedicatedExcelFormatter {
+	return &DedicatedExcelFormatter{
 		storage: storage,
 		logger:  logger,
 	}
 }
 
 // Generate generates an Excel compliance report
-func (f *ExcelFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
+func (f *DedicatedExcelFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
 	f.logger.Info().
 		Str("report_id", report.ID.String()).
 		Str("snapshot_id", snapshot.ID.String()).
@@ -121,7 +121,7 @@ type ExcelOptions struct {
 }
 
 // createSummarySheet creates the executive summary sheet
-func (f *ExcelFormatter) createSummarySheet(xlFile *excelize.File, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, opts *ExcelOptions) error {
+func (f *DedicatedExcelFormatter) createSummarySheet(xlFile *excelize.File, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, opts *ExcelOptions) error {
 	sheetName := "Summary"
 	index, err := xlFile.NewSheet(sheetName)
 	if err != nil {
@@ -263,143 +263,8 @@ func (f *ExcelFormatter) createSummarySheet(xlFile *excelize.File, report *analy
 	return nil
 }
 
-	// Set column widths
-	if err := xlFile.SetColWidth(sheetName, "A", "B", 30); err != nil {
-		return err
-	}
-	if err := xlFile.SetColWidth(sheetName, "C", "C", 20); err != nil {
-		return err
-	}
-
-	// Define styles
-	headerStyle, err := xlFile.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Size: 14},
-		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#E0E0E0"}},
-	})
-	if err != nil {
-		return err
-	}
-
-	titleStyle, err := xlFile.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Size: 16},
-	})
-	if err != nil {
-		return err
-	}
-
-	labelStyle, err := xlFile.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true},
-	})
-	if err != nil {
-		return err
-	}
-
-	scoreStyle, err := xlFile.NewStyle(&excelize.Style{
-		Font: &excelize.Font{Bold: true, Size: 24},
-		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{getScoreHexColor(report.OverallScore)}},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Title
-	if _, err := xlFile.SetCellValue(sheetName, "A1", fmt.Sprintf("%s Compliance Report", report.Framework)); err != nil {
-		return err
-	}
-	if err := xlFile.SetCellStyle(sheetName, "A1", "C1", titleStyle); err != nil {
-		return err
-	}
-	if err := xlFile.MergeCell(sheetName, "A1", "C1"); err != nil {
-		return err
-	}
-
-	// Metadata section
-	row := 3
-	metadataData := map[string]string{
-		"Generated":    snapshot.GeneratedAt.Format("2006-01-02 15:04:05"),
-		"Period Start": snapshot.PeriodStart.Format("2006-01-02"),
-		"Period End":   snapshot.PeriodEnd.Format("2006-01-02"),
-		"Framework":    report.Framework,
-		"Report ID":    snapshot.ID.String(),
-	}
-
-	for label, value := range metadataData {
-		if err := xlFile.SetCellValue(sheetName, fmt.Sprintf("A%d", row), label); err != nil {
-			return err
-		}
-		if err := xlFile.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("A%d", row), labelStyle); err != nil {
-			return err
-		}
-		if err := xlFile.SetCellValue(sheetName, fmt.Sprintf("B%d", row), value); err != nil {
-			return err
-		}
-		if err := xlFile.MergeCell(sheetName, fmt.Sprintf("B%d", row), fmt.Sprintf("C%d", row)); err != nil {
-			return err
-		}
-		row++
-	}
-
-	row += 2
-
-	// Executive Summary header
-	if _, err := xlFile.SetCellValue(sheetName, fmt.Sprintf("A%d", row), "Executive Summary"); err != nil {
-		return err
-	}
-	if err := xlFile.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("C%d", row), headerStyle); err != nil {
-		return err
-	}
-	if err := xlFile.MergeCell(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("C%d", row)); err != nil {
-		return err
-	}
-	row++
-
-	// Score metrics
-	scoreData := map[string]string{
-		"Overall Score":          fmt.Sprintf("%.1f%%", report.OverallScore),
-		"Compliance Status":      getScoreStatus(report.OverallScore),
-		"Total Controls":         fmt.Sprintf("%d", report.TotalControls),
-		"Passed Controls":        fmt.Sprintf("%d", report.PassedControls),
-		"Failed Controls":        fmt.Sprintf("%d", report.FailedControls),
-		"Pass Rate":              fmt.Sprintf("%.1f%%", float64(report.PassedControls)/float64(report.TotalControls)*100),
-		"Critical Findings":      fmt.Sprintf("%d", countViolationsBySeverity(report, "critical")),
-		"High Risk Findings":     fmt.Sprintf("%d", countViolationsBySeverity(report, "high")),
-		"Medium Risk Findings":   fmt.Sprintf("%d", countViolationsBySeverity(report, "medium")),
-	}
-
-	for label, value := range scoreData {
-		if err := xlFile.SetCellValue(sheetName, fmt.Sprintf("A%d", row), label); err != nil {
-			return err
-		}
-		if err := xlFile.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("A%d", row), labelStyle); err != nil {
-			return err
-		}
-		if err := xlFile.SetCellValue(sheetName, fmt.Sprintf("B%d", row), value); err != nil {
-			return err
-		}
-		if err := xlFile.MergeCell(sheetName, fmt.Sprintf("B%d", row), fmt.Sprintf("C%d", row)); err != nil {
-			return err
-		}
-
-		// Apply score style to Overall Score
-		if label == "Overall Score" {
-			if err := xlFile.SetCellStyle(sheetName, fmt.Sprintf("B%d", row), fmt.Sprintf("B%d", row), scoreStyle); err != nil {
-				return err
-			}
-		}
-
-		row++
-	}
-
-	// Set active sheet
-	if err := xlFile.SetActiveSheet(index); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // createPolicySheet creates the policy breakdown sheet
-func (f *ExcelFormatter) createPolicySheet(xlFile *excelize.File, report *analytics.ComplianceReport) error {
+func (f *DedicatedExcelFormatter) createPolicySheet(xlFile *excelize.File, report *analytics.ComplianceReport) error {
 	sheetName := "Policy Breakdown"
 	index, err := xlFile.NewSheet(sheetName)
 	if err != nil {
@@ -479,7 +344,7 @@ func (f *ExcelFormatter) createPolicySheet(xlFile *excelize.File, report *analyt
 }
 
 // createViolationsSheet creates the violations sheet
-func (f *ExcelFormatter) createViolationsSheet(xlFile *excelize.File, report *analytics.ComplianceReport) error {
+func (f *DedicatedExcelFormatter) createViolationsSheet(xlFile *excelize.File, report *analytics.ComplianceReport) error {
 	sheetName := "Violations"
 	index, err := xlFile.NewSheet(sheetName)
 	if err != nil {
@@ -619,7 +484,7 @@ func countViolationsBySeverity(report *analytics.ComplianceReport, severity stri
 }
 
 // StoreReport stores the Excel report data
-func (f *ExcelFormatter) StoreReport(ctx context.Context, tenantID uuid.UUID, snapshotID uuid.UUID, data []byte, contentType string) (string, int64, error) {
+func (f *DedicatedExcelFormatter) StoreReport(ctx context.Context, tenantID uuid.UUID, snapshotID uuid.UUID, data []byte, contentType string) (string, int64, error) {
 	xlFilename := fmt.Sprintf("%s-%s.xlsx", snapshotID.String(), time.Now().Format("20060102-150405"))
 	return f.storage.Store(ctx, tenantID, xlFilename, data, contentType)
 }

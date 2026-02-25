@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -33,7 +32,7 @@ func NewReportsHandler(service *analytics.Service, logger zerolog.Logger) *Repor
 
 // GenerateReport handles POST /api/v1/reports/generate
 func (h *ReportsHandler) GenerateReport(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -67,7 +66,7 @@ func (h *ReportsHandler) GenerateReport(c *gin.Context) {
 
 // ListReportSnapshots handles GET /api/v1/reports/snapshots
 func (h *ReportsHandler) ListReportSnapshots(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -118,7 +117,7 @@ func (h *ReportsHandler) ListReportSnapshots(c *gin.Context) {
 
 // GetReportSnapshot handles GET /api/v1/reports/snapshots/:id
 func (h *ReportsHandler) GetReportSnapshot(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -142,7 +141,7 @@ func (h *ReportsHandler) GetReportSnapshot(c *gin.Context) {
 
 // DownloadReportSnapshot handles GET /api/v1/reports/snapshots/:id/download
 func (h *ReportsHandler) DownloadReportSnapshot(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -185,7 +184,7 @@ func (h *ReportsHandler) DownloadReportSnapshot(c *gin.Context) {
 
 // GetReportSnapshotStats handles GET /api/v1/reports/snapshots/stats
 func (h *ReportsHandler) GetReportSnapshotStats(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -207,7 +206,7 @@ func (h *ReportsHandler) GetReportSnapshotStats(c *gin.Context) {
 
 // ListReportJobs handles GET /api/v1/reports/jobs
 func (h *ReportsHandler) ListReportJobs(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -252,7 +251,7 @@ func (h *ReportsHandler) ListReportJobs(c *gin.Context) {
 
 // GetReportJob handles GET /api/v1/reports/jobs/:id
 func (h *ReportsHandler) GetReportJob(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -276,7 +275,7 @@ func (h *ReportsHandler) GetReportJob(c *gin.Context) {
 
 // CancelReportJob handles POST /api/v1/reports/jobs/:id/cancel
 func (h *ReportsHandler) CancelReportJob(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -300,7 +299,7 @@ func (h *ReportsHandler) CancelReportJob(c *gin.Context) {
 
 // RetryReportJob handles POST /api/v1/reports/jobs/:id/retry
 func (h *ReportsHandler) RetryReportJob(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -328,7 +327,7 @@ func (h *ReportsHandler) RetryReportJob(c *gin.Context) {
 
 // CreateReportSchedule handles POST /api/v1/reports/schedules
 func (h *ReportsHandler) CreateReportSchedule(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -346,7 +345,7 @@ func (h *ReportsHandler) CreateReportSchedule(c *gin.Context) {
 		return
 	}
 
-	schedule, err := h.service.CreateReportSchedule(c.Request.Context(), tenantID, userID.(uuid.UUID), &req)
+	schedule, err := h.service.CreateReportSchedule(c.Request.Context(), tenantID, userID.(uuid.UUID), userID.(uuid.UUID), &req)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to create report schedule")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create schedule"}})
@@ -358,7 +357,7 @@ func (h *ReportsHandler) CreateReportSchedule(c *gin.Context) {
 
 // ListReportSchedules handles GET /api/v1/reports/schedules
 func (h *ReportsHandler) ListReportSchedules(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -397,7 +396,7 @@ func (h *ReportsHandler) ListReportSchedules(c *gin.Context) {
 
 // GetReportSchedule handles GET /api/v1/reports/schedules/:id
 func (h *ReportsHandler) GetReportSchedule(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -421,7 +420,7 @@ func (h *ReportsHandler) GetReportSchedule(c *gin.Context) {
 
 // UpdateReportSchedule handles PUT /api/v1/reports/schedules/:id
 func (h *ReportsHandler) UpdateReportSchedule(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -439,10 +438,18 @@ func (h *ReportsHandler) UpdateReportSchedule(c *gin.Context) {
 		return
 	}
 
-	schedule, err := h.service.UpdateReportSchedule(c.Request.Context(), scheduleID, tenantID, &req)
+	err = h.service.UpdateReportSchedule(c.Request.Context(), scheduleID, tenantID, &req)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to update report schedule")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to update schedule"}})
+		return
+	}
+
+	// Fetch the updated schedule to return
+	schedule, err := h.service.GetReportSchedule(c.Request.Context(), scheduleID, tenantID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get updated schedule")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to retrieve schedule"}})
 		return
 	}
 
@@ -451,7 +458,7 @@ func (h *ReportsHandler) UpdateReportSchedule(c *gin.Context) {
 
 // DeleteReportSchedule handles DELETE /api/v1/reports/schedules/:id
 func (h *ReportsHandler) DeleteReportSchedule(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -475,7 +482,7 @@ func (h *ReportsHandler) DeleteReportSchedule(c *gin.Context) {
 
 // PauseReportSchedule handles POST /api/v1/reports/schedules/:id/pause
 func (h *ReportsHandler) PauseReportSchedule(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -499,7 +506,7 @@ func (h *ReportsHandler) PauseReportSchedule(c *gin.Context) {
 
 // ResumeReportSchedule handles POST /api/v1/reports/schedules/:id/resume
 func (h *ReportsHandler) ResumeReportSchedule(c *gin.Context) {
-	tenantID, err := getTenantID(c)
+	tenantID, err := reportsGetTenantID(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
 		return
@@ -534,7 +541,7 @@ func parseIntQuery(c *gin.Context, key string, defaultValue int) int {
 	return defaultValue
 }
 
-func getTenantID(c *gin.Context) (uuid.UUID, error) {
+func reportsGetTenantID(c *gin.Context) (uuid.UUID, error) {
 	tenantIDStr := c.GetHeader("X-Tenant-ID")
 	if tenantIDStr == "" {
 		// Try from context

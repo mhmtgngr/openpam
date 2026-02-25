@@ -78,7 +78,7 @@ func NewExcelFormatter(storage ReportStorage, logger zerolog.Logger) *ExcelForma
 }
 
 // Generate generates an Excel report
-func (f *ExcelFormatter) Generate(ctx context.Context, report *ComplianceReport, snapshot *ReportSnapshot, options json.RawMessage) (string, int64, error) {
+func (f *ExcelFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
 	// Delegate to the dedicated Excel formatter
 	dedicatedFormatter := NewDedicatedExcelFormatter(f.storage, f.logger)
 	return dedicatedFormatter.Generate(ctx, report, snapshot, options)
@@ -101,7 +101,7 @@ func NewCSVFormatter(storage ReportStorage, logger zerolog.Logger) *CSVFormatter
 }
 
 // Generate generates a CSV report
-func (f *CSVFormatter) Generate(ctx context.Context, report *ComplianceReport, snapshot *ReportSnapshot, options json.RawMessage) (string, int64, error) {
+func (f *CSVFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
 	data := []byte(fmt.Sprintf("Framework,Score,Passed,Failed\n%s,%.1f,%d,%d",
 		report.Framework, report.OverallScore, report.PassedControls, report.FailedControls))
 
@@ -130,7 +130,7 @@ func NewHTMLFormatter(storage ReportStorage, logger zerolog.Logger) *HTMLFormatt
 }
 
 // Generate generates an HTML report
-func (f *HTMLFormatter) Generate(ctx context.Context, report *ComplianceReport, snapshot *ReportSnapshot, options json.RawMessage) (string, int64, error) {
+func (f *HTMLFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
 	html := fmt.Sprintf(`<!DOCTYPE html><html><head><title>%s Report</title></head><body>
 <h1>%s Compliance Report</h1>
 <p>Score: %.1f%%</p>
@@ -164,7 +164,7 @@ func NewJSONFormatter(storage ReportStorage, logger zerolog.Logger) *JSONFormatt
 }
 
 // Generate generates a JSON report
-func (f *JSONFormatter) Generate(ctx context.Context, report *ComplianceReport, snapshot *ReportSnapshot, options json.RawMessage) (string, int64, error) {
+func (f *JSONFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
 	reportData := map[string]interface{}{
 		"framework":        report.Framework,
 		"score":           report.OverallScore,

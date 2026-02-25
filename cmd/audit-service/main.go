@@ -80,7 +80,8 @@ func main() {
 	pamAnalyticsRepo := pamanalytics.NewRepository(db.DB, logger)
 	pamAnomalyRepo := pamanalytics.NewAnomalyRepository(db.DB, logger)
 	pamReportRepo := pamanalytics.NewReportRepository(db.DB, logger)
-	pamAnalyticsSvc := pamanalytics.NewService(pamAnalyticsRepo, pamAnomalyRepo, pamReportRepo, redisCache, logger)
+	pamComplianceExceptionRepo := pamanalytics.NewComplianceExceptionRepository(db.DB, logger)
+	pamAnalyticsSvc := pamanalytics.NewService(pamAnalyticsRepo, pamAnomalyRepo, pamReportRepo, pamComplianceExceptionRepo, redisCache, logger)
 
 	// Setup router
 	router := setupRouter(config, db, redisCache, auditSvc, analyticsSvc, pamAnalyticsSvc, logger)

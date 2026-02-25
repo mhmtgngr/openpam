@@ -12,22 +12,22 @@ import (
 	"github.com/signintech/gopdf"
 )
 
-// PDFFormatter generates PDF reports using gopdf
-type PDFFormatter struct {
+// DedicatedPDFFormatter generates PDF reports using gopdf
+type DedicatedPDFFormatter struct {
 	storage ReportStorage
 	logger  zerolog.Logger
 }
 
 // NewDedicatedPDFFormatter creates a new dedicated PDF formatter
-func NewDedicatedPDFFormatter(storage ReportStorage, logger zerolog.Logger) *PDFFormatter {
-	return &PDFFormatter{
+func NewDedicatedPDFFormatter(storage ReportStorage, logger zerolog.Logger) *DedicatedPDFFormatter {
+	return &DedicatedPDFFormatter{
 		storage: storage,
 		logger:  logger,
 	}
 }
 
 // Generate generates a PDF compliance report
-func (f *PDFFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
+func (f *DedicatedPDFFormatter) Generate(ctx context.Context, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, options json.RawMessage) (string, int64, error) {
 	f.logger.Info().
 		Str("report_id", report.ID.String()).
 		Str("snapshot_id", snapshot.ID.String()).
@@ -88,7 +88,7 @@ type PDFOptions struct {
 }
 
 // buildReport builds the PDF report content
-func (f *PDFFormatter) buildReport(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, opts *PDFOptions) error {
+func (f *DedicatedPDFFormatter) buildReport(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, opts *PDFOptions) error {
 	yPos := 30.0
 
 	// Add header
@@ -131,7 +131,7 @@ func (f *PDFFormatter) buildReport(pdf *gopdf.GoPdf, report *analytics.Complianc
 }
 
 // addHeader adds the report header
-func (f *PDFFormatter) addHeader(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, yPos float64) float64 {
+func (f *DedicatedPDFFormatter) addHeader(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, yPos float64) float64 {
 	pdf.SetFont("Arial", "", 14)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
@@ -158,7 +158,7 @@ func (f *PDFFormatter) addHeader(pdf *gopdf.GoPdf, report *analytics.ComplianceR
 }
 
 // addSummary adds the executive summary
-func (f *PDFFormatter) addSummary(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, yPos float64) float64 {
+func (f *DedicatedPDFFormatter) addSummary(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, snapshot *analytics.ReportSnapshot, yPos float64) float64 {
 	pdf.SetFont("Arial", "B", 14)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
@@ -188,7 +188,7 @@ func (f *PDFFormatter) addSummary(pdf *gopdf.GoPdf, report *analytics.Compliance
 }
 
 // addScoreVisualization adds a visual representation of the score
-func (f *PDFFormatter) addScoreVisualization(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) float64 {
+func (f *DedicatedPDFFormatter) addScoreVisualization(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) float64 {
 	pdf.SetFont("Arial", "B", 12)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
@@ -225,7 +225,7 @@ func (f *PDFFormatter) addScoreVisualization(pdf *gopdf.GoPdf, report *analytics
 }
 
 // addPolicyBreakdown adds detailed policy breakdown
-func (f *PDFFormatter) addPolicyBreakdown(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) float64 {
+func (f *DedicatedPDFFormatter) addPolicyBreakdown(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) float64 {
 	pdf.SetFont("Arial", "B", 14)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
@@ -303,7 +303,7 @@ func (f *PDFFormatter) addPolicyBreakdown(pdf *gopdf.GoPdf, report *analytics.Co
 }
 
 // addViolations adds the violations section
-func (f *PDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) error {
+func (f *DedicatedPDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) error {
 	pdf.SetFont("Arial", "B", 14)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
@@ -371,7 +371,7 @@ func (f *PDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytics.Complia
 }
 
 // addFooter adds footer information
-func (f *PDFFormatter) addFooter(pdf *gopdf.GoPdf, snapshot *analytics.ReportSnapshot) {
+func (f *DedicatedPDFFormatter) addFooter(pdf *gopdf.GoPdf, snapshot *analytics.ReportSnapshot) {
 	// Add page number at bottom
 	pdf.SetFont("Arial", "I", 8)
 	pdf.SetX(20)
@@ -417,7 +417,7 @@ func getPDFSeverityColor(severity analytics.Severity) PDFColor {
 }
 
 // StoreReport stores the PDF report data
-func (f *PDFFormatter) StoreReport(ctx context.Context, tenantID uuid.UUID, snapshotID uuid.UUID, data []byte, contentType string) (string, int64, error) {
+func (f *DedicatedPDFFormatter) StoreReport(ctx context.Context, tenantID uuid.UUID, snapshotID uuid.UUID, data []byte, contentType string) (string, int64, error) {
 	filename := fmt.Sprintf("%s-%s.pdf", snapshotID.String(), time.Now().Format("20060102-150405"))
 	return f.storage.Store(ctx, tenantID, filename, data, contentType)
 }
