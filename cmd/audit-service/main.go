@@ -69,9 +69,9 @@ func main() {
 
 	// Wire up report generator with storage configuration
 	reportGenerator := audit.NewReportGenerator(db.DB, logger, &audit.StorageConfig{
-		BaseURL:      config.ReportStorageBaseURL,
-		StoragePath:  config.ReportStoragePath,
-		MaxFileSize:  config.ReportStorageMaxSize,
+		BaseURL:       config.ReportStorageBaseURL,
+		StoragePath:   config.ReportStoragePath,
+		MaxFileSize:   config.ReportStorageMaxSize,
 		RetentionDays: config.ReportRetentionDays,
 	})
 	analyticsSvc.SetReportGenerator(reportGenerator)

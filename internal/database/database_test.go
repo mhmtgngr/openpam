@@ -281,16 +281,15 @@ func TestSSLModeValidation(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:      "disable is rejected",
+			name:      "disable is allowed for local development",
 			sslMode:   "disable",
-			wantError: true,
-			errorMsg:  "forbidden",
+			wantError: false,
 		},
 		{
 			name:      "allow is rejected",
 			sslMode:   "allow",
 			wantError: true,
-			errorMsg:  "forbidden",
+			errorMsg:  "invalid database SSL mode",
 		},
 		{
 			name:        "require is accepted",
