@@ -41,7 +41,7 @@ import {
   ReportGeneratorPage,
   ExceptionManagementPage,
 } from '@/pages/analytics';
-import { UsageLimitPage } from '@/pages/UsageLimitPage';
+import UsageLimitPage from '@/pages/UsageLimitPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -614,6 +614,17 @@ export interface ComplianceDashboard {
 
 export type ComplianceFramework = 'soc2' | 'iso27001' | 'pci_dss' | 'hipaa' | 'gdpr' | 'custom';
 
+// Re-export report types
+export type {
+  ReportFormat,
+  ReportType,
+  ReportStatus,
+  ReportSnapshot,
+  GenerateReportRequest,
+  ReportConfig,
+  ReportListParams,
+} from './reports';
+
 export interface ComplianceControl {
   id: string;
   name: string;
