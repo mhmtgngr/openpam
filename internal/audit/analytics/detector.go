@@ -4,7 +4,6 @@ package analytics
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -263,34 +262,6 @@ func riskScoreFromZScore(zScore float64) float64 {
 
 func strPtr(s string) *string {
 	return &s
-}
-
-// calculateStatistics computes mean and standard deviation
-func calculateStatistics(values []float64) (mean, stdDev float64) {
-	if len(values) == 0 {
-		return 0, 0
-	}
-
-	n := float64(len(values))
-	sum := 0.0
-	for _, v := range values {
-		sum += v
-	}
-	mean = sum / n
-
-	if len(values) == 1 {
-		return mean, 0
-	}
-
-	sumSquaredDiff := 0.0
-	for _, v := range values {
-		diff := v - mean
-		sumSquaredDiff += diff * diff
-	}
-	variance := sumSquaredDiff / n
-	stdDev = math.Sqrt(variance)
-
-	return mean, stdDev
 }
 
 // calculateIQRBounds computes the lower and upper bounds using IQR method

@@ -327,8 +327,6 @@ func calculateHourlyPattern(ctx context.Context, db *sqlx.DB, tenantID, userID u
 	defer rows.Close()
 
 	hourlyCounts := make(map[int]int)
-	totalDays := 0
-	seenDates := make(map[string]bool)
 
 	for rows.Next() {
 		var hour float64
@@ -349,15 +347,7 @@ func calculateHourlyPattern(ctx context.Context, db *sqlx.DB, tenantID, userID u
 }
 
 func calculateTopCommands(ctx context.Context, db *sqlx.DB, tenantID, userID uuid.UUID, start, end time.Time, limit int) map[string]int {
-	query := `
-		SELECT jsonb_object_keys(jsonb_each(commands)) as command, COUNT(*) as count
-		FROM session_analytics
-		WHERE tenant_id = $1 AND user_id = $2
-			AND start_time >= $3 AND start_time <= $4
-			AND commands IS NOT NULL
-	`
-
-	// Simplified - in production would properly parse JSON commands
+	// Simplified - in production would query and properly parse JSON commands
 	return make(map[string]int)
 }
 
