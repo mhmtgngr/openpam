@@ -12,10 +12,11 @@ import type {
   ReportType,
   ReportFormat,
   ReportStatus,
-  ComplianceReport,
   ReportListParams,
   ReportSchedule,
   ReportTemplate,
+  ComplianceFramework,
+  Report,
 } from '@/types/reports';
 
 interface ReportContextType {
@@ -37,14 +38,14 @@ interface ReportContextType {
     period_end: string;
     include_sections?: string[];
     filters?: Record<string, unknown>;
-    framework?: string;
+    framework?: ComplianceFramework;
   }) => Promise<{ snapshot_id: string; status: string } | undefined>;
   deleteSnapshot: (id: string) => Promise<void>;
   downloadSnapshot: (id: string) => Promise<void>;
   getSnapshotProgress: (id: string) => Promise<void>;
 
   // Compliance Reports
-  complianceReports: ComplianceReport[];
+  complianceReports: Report[];
   isLoadingCompliance: boolean;
   refreshComplianceReports: () => void;
 
@@ -118,10 +119,10 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
       period_end: string;
       include_sections?: string[];
       filters?: Record<string, unknown>;
-      framework?: string;
+      framework?: ComplianceFramework;
     }) => reportsApi.generate(data),
     onSuccess: (response) => {
-      toast.success(`Report generation started (ID: ${response.data.snapshot_id})`);
+      toast.success(`Report generation started (ID: ${response.job_id})`);
       queryClient.invalidateQueries({ queryKey: ['reportSnapshots'] });
     },
     onError: (error: Error) => {
@@ -145,10 +146,10 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
   });
 
   // Memoized values
-  const snapshots = snapshotsData?.data.data || [];
-  const totalSnapshots = snapshotsData?.data.pagination?.total || 0;
-  const complianceReports = complianceData?.data.data || [];
-  const templates = templatesData?.data || [];
+  const snapshots = snapshotsData?.data || [];
+  const totalSnapshots = snapshotsData?.pagination?.total || 0;
+  const complianceReports = complianceData?.data || [];
+  const templates = templatesData || [];
 
   // Actions
   const handleSetFilters = useCallback((newFilters: ReportListParams) => {
@@ -162,10 +163,10 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
     period_end: string;
     include_sections?: string[];
     filters?: Record<string, unknown>;
-    framework?: string;
+    framework?: ComplianceFramework;
   }) => {
     const result = await generateMutation.mutateAsync(data);
-    return result?.data;
+    return result;
   }, [generateMutation]);
 
   const handleDeleteSnapshot = useCallback(async (id: string) => {
@@ -175,8 +176,8 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
   const handleDownloadSnapshot = useCallback(async (id: string) => {
     try {
       const response = await reportsApi.downloadSnapshot(id);
-      if (response.data.download_url) {
-        window.open(response.data.download_url, '_blank');
+      if (response.download_url) {
+        window.open(response.download_url, '_blank');
         toast.success('Report download started');
       }
     } catch (error) {

@@ -4,8 +4,7 @@ import { Share, Mail, Webhook, Link as LinkIcon, Save, X, Globe, Check } from 'l
 import { Modal } from '@/components/common';
 import { Input, Textarea, Label, Button, Toggle } from '@/components/common';
 import { reportsApi } from '@/api/reports';
-import type { Report, ExportReportRequest } from '@/types/reports';
-import { ReportFormat } from '@/types/reports';
+import type { Report, ExportReportRequest, ReportFormat } from '@/types/reports';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -47,7 +46,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
   report,
   onSuccess,
 }) => {
-  const queryClient = useQueryQueryClient();
+  const queryClient = useQueryClient();
   const [settings, setSettings] = useState<DistributionSettings>({
     method: 'email',
     format: 'pdf',
@@ -69,7 +68,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
       if (!report) throw new Error('No report selected');
       return reportsApi.export(report.id, request);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { download_url: string; expires_at: string }) => {
       if (settings.method === 'share_link') {
         setGeneratedLink(data.download_url);
         toast.success('Share link generated successfully');
@@ -527,7 +526,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                   </div>
                   <Toggle
                     checked={settings.includePassword}
-                    onChange={(e) => setSettings((prev) => ({ ...prev, includePassword: (e as any).target.checked as boolean }))}
+                    onChange={(checked) => setSettings((prev) => ({ ...prev, includePassword: checked }))}
                   />
                 </div>
               </div>
@@ -559,7 +558,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                 </div>
                 <Toggle
                   checked={settings.redactPii}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, redactPii: (e as any).target.checked as boolean }))}
+                  onChange={(checked) => setSettings((prev) => ({ ...prev, redactPii: checked }))}
                 />
               </div>
 
@@ -570,7 +569,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                 </div>
                 <Toggle
                   checked={settings.includeMetadata}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, includeMetadata: (e as any).target.checked as boolean }))}
+                  onChange={(checked) => setSettings((prev) => ({ ...prev, includeMetadata: checked }))}
                 />
               </div>
             </div>
@@ -580,8 +579,3 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
     </Modal>
   );
 };
-
-// Helper function wrapper
-function useQueryQueryClient() {
-  return useQueryClient();
-}

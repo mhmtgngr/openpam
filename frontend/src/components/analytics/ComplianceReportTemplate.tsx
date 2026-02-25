@@ -14,8 +14,8 @@ import { Input } from '@/components/common';
 import { Textarea } from '@/components/common';
 import { DatePicker } from '@/components/common';
 import clsx from 'clsx';
-import type { ComplianceFramework, ReportFormat } from '@/types';
-import type { ReportConfig, ReportTemplateSection } from '@/types/reports';
+import type { ComplianceFramework } from '@/types';
+import type { ReportConfig, ReportFormat, ReportTemplateSection } from '@/types/reports';
 
 interface ComplianceReportTemplateProps {
   framework: ComplianceFramework;
@@ -122,6 +122,26 @@ const frameworkConfigs: Record<ComplianceFramework, FrameworkConfig> = {
     ],
     defaultIncludeSections: ['executive_summary', 'data_inventory', 'lawful_basis', 'data_subject_rights', 'breach_log'],
   },
+  nerc_cip: {
+    name: 'NERC CIP',
+    description: 'North American Electric Reliability Corporation Critical Infrastructure Protection',
+    icon: Shield,
+    color: 'text-orange-400',
+    sections: [
+      { id: 'executive_summary', name: 'executive_summary', title: 'Executive Summary', type: 'summary', required: true, order: 1, config: {} },
+      { id: 'cip_002', name: 'cip_002', title: 'CIP-002 Cyber Security - Critical Cyber Assets', type: 'table', required: true, order: 2, config: {} },
+      { id: 'cip_003', name: 'cip_003', title: 'CIP-003 Security Management Controls', type: 'table', required: true, order: 3, config: {} },
+      { id: 'cip_004', name: 'cip_004', title: 'CIP-004 Personnel and Training', type: 'table', required: true, order: 4, config: {} },
+      { id: 'cip_005', name: 'cip_005', title: 'CIP-005 Electronic Security Perimeter', type: 'table', required: true, order: 5, config: {} },
+      { id: 'cip_006', name: 'cip_006', title: 'CIP-006 Physical Security of BES Cyber Systems', type: 'table', required: true, order: 6, config: {} },
+      { id: 'cip_007', name: 'cip_007', title: 'CIP-007 Systems Security Management', type: 'table', required: true, order: 7, config: {} },
+      { id: 'cip_008', name: 'cip_008', title: 'CIP-008 Incident Reporting and Response Planning', type: 'table', required: true, order: 8, config: {} },
+      { id: 'cip_009', name: 'cip_009', title: 'CIP-009 Recovery Plans for BES Cyber Systems', type: 'table', required: true, order: 9, config: {} },
+      { id: 'cip_010', name: 'cip_010', title: 'CIP-010 Incident Response', type: 'table', required: true, order: 10, config: {} },
+      { id: 'cip_011', name: 'cip_011', title: 'CIP-011 Information Protection', type: 'table', required: true, order: 11, config: {} },
+    ],
+    defaultIncludeSections: ['executive_summary', 'cip_002', 'cip_003', 'cip_005', 'cip_006', 'cip_007', 'cip_008'],
+  },
   custom: {
     name: 'Custom Framework',
     description: 'Build your own compliance framework report',
@@ -170,6 +190,12 @@ const mockControls: Record<ComplianceFramework, ControlStatus[]> = {
     { id: 'Art.32', name: 'Security of Processing', status: 'compliant', evidence_count: 14, last_tested: '2024-01-15' },
     { id: 'Art.30', name: 'Records of Processing', status: 'partial', evidence_count: 7, last_tested: '2024-01-12' },
     { id: 'Art.33', name: 'Breach Notification', status: 'compliant', evidence_count: 5, last_tested: '2024-01-15' },
+  ],
+  nerc_cip: [
+    { id: 'CIP-002', name: 'Critical Cyber Assets Identification', status: 'compliant', evidence_count: 8, last_tested: '2024-01-15' },
+    { id: 'CIP-003', name: 'Security Management Controls', status: 'compliant', evidence_count: 12, last_tested: '2024-01-15' },
+    { id: 'CIP-005', name: 'Electronic Security Perimeter', status: 'partial', evidence_count: 15, last_tested: '2024-01-10' },
+    { id: 'CIP-007', name: 'Systems Security Management', status: 'compliant', evidence_count: 20, last_tested: '2024-01-15' },
   ],
   custom: [],
 };

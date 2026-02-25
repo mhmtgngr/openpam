@@ -465,14 +465,14 @@ export const ReportGeneratorPage: React.FC = () => {
                   <p className="font-medium text-white">Include Charts</p>
                   <p className="mt-1 text-sm text-gray-400">Add visual charts and graphs to the report</p>
                 </div>
-                <Toggle checked={includeCharts} onChange={setIncludeCharts} />
+                <Toggle checked={includeCharts} onChange={(checked: boolean) => setIncludeCharts(checked)} />
               </div>
               <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
                 <div>
                   <p className="font-medium text-white">Include Raw Data</p>
                   <p className="mt-1 text-sm text-gray-400">Append raw data tables to the report</p>
                 </div>
-                <Toggle checked={includeRawData} onChange={setIncludeRawData} />
+                <Toggle checked={includeRawData} onChange={(checked: boolean) => setIncludeRawData(checked)} />
               </div>
             </div>
           </Card>

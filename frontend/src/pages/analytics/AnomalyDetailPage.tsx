@@ -83,7 +83,7 @@ interface IndicatorCardProps {
     type: string;
     description: string;
     value: number | string;
-    threshold?: number;
+    threshold?: number | string;
     confidence: number;
   };
 }

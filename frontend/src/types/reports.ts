@@ -3,7 +3,11 @@
  * Supports compliance reports, analytics reports, and custom report generation
  */
 
-import type { ComplianceFramework, User } from './index';
+import type { User } from './index';
+import type { ComplianceFramework } from './index';
+
+// Re-export ComplianceFramework for convenience
+export type { ComplianceFramework };
 
 /**
  * Report type enumeration

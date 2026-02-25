@@ -15,3 +15,6 @@ export * from './PoliciesPage';
 export * from './ReportsPage';
 export * from './ReportGeneratorPage';
 export * from './ExceptionsPage';
+export * from './ComplianceDashboardPage';
+export * from './ReportTemplatesPage';
+export * from './ScheduledReportsPage';

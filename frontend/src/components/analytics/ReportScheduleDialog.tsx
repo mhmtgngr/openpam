@@ -162,7 +162,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
               Turn off to pause automatic generation without deleting the schedule
             </p>
           </div>
-          <Toggle checked={enabled} onChange={setEnabled} />
+          <Toggle checked={enabled} onChange={(checked: boolean) => setEnabled(checked)} />
         </div>
 
         {/* Frequency */}

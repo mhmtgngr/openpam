@@ -612,7 +612,7 @@ export interface ComplianceDashboard {
   last_updated: string;
 }
 
-export type ComplianceFramework = 'soc2' | 'iso27001' | 'pci_dss' | 'hipaa' | 'gdpr' | 'custom';
+export type ComplianceFramework = 'soc2' | 'iso27001' | 'pci_dss' | 'hipaa' | 'gdpr' | 'nerc_cip' | 'custom';
 
 // Re-export report types
 export type {
@@ -621,7 +621,6 @@ export type {
   ReportStatus,
   ReportSnapshot,
   GenerateReportRequest,
-  ReportConfig,
   ReportListParams,
 } from './reports';
 
@@ -667,6 +666,7 @@ export interface AnomalyDetection {
   target_name?: string;
   session_id?: string;
   confidence_score: number;
+  risk_score?: number;
   indicators: AnomalyIndicator[];
   status: 'open' | 'investigating' | 'resolved' | 'false_positive';
   assigned_to?: string;
@@ -692,7 +692,7 @@ export interface AnomalyIndicator {
   type: string;
   description: string;
   value: number | string;
-  threshold?: number;
+  threshold?: number | string;
   confidence: number;
 }
 

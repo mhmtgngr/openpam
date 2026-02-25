@@ -44,10 +44,20 @@ export const ExceptionRequestDialog: React.FC<ExceptionRequestDialogProps> = ({
   mode = 'create',
 }) => {
   const queryClient = useQueryQueryClient();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    control_id: string;
+    control_name: string;
+    framework: ComplianceFramework;
+    reason: string;
+    business_justification: string;
+    mitigation_plan: string;
+    expires_at: string;
+    denial_reason: string;
+    review_notes: string;
+  }>({
     control_id: controlId || exception?.control_id || '',
     control_name: controlName || exception?.control_name || '',
-    framework: defaultFramework || exception?.framework || 'soc2',
+    framework: (defaultFramework || exception?.framework || 'soc2') as ComplianceFramework,
     reason: '',
     business_justification: '',
     mitigation_plan: '',
