@@ -6,6 +6,7 @@ import { Input, Textarea, Label, Button, Toggle } from '@/components/common';
 import { reportsApi } from '@/api/reports';
 import type { Report, ExportReportRequest } from '@/types/reports';
 import { ReportFormat } from '@/types/reports';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
 interface ReportDistributionDialogProps {
@@ -252,7 +253,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
               variant="primary"
               onClick={handleSubmit}
               disabled={exportMutation.isPending}
-              loading={exportMutation.isPending}
+              isLoading={exportMutation.isPending}
             >
               <Share className="mr-2 h-4 w-4" />
               {settings.method === 'download'
@@ -526,7 +527,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                   </div>
                   <Toggle
                     checked={settings.includePassword}
-                    onChange={(checked) => setSettings((prev) => ({ ...prev, includePassword: checked }))}
+                    onChange={(e) => setSettings((prev) => ({ ...prev, includePassword: (e as any).target.checked as boolean }))}
                   />
                 </div>
               </div>
@@ -558,7 +559,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                 </div>
                 <Toggle
                   checked={settings.redactPii}
-                  onChange={(checked) => setSettings((prev) => ({ ...prev, redactPii: checked }))}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, redactPii: (e as any).target.checked as boolean }))}
                 />
               </div>
 
@@ -569,7 +570,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                 </div>
                 <Toggle
                   checked={settings.includeMetadata}
-                  onChange={(checked) => setSettings((prev) => ({ ...prev, includeMetadata: checked }))}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, includeMetadata: (e as any).target.checked as boolean }))}
                 />
               </div>
             </div>

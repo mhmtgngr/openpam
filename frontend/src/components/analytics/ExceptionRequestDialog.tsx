@@ -314,7 +314,7 @@ export const ExceptionRequestDialog: React.FC<ExceptionRequestDialogProps> = ({
             variant={getSubmitButtonVariant()}
             onClick={handleSubmit}
             disabled={isLoading}
-            loading={isLoading}
+            isLoading={isLoading}
           >
             {getSubmitButtonText()}
           </Button>

@@ -12,3 +12,6 @@ export * from './AnomalyListPage';
 export * from './AnomalyDetailPage';
 export * from './TenantsPage';
 export * from './PoliciesPage';
+export * from './ReportsPage';
+export * from './ReportGeneratorPage';
+export * from './ExceptionsPage';

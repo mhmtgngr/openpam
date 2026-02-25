@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   FileText,
@@ -166,7 +166,7 @@ export const ReportGeneratorPage: React.FC = () => {
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
+    if (step > 1) setStep((step - 1) as 1 | 2 | 3);
   };
 
   const handleGenerate = () => {
@@ -351,17 +351,18 @@ export const ReportGeneratorPage: React.FC = () => {
 
               <div>
                 <Label htmlFor="format">Output Format</Label>
-                <Select
+                <select
                   id="format"
                   value={selectedFormat}
                   onChange={(e) => setSelectedFormat(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
                 >
                   {reportFormats.map((fmt) => (
                     <option key={fmt.value} value={fmt.value}>
                       {fmt.label} - {fmt.description}
                     </option>
                   ))}
-                </Select>
+                </select>
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-gray-700 p-4">
@@ -371,7 +372,7 @@ export const ReportGeneratorPage: React.FC = () => {
                 </div>
                 <Toggle
                   checked={scheduleReport}
-                  onChange={setScheduleReport}
+                  onChange={(e) => setScheduleReport((e.target as HTMLInputElement).checked)}
                 />
               </div>
             </div>
@@ -513,7 +514,7 @@ export const ReportGeneratorPage: React.FC = () => {
                   </div>
                   <Toggle
                     checked={options.redactSensitiveData}
-                    onChange={(checked) => setOptions((prev) => ({ ...prev, redactSensitiveData: checked }))}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, redactSensitiveData: (e.target as HTMLInputElement).checked }))}
                   />
                 </div>
 
@@ -524,7 +525,7 @@ export const ReportGeneratorPage: React.FC = () => {
                   </div>
                   <Toggle
                     checked={options.includeSessionLogs}
-                    onChange={(checked) => setOptions((prev) => ({ ...prev, includeSessionLogs: checked }))}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, includeSessionLogs: (e.target as HTMLInputElement).checked }))}
                   />
                 </div>
 
@@ -535,7 +536,7 @@ export const ReportGeneratorPage: React.FC = () => {
                   </div>
                   <Toggle
                     checked={options.includeCommandHistory}
-                    onChange={(checked) => setOptions((prev) => ({ ...prev, includeCommandHistory: checked }))}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, includeCommandHistory: (e.target as HTMLInputElement).checked }))}
                   />
                 </div>
 
@@ -546,7 +547,7 @@ export const ReportGeneratorPage: React.FC = () => {
                   </div>
                   <Toggle
                     checked={options.compareWithPrevious}
-                    onChange={(checked) => setOptions((prev) => ({ ...prev, compareWithPrevious: checked }))}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, compareWithPrevious: (e.target as HTMLInputElement).checked }))}
                   />
                 </div>
 
@@ -557,7 +558,7 @@ export const ReportGeneratorPage: React.FC = () => {
                   </div>
                   <Toggle
                     checked={options.includePii}
-                    onChange={(checked) => setOptions((prev) => ({ ...prev, includePii: checked }))}
+                    onChange={(e) => setOptions((prev) => ({ ...prev, includePii: (e.target as HTMLInputElement).checked }))}
                   />
                 </div>
               </div>
@@ -631,7 +632,7 @@ export const ReportGeneratorPage: React.FC = () => {
                 {selectedSections.map((sectionId) => {
                   const section = defaultSections.find((s) => s.id === sectionId);
                   return (
-                    <Badge key={sectionId} variant="secondary">
+                    <Badge key={sectionId} variant="neutral">
                       {section?.name}
                     </Badge>
                   );
@@ -651,7 +652,7 @@ export const ReportGeneratorPage: React.FC = () => {
                       <span className="text-sm text-gray-400">Environments:</span>
                       <div className="flex flex-wrap gap-1">
                         {filters.environments.map((env) => (
-                          <Badge key={env} variant="outline">
+                          <Badge key={env} variant="neutral">
                             {env}
                           </Badge>
                         ))}
@@ -663,7 +664,7 @@ export const ReportGeneratorPage: React.FC = () => {
                       <span className="text-sm text-gray-400">Session Types:</span>
                       <div className="flex flex-wrap gap-1">
                         {filters.sessionTypes.map((type) => (
-                          <Badge key={type} variant="outline">
+                          <Badge key={type} variant="neutral">
                             {type}
                           </Badge>
                         ))}
@@ -675,7 +676,7 @@ export const ReportGeneratorPage: React.FC = () => {
                       <span className="text-sm text-gray-400">Risk Levels:</span>
                       <div className="flex flex-wrap gap-1">
                         {filters.riskLevels.map((level) => (
-                          <Badge key={level} variant="outline" className="border-danger-500/30 text-danger-400">
+                          <Badge key={level} variant="danger" className="border-danger-500/30">
                             {level}
                           </Badge>
                         ))}
@@ -718,7 +719,7 @@ export const ReportGeneratorPage: React.FC = () => {
                   variant="primary"
                   onClick={handleGenerate}
                   disabled={generateMutation.isPending}
-                  loading={generateMutation.isPending}
+                  isLoading={generateMutation.isPending}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
                   Generate Report

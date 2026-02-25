@@ -228,10 +228,10 @@ export const ReportsPage: React.FC = () => {
             </div>
 
             {/* Framework Filter */}
-            <Select
+            <select
               value={filters.framework || ''}
               onChange={(e) => handleFilterChange('framework', e.target.value || undefined)}
-              className="w-40"
+              className="w-40 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="">All Frameworks</option>
               {frameworks.map((fw) => (
@@ -239,13 +239,13 @@ export const ReportsPage: React.FC = () => {
                   {fw.label}
                 </option>
               ))}
-            </Select>
+            </select>
 
             {/* Status Filter */}
-            <Select
+            <select
               value={filters.status || ''}
               onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
-              className="w-40"
+              className="w-40 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="">All Status</option>
               {statusOptions.map((st) => (
@@ -253,23 +253,23 @@ export const ReportsPage: React.FC = () => {
                   {st.label}
                 </option>
               ))}
-            </Select>
+            </select>
 
             {/* Sort */}
-            <Select
+            <select
               value={`${filters.sort_by}-${filters.sort_order}`}
               onChange={(e) => {
                 const [sort, order] = e.target.value.split('-');
                 handleSortChange(sort);
               }}
-              className="w-48"
+              className="w-48 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="created_at-desc">Newest First</option>
               <option value="created_at-asc">Oldest First</option>
               <option value="name-asc">Name (A-Z)</option>
               <option value="name-desc">Name (Z-A)</option>
               <option value="generated_at-desc">Recently Generated</option>
-            </Select>
+            </select>
 
             <Button
               variant="ghost"
@@ -366,7 +366,7 @@ export const ReportsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <Badge
-                            variant="outline"
+                            variant="neutral"
                             className={clsx('border', frameworkColors[report.framework] || frameworkColors.custom)}
                           >
                             {report.framework.toUpperCase()}

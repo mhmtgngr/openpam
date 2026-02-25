@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Calendar, Clock, Mail, Save, X, Globe, Info } from 'lucide-react';
 import { Modal } from '@/components/common';
-import { Input, Select, Textarea, Label, Toggle, Button } from '@/components/common';
+import { Input, Textarea, Label, Toggle, Button } from '@/components/common';
 import { reportSchedulesApi } from '@/api/reports';
 import type {
   ReportSchedule,
@@ -331,7 +331,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
             variant="primary"
             onClick={handleSubmit}
             disabled={createMutation.isPending || updateMutation.isPending}
-            loading={createMutation.isPending || updateMutation.isPending}
+            isLoading={createMutation.isPending || updateMutation.isPending}
           >
             <Save className="mr-2 h-4 w-4" />
             {isEditing ? 'Update Schedule' : 'Create Schedule'}
@@ -369,33 +369,35 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="schedule-framework">Compliance Framework *</Label>
-              <Select
+              <select
                 id="schedule-framework"
                 value={formData.framework}
                 onChange={(e) => handleInputChange('framework', e.target.value)}
                 disabled={isEditing}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
               >
                 {frameworks.map((fw) => (
                   <option key={fw.value} value={fw.value}>
                     {fw.label} - {fw.description}
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
 
             <div>
               <Label htmlFor="schedule-frequency">Frequency *</Label>
-              <Select
+              <select
                 id="schedule-frequency"
                 value={formData.frequency}
                 onChange={(e) => handleInputChange('frequency', e.target.value as ScheduleFrequency)}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
               >
                 {frequencies.map((freq) => (
                   <option key={freq.value} value={freq.value}>
                     {freq.label}
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
           </div>
         </div>
@@ -420,50 +422,53 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
 
             <div>
               <Label htmlFor="schedule-timezone">Timezone</Label>
-              <Select
+              <select
                 id="schedule-timezone"
                 value={formData.timezone}
-                onChange={(e) => handleInputChange('timezone', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('timezone', e.target.value)}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
               >
                 {commonTimezones.map((tz) => (
                   <option key={tz} value={tz}>
                     {tz}
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
 
             {formData.frequency === 'monthly' && (
               <div>
                 <Label htmlFor="schedule-day">Day of Month</Label>
-                <Select
+                <select
                   id="schedule-day"
                   value={scheduleDay}
-                  onChange={(e) => setScheduleDay(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setScheduleDay(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
                 >
                   {Array.from({ length: 28 }, (_, i) => (
                     <option key={i + 1} value={String(i + 1)}>
                       {i + 1}
                     </option>
                   ))}
-                </Select>
+                </select>
               </div>
             )}
 
             {formData.frequency === 'weekly' && (
               <div>
                 <Label htmlFor="schedule-weekday">Day of Week</Label>
-                <Select
+                <select
                   id="schedule-weekday"
                   value={scheduleWeekday}
-                  onChange={(e) => setScheduleWeekday(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setScheduleWeekday(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
                 >
                   {weekdayOptions.map((day) => (
                     <option key={day.value} value={day.value}>
                       {day.label}
                     </option>
                   ))}
-                </Select>
+                </select>
               </div>
             )}
           </div>
@@ -471,7 +476,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
           <div className="flex items-center gap-2">
             <Toggle
               checked={formData.isActive}
-              onChange={(checked) => handleInputChange('isActive', checked)}
+              onChange={(e) => handleInputChange('isActive', (e.target as HTMLInputElement).checked)}
             />
             <Label htmlFor="active-toggle" className="mb-0">
               Schedule is active
@@ -486,17 +491,18 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="report-format">Output Format</Label>
-              <Select
+              <select
                 id="report-format"
                 value={formData.reportFormat}
-                onChange={(e) => handleInputChange('reportFormat', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('reportFormat', e.target.value)}
+                className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-primary-500 focus:outline-none"
               >
                 {reportFormats.map((fmt) => (
                   <option key={fmt.value} value={fmt.value}>
                     {fmt.label}
                   </option>
                 ))}
-              </Select>
+              </select>
             </div>
           </div>
 
@@ -539,7 +545,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
               </div>
               <Toggle
                 checked={formData.distributionEmail}
-                onChange={(checked) => handleInputChange('distributionEmail', checked)}
+                onChange={(e) => handleInputChange('distributionEmail', (e.target as HTMLInputElement).checked)}
               />
             </div>
 
@@ -563,7 +569,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
               </div>
               <Toggle
                 checked={formData.distributionWebhook}
-                onChange={(checked) => handleInputChange('distributionWebhook', checked)}
+                onChange={(e) => handleInputChange('distributionWebhook', (e.target as HTMLInputElement).checked)}
               />
             </div>
 

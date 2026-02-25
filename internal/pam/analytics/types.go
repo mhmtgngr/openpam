@@ -1144,3 +1144,81 @@ type GenerateReportRequest struct {
 	Format      ReportFormat `json:"format" binding:"required"`
 	Options     map[string]interface{} `json:"options"`
 }
+
+// =============================================================================
+// Report Persistence Types (compliance_reports table)
+// =============================================================================
+
+// ComplianceReport represents a compliance report in the database
+type ComplianceReport struct {
+	ID              uuid.UUID       `db:"id" json:"id"`
+	TenantID        uuid.UUID       `db:"tenant_id" json:"tenant_id"`
+	Framework       string          `db:"framework" json:"framework"`
+	Status          string          `db:"status" json:"status"` // pending, completed, failed
+	GeneratedAt     time.Time       `db:"generated_at" json:"generated_at"`
+
+	// Report period
+	PeriodStart     time.Time       `db:"period_start" json:"period_start"`
+	PeriodEnd       time.Time       `db:"period_end" json:"period_end"`
+	ExpiresAt       *time.Time      `db:"expires_at" json:"expires_at,omitempty"`
+
+	// Compliance metrics
+	OverallScore    float64         `db:"overall_score" json:"overall_score"`
+	PassedControls  int             `db:"passed_controls" json:"passed_controls"`
+	FailedControls  int             `db:"failed_controls" json:"failed_controls"`
+
+	// Report data
+	Data            json.RawMessage `db:"data" json:"data,omitempty"`
+	Metadata        json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+
+	CreatedAt       time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time       `db:"updated_at" json:"updated_at"`
+}
+
+// =============================================================================
+// Filter Types for Report Queries
+// =============================================================================
+
+// ComplianceReportFilter represents filter options for compliance reports
+type ComplianceReportFilter struct {
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	Framework string     `json:"framework,omitempty"`
+	Status    string     `json:"status,omitempty"`
+	DateFrom  time.Time  `json:"date_from,omitempty"`
+	DateTo    time.Time  `json:"date_to,omitempty"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
+}
+
+// ReportSnapshotFilter represents filter options for report snapshots
+type ReportSnapshotFilter struct {
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	ReportID  *uuid.UUID `json:"report_id,omitempty"`
+	Framework string     `json:"framework,omitempty"`
+	Status    string     `json:"status,omitempty"`
+	DateFrom  time.Time  `json:"date_from,omitempty"`
+	DateTo    time.Time  `json:"date_to,omitempty"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
+}
+
+// ReportJobFilter represents filter options for report generation jobs
+type ReportJobFilter struct {
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	Status    string     `json:"status,omitempty"`
+	JobType   string     `json:"job_type,omitempty"`
+	DateFrom  time.Time  `json:"date_from,omitempty"`
+	DateTo    time.Time  `json:"date_to,omitempty"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
+}
+
+// ReportScheduleFilter represents filter options for report schedules
+type ReportScheduleFilter struct {
+	TenantID  uuid.UUID  `json:"tenant_id"`
+	Status    string     `json:"status,omitempty"`
+	Framework string     `json:"framework,omitempty"`
+	OwnedBy   *uuid.UUID `json:"owned_by,omitempty"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
+}

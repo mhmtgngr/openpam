@@ -309,10 +309,10 @@ export const ExceptionManagementPage: React.FC = () => {
               />
             </div>
 
-            <Select
+            <select
               value={filters.framework || ''}
               onChange={(e) => handleFilterChange('framework', e.target.value || undefined)}
-              className="w-40"
+              className="w-40 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="">All Frameworks</option>
               {frameworks.map((fw) => (
@@ -320,12 +320,12 @@ export const ExceptionManagementPage: React.FC = () => {
                   {fw.label}
                 </option>
               ))}
-            </Select>
+            </select>
 
-            <Select
+            <select
               value={filters.status || ''}
               onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
-              className="w-40"
+              className="w-40 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white text-sm focus:border-primary-500 focus:outline-none"
             >
               <option value="">All Status</option>
               {statusOptions.map((st) => (
@@ -333,7 +333,7 @@ export const ExceptionManagementPage: React.FC = () => {
                   {st.label}
                 </option>
               ))}
-            </Select>
+            </select>
 
             <Button
               variant="ghost"
@@ -395,19 +395,19 @@ export const ExceptionManagementPage: React.FC = () => {
                           <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-medium text-white">{exception.control_name}</h3>
                             <Badge
-                              variant="outline"
+                              variant="neutral"
                               className={clsx('border', frameworkColors[exception.framework] || frameworkColors.custom)}
                             >
                               {exception.framework.toUpperCase()}
                             </Badge>
                             <Badge
-                              variant="outline"
+                              variant="neutral"
                               className={clsx('border capitalize', statusColors[exception.status])}
                             >
                               {exception.status}
                             </Badge>
                             {isExpiring && (
-                              <Badge variant="outline" className="border-warning-500/30 text-warning-400">
+                              <Badge variant="warning" className="border-warning-500/30">
                                 Expiring Soon
                               </Badge>
                             )}
@@ -458,7 +458,7 @@ export const ExceptionManagementPage: React.FC = () => {
                               variant="success"
                               size="sm"
                               onClick={() => handleQuickApprove(exception)}
-                              loading={approveMutation.isPending}
+                              isLoading={approveMutation.isPending}
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
@@ -466,7 +466,7 @@ export const ExceptionManagementPage: React.FC = () => {
                               variant="danger"
                               size="sm"
                               onClick={() => handleQuickDeny(exception)}
-                              loading={denyMutation.isPending}
+                              isLoading={denyMutation.isPending}
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>
@@ -490,10 +490,10 @@ export const ExceptionManagementPage: React.FC = () => {
                               Edit
                             </Button>
                             <Button
-                              variant="warning"
+                              variant="danger"
                               size="sm"
                               onClick={() => handleQuickRevoke(exception)}
-                              loading={revokeMutation.isPending}
+                              isLoading={revokeMutation.isPending}
                             >
                               <Ban className="h-4 w-4" />
                             </Button>

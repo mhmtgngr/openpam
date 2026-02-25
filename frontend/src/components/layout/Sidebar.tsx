@@ -11,9 +11,11 @@ import {
   ClipboardList,
   Activity,
   BarChart3,
+  FileSpreadsheet,
   Settings,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import clsx from 'clsx';
@@ -35,6 +37,8 @@ const navItems: NavItem[] = [
   { name: 'My Requests', path: '/requests/my', icon: FileKey },
   { name: 'Approvals', path: '/approvals', icon: Clock, roles: ['admin', 'super_admin', 'operator'] },
   { name: 'Sessions', path: '/sessions', icon: Activity },
+  { name: 'Reports', path: '/reports', icon: FileSpreadsheet, roles: ['admin', 'super_admin', 'auditor'] },
+  { name: 'Exceptions', path: '/compliance/exceptions', icon: AlertTriangle, roles: ['admin', 'super_admin', 'auditor'] },
   { name: 'Analytics', path: '/analytics', icon: BarChart3, roles: ['admin', 'super_admin', 'auditor'] },
   { name: 'Audit Logs', path: '/audit', icon: ClipboardList, roles: ['admin', 'super_admin', 'auditor'] },
   { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin', 'super_admin'] },

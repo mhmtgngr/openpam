@@ -179,7 +179,7 @@ export const ReportDetailPage: React.FC = () => {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-white">{report.name}</h1>
               <Badge
-                variant="outline"
+                variant="neutral"
                 className={clsx('border capitalize', statusColors[report.status] || statusColors.pending)}
               >
                 {report.status.replace('_', ' ')}
@@ -348,7 +348,7 @@ export const ReportDetailPage: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <Badge
-                          variant="outline"
+                          variant="neutral"
                           className={clsx('border capitalize', severityColors[finding.severity] || severityColors.info)}
                         >
                           {finding.severity}
@@ -420,7 +420,7 @@ export const ReportDetailPage: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-white">{control.name}</span>
                           <Badge
-                            variant="outline"
+                            variant="neutral"
                             className={clsx('border capitalize text-xs', controlStatusColors[control.status] || controlStatusColors.not_applicable)}
                           >
                             {control.status.replace('_', ' ')}

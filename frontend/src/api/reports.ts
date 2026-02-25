@@ -20,7 +20,6 @@ import type {
   GenerateReportResponse,
   ExportReportRequest,
   ExportReportResponse,
-  PaginatedResponse,
 } from '@/types/reports';
 import type { PaginatedResponse as BasePaginatedResponse } from '@/types';
 
