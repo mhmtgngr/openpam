@@ -413,7 +413,7 @@ export const test = base.extend<{
   },
 
   // Page with mocked API (always mocks, even if backend is available)
-  // This page is NOT authenticated by default - tests must set up their own auth state
+  // This page is authenticated with mock data for testing
   mockApiPage: async ({ page }, use) => {
     setupMocks(page);
 
@@ -423,7 +423,15 @@ export const test = base.extend<{
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
+      // Set a mock access token so the app thinks we're authenticated
+      localStorage.setItem('access_token', 'mock-access-token');
+      localStorage.setItem('refresh_token', 'mock-refresh-token');
     });
+
+    // Navigate to a protected route to trigger auth check
+    // The mocked /api/v1/auth/me will return a mock user
+    await page.goto('/dashboard');
+    await page.waitForLoadState('networkidle').catch(() => {});
 
     await use(page);
   },

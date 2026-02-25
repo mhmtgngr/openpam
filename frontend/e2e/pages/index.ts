@@ -8,5 +8,7 @@ export * from './SessionsPage';
 export * from './ApprovalsPage';
 export * from './AuditPage';
 export * from './AnalyticsPage';
+export * from './AnomalyListPage';
+export * from './AnomalyDetailPage';
 export * from './TenantsPage';
 export * from './PoliciesPage';

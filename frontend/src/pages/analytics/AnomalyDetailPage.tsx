@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -23,7 +23,7 @@ import {
 import { anomalyApi, type AnomalyUpdateData } from '@/api/anomaly';
 import { Card, CardHeader } from '@/components/common';
 import { Badge, Button, Input, Textarea } from '@/components/common';
-import { LoadingState, ErrorState } from '@/components/common';
+import { LoadingState } from '@/components/common';
 import type { AnomalyDetection, AnomalySeverity } from '@/types';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
@@ -140,19 +140,25 @@ export const AnomalyDetailPage: React.FC = () => {
 
   // Fetch anomaly details
   const {
-    data: anomaly,
+    data: anomalyResponse,
     isLoading,
     error,
   } = useQuery({
     queryKey: ['anomaly', id],
     queryFn: () => anomalyApi.get(id || ''),
     enabled: !!id,
-    onSuccess: (data) => {
-      setStatus(data.status);
-      setAssignedTo(data.assigned_to || '');
-      setResolutionNotes(data.resolution_notes || '');
-    },
   });
+
+  const anomaly = anomalyResponse?.data;
+
+  // Update form state when anomaly data changes
+  useEffect(() => {
+    if (anomaly) {
+      setStatus(anomaly.status);
+      setAssignedTo(anomaly.assigned_to || '');
+      setResolutionNotes(anomaly.resolution_notes || '');
+    }
+  }, [anomaly]);
 
   // Update mutation
   const updateMutation = useMutation({
@@ -221,15 +227,17 @@ export const AnomalyDetailPage: React.FC = () => {
 
   if (error || !anomaly) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <ErrorState
-          title="Failed to load anomaly"
-          message="The anomaly could not be found or an error occurred"
-          action={{
-            label: 'Go Back',
-            onClick: () => navigate(-1),
-          }}
-        />
+      <div className="flex min-h-[400px] flex-col items-center justify-center">
+        <AlertOctagon className="h-16 w-16 text-gray-600" />
+        <h2 className="mt-4 text-lg font-medium text-white">Failed to load anomaly</h2>
+        <p className="mt-2 text-sm text-gray-400">The anomaly could not be found or an error occurred</p>
+        <Button
+          variant="primary"
+          className="mt-4"
+          onClick={() => navigate(-1)}
+        >
+          Go Back
+        </Button>
       </div>
     );
   }
@@ -261,13 +269,13 @@ export const AnomalyDetailPage: React.FC = () => {
                 {statusConfig[anomaly.status].label}
               </Badge>
             </div>
-                <p className="mt-1 text-sm text-gray-400">{anomaly.description}</p>
-              </div>
-            </div>
+            <p className="mt-1 text-sm text-gray-400">{anomaly.description}</p>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           {anomaly.status === 'open' && (
             <Button
-              variant="warning"
+              variant="secondary"
               size="sm"
               leftIcon={<Search className="h-4 w-4" />}
               onClick={handleAcknowledge}
@@ -314,7 +322,7 @@ export const AnomalyDetailPage: React.FC = () => {
         <div className="space-y-6 lg:col-span-2">
           {/* Basic Information */}
           <Card>
-            <CardHeader title="Basic Information" icon={<FileText className="h-5 w-5" />} />
+            <CardHeader title="Basic Information" />
             <div className="card-body space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <DetailRow
@@ -363,7 +371,7 @@ export const AnomalyDetailPage: React.FC = () => {
           {/* Indicators */}
           {anomaly.indicators && anomaly.indicators.length > 0 && (
             <Card>
-              <CardHeader title="Detection Indicators" icon={<AlertTriangle className="h-5 w-5" />} />
+              <CardHeader title="Detection Indicators" />
               <div className="card-body space-y-3">
                 {anomaly.indicators.map((indicator, idx) => (
                   <IndicatorCard key={idx} indicator={indicator} />
@@ -377,7 +385,7 @@ export const AnomalyDetailPage: React.FC = () => {
         <div className="space-y-6">
           {/* Status Update */}
           <Card>
-            <CardHeader title="Status & Assignment" icon={<CheckCircle className="h-5 w-5" />} />
+            <CardHeader title="Status & Assignment" />
             <div className="card-body space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-300">Status</label>

@@ -8,7 +8,8 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { anomalyApi, type AnomalyFilterValues, type AnomalySummary } from '@/api/anomaly';
+import { anomalyApi, type AnomalySummary } from '@/api/anomaly';
+import type { AnomalyFilterValues } from '@/components/analytics/AnomalyFilters';
 import { AnomalyTable, defaultAnomalyColumns } from '@/components/analytics/AnomalyTable';
 import { AnomalyFilters } from '@/components/analytics/AnomalyFilters';
 import { Card, CardHeader } from '@/components/common';
@@ -114,8 +115,8 @@ export const AnomalyListPage: React.FC = () => {
   const bulkUpdateMutation = useMutation({
     mutationFn: (data: { ids: string[]; status: string; notes?: string }) =>
       anomalyApi.bulkUpdate(data.ids, { status: data.status as any, resolution_notes: data.notes }),
-    onSuccess: (result) => {
-      toast.success(`Updated ${result.updated} anomalies`);
+    onSuccess: (response) => {
+      toast.success(`Updated ${response.data.updated} anomalies`);
       setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['anomalies'] });
       queryClient.invalidateQueries({ queryKey: ['anomalySummary'] });
@@ -129,10 +130,10 @@ export const AnomalyListPage: React.FC = () => {
   const exportMutation = useMutation({
     mutationFn: (format: 'csv' | 'json') =>
       anomalyApi.export({ ...apiParams, format }),
-    onSuccess: (data) => {
-      toast.success(`Export ready: ${data.download_url}`);
+    onSuccess: (response) => {
+      toast.success(`Export ready: ${response.data.download_url}`);
       // Optionally trigger download
-      window.open(data.download_url, '_blank');
+      window.open(response.data.download_url, '_blank');
     },
     onError: () => {
       toast.error('Failed to export anomalies');
@@ -161,7 +162,7 @@ export const AnomalyListPage: React.FC = () => {
 
   const handleSelectAll = (selected: boolean) => {
     if (selected) {
-      setSelectedIds(new Set(anomaliesResponse?.data?.map(a => a.id) || []));
+      setSelectedIds(new Set(anomaliesResponse?.data?.data?.map((a: AnomalyDetection) => a.id) || []));
     } else {
       setSelectedIds(new Set());
     }
@@ -192,9 +193,9 @@ export const AnomalyListPage: React.FC = () => {
     exportMutation.mutate(format);
   };
 
-  const anomalies = anomaliesResponse?.data || [];
-  const total = anomaliesResponse?.pagination?.total || 0;
-  const hasMore = anomaliesResponse?.pagination?.has_more || false;
+  const anomalies = anomaliesResponse?.data?.data || [];
+  const total = anomaliesResponse?.data?.pagination?.total || 0;
+  const hasMore = anomaliesResponse?.data?.pagination?.has_more || false;
 
   return (
     <div className="space-y-6">
@@ -243,14 +244,14 @@ export const AnomalyListPage: React.FC = () => {
       {/* Summary Cards */}
       {!isLoadingSummary && summary && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-          <SummaryCard title="Total" count={summary.total} variant="neutral" />
-          <SummaryCard title="Critical" count={summary.by_severity.critical || 0} variant="danger" />
-          <SummaryCard title="High" count={summary.by_severity.high || 0} variant="danger" />
-          <SummaryCard title="Medium" count={summary.by_severity.medium || 0} variant="warning" />
-          <SummaryCard title="Low" count={summary.by_severity.low || 0} variant="neutral" />
+          <SummaryCard title="Total" count={summary.data.total} variant="neutral" />
+          <SummaryCard title="Critical" count={summary.data.by_severity.critical || 0} variant="danger" />
+          <SummaryCard title="High" count={summary.data.by_severity.high || 0} variant="danger" />
+          <SummaryCard title="Medium" count={summary.data.by_severity.medium || 0} variant="warning" />
+          <SummaryCard title="Low" count={summary.data.by_severity.low || 0} variant="neutral" />
           <SummaryCard
             title="Resolved This Period"
-            count={summary.resolved_this_period}
+            count={summary.data.resolved_this_period}
             variant="success"
           />
         </div>
@@ -276,7 +277,7 @@ export const AnomalyListPage: React.FC = () => {
           </p>
           <div className="flex items-center gap-2">
             <Button
-              variant="warning"
+              variant="secondary"
               size="sm"
               onClick={() => handleBulkStatusUpdate('investigating')}
               disabled={bulkUpdateMutation.isPending}
@@ -318,10 +319,6 @@ export const AnomalyListPage: React.FC = () => {
             <EmptyState
               title="No anomalies found"
               description={Object.values(filters).some(v => v) ? 'Try adjusting your filters' : 'No anomalies have been detected in the selected time period'}
-              action={{
-                label: 'Reset Filters',
-                onClick: handleResetFilters,
-              }}
             />
           </div>
         ) : (

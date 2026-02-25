@@ -672,7 +672,7 @@ test.describe('Analytics Dashboard', () => {
     await authenticatedPage.waitForLoadState('networkidle');
 
     // Should show error state or fallback UI
-    const errorMessage = authenticatedPage.getByText(/error/i, { exact: false });
+    const errorMessage = authenticatedPage.getByText(/error/i, { exact: false }).first();
     const retryButton = authenticatedPage.getByRole('button', { name: /retry/i });
 
     // Either error message or retry button might be shown

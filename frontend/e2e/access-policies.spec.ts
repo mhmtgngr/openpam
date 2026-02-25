@@ -299,12 +299,16 @@ test.describe('Access Policy Management', () => {
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      // Expand rule
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added - the first rule is expanded by default
+      await accessPolicyPage.waitForTimeout(500);
 
-      // Set effect to deny
-      const effectSelect = accessPolicyPage.locator('select').filter({ hasText: /allow/i }).first();
+      // Set effect to deny - use a more specific selector
+      // Find the select by checking its options
+      const effectSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
+        const options = await select.locator('option').allTextContents();
+        return options.includes('Allow') && options.includes('Deny') && options.length <= 3;
+      }).first();
+
       await effectSelect.selectOption('deny');
 
       await expect(accessPolicyPage.getByText('DENY')).toBeVisible();
@@ -314,15 +318,19 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
-      // Set operator to OR
-      const operatorSelect = accessPolicyPage.locator('select').filter({ hasText: /and - all/i });
+      // Set operator to OR - find select with AND/OR options
+      const operatorSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
+        const options = await select.locator('option').allTextContents();
+        return options.some(o => o.includes('AND - All conditions')) && options.some(o => o.includes('OR - At least one'));
+      }).first();
+
       await operatorSelect.selectOption('OR');
 
       await expect(operatorSelect).toHaveValue('OR');
@@ -332,15 +340,19 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
-      // Add a resource
-      const resourceSelect = accessPolicyPage.locator('select').filter({ hasText: /select or type/i }).first();
+      // Add a resource - find select with "credential:*" option
+      const resourceSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
+        const options = await select.locator('option').allTextContents();
+        return options.includes('credential:*');
+      }).first();
+
       await resourceSelect.selectOption('credential:*');
 
       await expect(accessPolicyPage.getByText('credential:*')).toBeVisible();
@@ -350,16 +362,20 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
-      // Find and use the action select (should be second occurrence of resource/action selects)
-      const actionSelects = accessPolicyPage.locator('select').filter({ hasText: /select or type/i }).all();
-      await actionSelects[1].selectOption('checkout');
+      // Add an action - find select with "checkout" option
+      const actionSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
+        const options = await select.locator('option').allTextContents();
+        return options.includes('checkout');
+      }).first();
+
+      await actionSelect.selectOption('checkout');
 
       await expect(accessPolicyPage.getByText('checkout')).toBeVisible();
     });
@@ -368,12 +384,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
       // Add a role
       const roleInput = accessPolicyPage.getByPlaceholder(/enter roles/i);
@@ -406,12 +422,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
       // Add condition
       const addConditionButton = accessPolicyPage.getByRole('button', { name: /add condition/i });
@@ -425,19 +441,19 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
-      // Add condition and expand it
+      // Add condition - conditions are auto-expanded
       const addConditionButton = accessPolicyPage.getByRole('button', { name: /add condition/i });
       await addConditionButton.click();
 
-      const expandConditionButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).nth(1);
-      await expandConditionButton.click();
+      // Wait for condition to be added
+      await accessPolicyPage.waitForTimeout(500);
 
       // Set condition type
       const typeSelect = accessPolicyPage.locator('select').filter({ hasText: /condition type/i });
@@ -450,18 +466,21 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/new');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Add a rule and expand it
+      // Add a rule - it's expanded by default
       const addRuleButton = accessPolicyPage.getByRole('button', { name: /add rule/i });
       await addRuleButton.click();
 
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
-      await expandButton.click();
+      // Wait for rule to be added
+      await accessPolicyPage.waitForTimeout(500);
 
       // Add condition
       const addConditionButton = accessPolicyPage.getByRole('button', { name: /add condition/i });
       await addConditionButton.click();
 
-      // Remove condition
+      // Wait for condition to be added
+      await accessPolicyPage.waitForTimeout(500);
+
+      // Remove condition - use the × button in the condition card
       const removeConditionButton = accessPolicyPage.locator('button').filter({ hasText: /×/i }).first();
       await removeConditionButton.click();
 
@@ -500,9 +519,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/test');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Expand first scenario
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
+      // Expand first scenario - the button contains actual "+" text
+      const expandButton = accessPolicyPage.locator('button').filter({ hasText: '+' }).first();
       await expandButton.click();
+
+      // Wait for expansion
+      await accessPolicyPage.waitForTimeout(500);
 
       const userIdInput = accessPolicyPage.getByLabel(/user id/i);
       await userIdInput.fill('test-user-123');
@@ -514,9 +536,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/test');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Expand first scenario
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
+      // Expand first scenario - the button contains actual "+" text
+      const expandButton = accessPolicyPage.locator('button').filter({ hasText: '+' }).first();
       await expandButton.click();
+
+      // Wait for expansion
+      await accessPolicyPage.waitForTimeout(500);
 
       const rolesInput = accessPolicyPage.getByPlaceholder(/admin, operator/i);
       await rolesInput.fill('admin, operator');
@@ -528,9 +553,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/test');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Expand first scenario
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
+      // Expand first scenario - the button contains actual "+" text
+      const expandButton = accessPolicyPage.locator('button').filter({ hasText: '+' }).first();
       await expandButton.click();
+
+      // Wait for expansion
+      await accessPolicyPage.waitForTimeout(500);
 
       const resourceSelect = accessPolicyPage.locator('select').filter({ hasText: /select or enter/i });
       await resourceSelect.selectOption('credential:prod-db-ssh');
@@ -542,9 +570,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/test');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Expand first scenario
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
+      // Expand first scenario - the button contains actual "+" text
+      const expandButton = accessPolicyPage.locator('button').filter({ hasText: '+' }).first();
       await expandButton.click();
+
+      // Wait for expansion
+      await accessPolicyPage.waitForTimeout(500);
 
       const actionSelect = accessPolicyPage.locator('select').filter({ hasText: /checkout/i });
       await actionSelect.selectOption('checkout');
@@ -612,9 +643,12 @@ test.describe('Access Policy Management', () => {
       await accessPolicyPage.goto('/policies/access/test');
       await accessPolicyPage.waitForLoadState('networkidle');
 
-      // Duplicate first scenario
-      const expandButton = accessPolicyPage.locator('button').filter({ hasText: /\+/ }).first();
+      // Duplicate first scenario - the button contains actual "+" text for expansion
+      const expandButton = accessPolicyPage.locator('button').filter({ hasText: '+' }).first();
       await expandButton.click();
+
+      // Wait for expansion
+      await accessPolicyPage.waitForTimeout(500);
 
       const copyButton = accessPolicyPage.locator('button').filter({ hasText: /copy/i }).first();
       await copyButton.click();

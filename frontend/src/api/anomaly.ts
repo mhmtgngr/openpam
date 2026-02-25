@@ -27,6 +27,7 @@ export interface AnomalySummary {
 export interface AnomalyListFilters extends AnomalyListParams {
   start_date?: string;
   end_date?: string;
+  period?: number;
 }
 
 export const anomalyApi = {
@@ -68,7 +69,4 @@ export type {
   AnomalyListParams,
   AnomalySeverity,
   AnomalyType,
-  AnomalyUpdateData,
-  AnomalySummary,
-  AnomalyListFilters,
 };

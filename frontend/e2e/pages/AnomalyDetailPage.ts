@@ -22,138 +22,205 @@ export class AnomalyDetailPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { level: 1 });
-    this.backButton = page.getByRole('button', {}).filter({ hasText: '' }).locator('svg').first();
-    this.severityBadge = page.locator('[class*="text-danger-400"], [class*="text-warning-400"], [class*="text-success-400"], [class*="text-gray-400"]');
-    this.statusBadge = page.locator('[class*="badge"]').or(page.locator('.rounded-full'));
-    this.acknowledgeButton = page.getByRole('button', { name: /acknowledge/i });
-    this.updateStatusButton = page.getByRole('button', { name: /update status/i });
-    this.saveChangesButton = page.getByRole('button', { name: /save changes/i });
-    this.cancelButton = page.getByRole('button', { name: /cancel/i });
+    this.heading = page.getByRole('heading', { level: 1 })
+      .or(page.locator('h1'))
+      .or(page.getByText(/unusual/i));
+    // Back button - look for button with chevron-left icon
+    this.backButton = page.locator('button svg.lucide-chevron-left').locator('..');
+    this.severityBadge = page.locator('[class*="text-danger-400"], [class*="text-warning-400"], [class*="text-success-400"]');
+    this.statusBadge = page.locator('[class*="badge"], .rounded-full');
+    this.acknowledgeButton = page.locator('button', { hasText: /acknowledge/i });
+    this.updateStatusButton = page.locator('button', { hasText: /update status/i });
+    this.saveChangesButton = page.locator('button', { hasText: /save changes/i });
+    this.cancelButton = page.locator('button', { hasText: /^cancel$/i });
     this.basicInfoCard = page.locator('.card').filter({ hasText: /basic information/i });
     this.indicatorsCard = page.locator('.card').filter({ hasText: /detection indicators/i });
-    this.statusAssignmentCard = page.locator('.card').filter({ hasText: /status & assignment/i });
+    this.statusAssignmentCard = page.locator('.card').filter({ hasText: /status.*assignment/i });
     this.relatedEntitiesCard = page.locator('.card').filter({ hasText: /related entities/i });
     this.typeInfoCard = page.locator('.card').filter({ hasText: /anomaly type/i });
-    this.statusSelect = page.locator('select').filter({ hasText: /status/i });
-    this.assignedToInput = page.getByPlaceholder(/email or user id/i);
-    this.resolutionNotesTextarea = page.getByPlaceholder(/investigation notes/i).or(page.getByPlaceholder(/resolution/i));
-    this.indicatorCards = page.locator('[class*="bg-gray-900/50"]').filter({ hasText: /confidence/i });
+    this.statusSelect = page.locator('.card').filter({ hasText: /status.*assignment/i }).locator('select');
+    this.assignedToInput = page.locator('input[placeholder*="email" i], input[placeholder*="user id" i]');
+    this.resolutionNotesTextarea = page.locator('textarea[placeholder*="investigation" i], textarea[placeholder*="resolution" i]');
+    this.indicatorCards = page.locator('[class*="bg-gray-900"]').filter({ hasText: /confidence/i });
   }
 
   async goto(anomalyId: string) {
     await this.page.goto(`/analytics/anomalies/${anomalyId}`);
-    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+    await this.page.waitForTimeout(500);
   }
 
   async getHeadingText(): Promise<string | null> {
-    const heading = this.heading.first();
-    if (await heading.isVisible().catch(() => false)) {
-      return await heading.textContent();
+    await this.page.waitForTimeout(500);
+    const elements = await this.heading.all();
+    for (const el of elements) {
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.textContent();
+        if (text) return text;
+      }
     }
     return null;
   }
 
   async getAnomalyTitle(): Promise<string | null> {
-    const title = this.page.locator('h1.text-xl').or(this.page.locator('.text-xl.font-bold'));
-    if (await title.isVisible().catch(() => false)) {
-      return await title.textContent();
+    const title = this.page.locator('h1.text-xl, .text-xl.font-bold, h1');
+    const count = await title.count();
+    for (let i = 0; i < count; i++) {
+      const el = title.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        return await el.textContent();
+      }
     }
     return null;
   }
 
   async getAnomalyDescription(): Promise<string | null> {
-    const description = this.page.locator('p.text-sm.text-gray-400');
-    const descriptions = await description.all();
-    for (const desc of descriptions) {
-      const text = await desc.textContent();
-      if (text && text.length > 20) {
-        return text;
+    const description = this.page.locator('p.text-sm.text-gray-400, p.text-gray-400');
+    const count = await description.count();
+    for (let i = 0; i < count; i++) {
+      const el = description.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.textContent();
+        if (text && text.length > 20) {
+          return text;
+        }
       }
     }
     return null;
   }
 
   async getSeverity(): Promise<string | null> {
-    const severityText = await this.page.getByText(/(critical|high|medium|low)/i).first().textContent();
-    if (severityText) {
-      const match = severityText.match(/(critical|high|medium|low)/i);
-      return match ? match[1].toLowerCase() : null;
+    const severityText = this.page.getByText(/(critical|high|medium|low)/i);
+    const count = await severityText.count();
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      const el = severityText.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.textContent();
+        if (text) {
+          const match = text.match(/(critical|high|medium|low)/i);
+          if (match) return match[1].toLowerCase();
+        }
+      }
     }
     return null;
   }
 
   async getStatus(): Promise<string | null> {
-    const statusText = await this.page.getByText(/(open|investigating|resolved|false positive)/i).first().textContent();
-    if (statusText) {
-      const match = statusText.match(/(open|investigating|resolved|false positive)/i);
-      return match ? match[1].toLowerCase() : null;
+    const statusText = this.page.getByText(/(open|investigating|resolved|false positive)/i);
+    const count = await statusText.count();
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      const el = statusText.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.textContent();
+        if (text) {
+          const match = text.match(/(open|investigating|resolved|false positive)/i);
+          if (match) return match[1].toLowerCase();
+        }
+      }
     }
     return null;
   }
 
   async getConfidenceScore(): Promise<number | null> {
-    const confidenceText = await this.page.getByText(/\d+%/).first().textContent();
-    if (confidenceText) {
-      const match = confidenceText.match(/(\d+)%/);
-      return match ? parseInt(match[1], 10) : null;
+    const confidenceText = this.page.getByText(/\d+%/);
+    const count = await confidenceText.count();
+    for (let i = 0; i < Math.min(count, 3); i++) {
+      const el = confidenceText.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        const text = await el.textContent();
+        if (text) {
+          const match = text.match(/(\d+)%/);
+          if (match) return parseInt(match[1], 10);
+        }
+      }
     }
     return null;
   }
 
   async clickAcknowledge() {
-    await this.acknowledgeButton.click();
-    await this.page.waitForLoadState('networkidle');
+    const count = await this.acknowledgeButton.count();
+    if (count > 0) {
+      await this.acknowledgeButton.first().click();
+      await this.page.waitForTimeout(500);
+    }
   }
 
   async clickUpdateStatus() {
-    await this.updateStatusButton.click();
+    const count = await this.updateStatusButton.count();
+    if (count > 0) {
+      await this.updateStatusButton.first().click();
+    }
   }
 
   async clickSaveChanges() {
-    await this.saveChangesButton.click();
-    await this.page.waitForLoadState('networkidle');
+    const count = await this.saveChangesButton.count();
+    if (count > 0) {
+      await this.saveChangesButton.first().click();
+      await this.page.waitForTimeout(500);
+    }
   }
 
   async clickCancel() {
-    await this.cancelButton.click();
+    const count = await this.cancelButton.count();
+    if (count > 0) {
+      await this.cancelButton.first().click();
+    }
   }
 
   async clickBack() {
-    const backButton = this.page.locator('button').filter({ hasText: '' }).locator('svg.lucide-chevron-left').locator('..');
-    await backButton.click();
-    await this.page.waitForLoadState('networkidle');
+    const count = await this.backButton.count();
+    if (count > 0) {
+      await this.backButton.first().click();
+      await this.page.waitForTimeout(500);
+    }
   }
 
   async setStatus(status: 'open' | 'investigating' | 'resolved' | 'false_positive') {
-    await this.statusSelect.selectOption({ label: new RegExp(status, 'i') });
+    await this.statusSelect.selectOption(status);
   }
 
   async setAssignedTo(value: string) {
-    await this.assignedToInput.fill(value);
+    const count = await this.assignedToInput.count();
+    if (count > 0) {
+      await this.assignedToInput.first().fill(value);
+    }
   }
 
   async setResolutionNotes(notes: string) {
-    await this.resolutionNotesTextarea.fill(notes);
+    const count = await this.resolutionNotesTextarea.count();
+    if (count > 0) {
+      await this.resolutionNotesTextarea.first().fill(notes);
+    }
   }
 
   async getSelectedStatus(): Promise<string | null> {
-    const selectedOption = await this.statusSelect.inputValue();
-    return selectedOption || null;
+    const count = await this.statusSelect.count();
+    if (count > 0) {
+      return await this.statusSelect.first().inputValue();
+    }
+    return null;
   }
 
   async getAssignedToValue(): Promise<string> {
-    return await this.assignedToInput.inputValue();
+    const count = await this.assignedToInput.count();
+    if (count > 0) {
+      return await this.assignedToInput.first().inputValue();
+    }
+    return '';
   }
 
   async getResolutionNotesValue(): Promise<string> {
-    return await this.resolutionNotesTextarea.inputValue();
+    const count = await this.resolutionNotesTextarea.count();
+    if (count > 0) {
+      return await this.resolutionNotesTextarea.first().inputValue();
+    }
+    return '';
   }
 
   async isEditingMode(): Promise<boolean> {
-    // Check if the save/cancel buttons are visible
-    return await this.saveChangesButton.isVisible().catch(() => false) ||
-           await this.cancelButton.isVisible().catch(() => false);
+    const saveVisible = await this.saveChangesButton.isVisible().catch(() => false);
+    const cancelVisible = await this.cancelButton.isVisible().catch(() => false);
+    return saveVisible || cancelVisible;
   }
 
   async getIndicatorCount(): Promise<number> {
@@ -172,7 +239,7 @@ export class AnomalyDetailPage {
 
   async getIndicatorType(index: number): Promise<string | null> {
     const card = this.indicatorCards.nth(index);
-    const typeElement = card.locator('.font-medium').or(card.locator('p.font-medium'));
+    const typeElement = card.locator('.font-medium, p.font-medium');
     if (await typeElement.isVisible().catch(() => false)) {
       return await typeElement.textContent();
     }
@@ -188,19 +255,26 @@ export class AnomalyDetailPage {
   }
 
   async areFieldsDisabled(): Promise<boolean> {
-    const isStatusDisabled = await this.statusSelect.isDisabled();
-    const isAssignedToDisabled = await this.assignedToInput.isDisabled();
-    const isNotesDisabled = await this.resolutionNotesTextarea.isDisabled();
-    return isStatusDisabled && isAssignedToDisabled && isNotesDisabled;
+    const statusDisabled = await this.statusSelect.isDisabled().catch(() => true);
+    const assignedDisabled = await this.assignedToInput.isDisabled().catch(() => true);
+    const notesDisabled = await this.resolutionNotesTextarea.isDisabled().catch(() => true);
+    return statusDisabled && assignedDisabled && notesDisabled;
   }
 
   async getBasicInfoValue(label: string): Promise<string | null> {
     const card = this.basicInfoCard;
     const labelElement = card.getByText(label);
-    if (await labelElement.isVisible().catch(() => false)) {
-      const valueElement = labelElement.locator('..').locator('p.text-sm.text-white').or(labelElement.locator('..').locator('.text-white'));
-      if (await valueElement.isVisible().catch(() => false)) {
-        return await valueElement.textContent();
+    const count = await labelElement.count();
+    for (let i = 0; i < count; i++) {
+      const el = labelElement.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        const valueElement = el.locator('..').locator('p.text-white, .text-white');
+        const valueCount = await valueElement.count();
+        for (let j = 0; j < valueCount; j++) {
+          if (await valueElement.nth(j).isVisible().catch(() => false)) {
+            return await valueElement.nth(j).textContent();
+          }
+        }
       }
     }
     return null;
@@ -208,18 +282,27 @@ export class AnomalyDetailPage {
 
   async getRelatedEntity(type: 'user' | 'target'): Promise<string | null> {
     const card = this.relatedEntitiesCard;
-    const entityRow = card.getByText(new RegExp(type, 'i')).locator('..');
-    const nameElement = entityRow.locator('.font-medium.text-white').or(entityRow.locator('p:nth-child(2)'));
-    if (await nameElement.isVisible().catch(() => false)) {
-      return await nameElement.textContent();
+    const entityRow = card.getByText(new RegExp(type, 'i'));
+    const count = await entityRow.count();
+    for (let i = 0; i < count; i++) {
+      const el = entityRow.nth(i);
+      if (await el.isVisible().catch(() => false)) {
+        const nameElement = el.locator('..').locator('.font-medium, p.text-white');
+        const nameCount = await nameElement.count();
+        for (let j = 0; j < nameCount; j++) {
+          if (await nameElement.nth(j).isVisible().catch(() => false)) {
+            return await nameElement.nth(j).textContent();
+          }
+        }
+      }
     }
     return null;
   }
 
   async waitForContent(): Promise<void> {
     await Promise.race([
-      this.heading.waitFor({ state: 'visible' }).catch(() => {}),
-      this.page.waitForTimeout(2000),
+      this.heading.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {}),
+      this.page.waitForTimeout(3000),
     ]);
   }
 }

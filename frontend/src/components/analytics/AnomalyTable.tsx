@@ -110,8 +110,8 @@ export const AnomalyTable: React.FC<AnomalyTableProps> = ({
     );
   }
 
-  const allSelected = selectedIds && anomalies.length > 0 && anomalies.every(a => selectedIds.has(a.id));
-  const someSelected = selectedIds && anomalies.some(a => selectedIds.has(a.id));
+  const allSelected = selectedIds && anomalies.length > 0 && anomalies.every(a => selectedIds.has(a.id)) || false;
+  const someSelected = selectedIds ? anomalies.some(a => selectedIds.has(a.id)) : false;
 
   const renderColumn = (anomaly: AnomalyDetection, column: AnomalyTableColumn) => {
     switch (column.id) {
