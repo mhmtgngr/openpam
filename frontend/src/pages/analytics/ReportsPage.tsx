@@ -560,8 +560,6 @@ export const ReportsPage: React.FC = () => {
           )}
         </div>
       )}
-<<<<<<< HEAD
-=======
 
       {/* Report Viewer Modal */}
       {selectedSnapshot && (
@@ -572,7 +570,6 @@ export const ReportsPage: React.FC = () => {
           onDownload={(r) => downloadSnapshot(r.id)}
         />
       )}
->>>>>>> team/complete-todo-items-for-anomaly-detectio-1772017917
     </div>
   );
 };

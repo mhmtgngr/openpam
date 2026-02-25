@@ -40,7 +40,7 @@ describe('analyticsApi', () => {
         sessions_over_time: [],
       };
 
-      (api.get as any).mockResolvedValue({ data: mockMetrics });
+      (api.get as any).mockResolvedValue(mockMetrics);
 
       const result = await analyticsApi.getSessionMetrics();
 
@@ -61,7 +61,7 @@ describe('analyticsApi', () => {
         sessions_over_time: [],
       };
 
-      (api.get as any).mockResolvedValue({ data: mockMetrics });
+      (api.get as any).mockResolvedValue(mockMetrics);
 
       const params = {
         start_date: '2024-01-01',
@@ -92,7 +92,7 @@ describe('analyticsApi', () => {
         period: 'week',
       };
 
-      (api.get as any).mockResolvedValue({ data: mockTrends });
+      (api.get as any).mockResolvedValue(mockTrends);
 
       const result = await analyticsApi.getDashboardTrends();
 
@@ -109,7 +109,7 @@ describe('analyticsApi', () => {
         period: 'month',
       };
 
-      (api.get as any).mockResolvedValue({ data: mockTrends });
+      (api.get as any).mockResolvedValue(mockTrends);
 
       const result = await analyticsApi.getDashboardTrends('month');
 
@@ -121,13 +121,13 @@ describe('analyticsApi', () => {
       const periods: Array<'day' | 'week' | 'month' | 'quarter'> = ['day', 'week', 'month', 'quarter'];
 
       for (const period of periods) {
-        (api.get as any).mockResolvedValue({ data: {
+        (api.get as any).mockResolvedValue({
           sessions: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
           users: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
           credentials: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
           requests: { current: 1, previous: 1, change_percent: 0, trend: 'up' as const, data_points: [] },
           period,
-        }});
+        });
 
         await analyticsApi.getDashboardTrends(period);
 
@@ -182,27 +182,25 @@ describe('analyticsApi', () => {
 
     it('should pass date params to dashboard endpoint', async () => {
       (api.get as any).mockResolvedValue({
-        data: {
-          metrics: {
-            active_sessions: 1,
-            peak_concurrent_sessions: 1,
-            total_sessions_today: 1,
-            total_sessions_week: 7,
-            avg_session_duration_seconds: 1,
-            total_session_duration_today_seconds: 1,
-            sessions_by_type: {},
-            sessions_by_environment: {},
-            sessions_over_time: [],
-          },
-          trends: {
-            sessions: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
-            users: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
-            credentials: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
-            requests: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
-            period: 'week',
-          },
-          realtime: { active_sessions: 1, active_users: 1, sessions_last_hour: 1, avg_active_duration: 1 },
+        metrics: {
+          active_sessions: 1,
+          peak_concurrent_sessions: 1,
+          total_sessions_today: 1,
+          total_sessions_week: 7,
+          avg_session_duration_seconds: 1,
+          total_session_duration_today_seconds: 1,
+          sessions_by_type: {},
+          sessions_by_environment: {},
+          sessions_over_time: [],
         },
+        trends: {
+          sessions: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
+          users: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
+          credentials: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
+          requests: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
+          period: 'week',
+        },
+        realtime: { active_sessions: 1, active_users: 1, sessions_last_hour: 1, avg_active_duration: 1 },
       });
 
       await analyticsApi.getDashboard({ start_date: '2024-01-01', end_date: '2024-01-31' });
@@ -222,7 +220,7 @@ describe('analyticsApi', () => {
         { timestamp: '2024-01-03T00:00:00Z', value: 115 },
       ];
 
-      (api.get as any).mockResolvedValue({ data: mockTimeSeries });
+      (api.get as any).mockResolvedValue(mockTimeSeries);
 
       const result = await analyticsApi.getTimeSeries({
         metric: 'sessions',
@@ -267,10 +265,8 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: {
-          data: mockActivity,
-          pagination: { total: 2, limit: 20, offset: 0, has_more: false },
-        },
+        data: mockActivity,
+        pagination: { total: 2, limit: 20, offset: 0, has_more: false },
       });
 
       const result = await analyticsApi.getUserActivity();
@@ -284,10 +280,8 @@ describe('analyticsApi', () => {
       const mockActivity: UserActivity[] = [];
 
       (api.get as any).mockResolvedValue({
-        data: {
-          data: mockActivity,
-          pagination: { total: 0, limit: 10, offset: 0, has_more: false },
-        },
+        data: mockActivity,
+        pagination: { total: 0, limit: 10, offset: 0, has_more: false },
       });
 
       const params = {
@@ -322,7 +316,7 @@ describe('analyticsApi', () => {
         ],
       };
 
-      (api.get as any).mockResolvedValue({ data: mockDetail });
+      (api.get as any).mockResolvedValue(mockDetail);
 
       const result = await analyticsApi.getUserActivityDetail('user-123');
 
@@ -359,10 +353,8 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: {
-          data: mockCommands,
-          pagination: { total: 2, limit: 20, offset: 0, has_more: false },
-        },
+        data: mockCommands,
+        pagination: { total: 2, limit: 20, offset: 0, has_more: false },
       });
 
       const result = await analyticsApi.getCommandFrequency();
@@ -381,7 +373,7 @@ describe('analyticsApi', () => {
         unique_targets: 12,
       };
 
-      (api.get as any).mockResolvedValue({ data: mockSummary });
+      (api.get as any).mockResolvedValue(mockSummary);
 
       const result = await analyticsApi.getCommandRiskSummary();
 
@@ -396,7 +388,7 @@ describe('analyticsApi', () => {
         expires_at: '2024-01-16T00:00:00Z',
       };
 
-      (api.post as any).mockResolvedValue({ data: mockExport });
+      (api.post as any).mockResolvedValue(mockExport);
 
       const result = await analyticsApi.exportCommandAnalysis({
         format: 'csv',
@@ -432,7 +424,7 @@ describe('analyticsApi', () => {
         },
       ];
 
-      (api.get as any).mockResolvedValue({ data: mockTopUsers });
+      (api.get as any).mockResolvedValue(mockTopUsers);
 
       const result = await analyticsApi.getTopUsers(10);
 
@@ -460,7 +452,7 @@ describe('analyticsApi', () => {
         },
       ];
 
-      (api.get as any).mockResolvedValue({ data: mockTopTargets });
+      (api.get as any).mockResolvedValue(mockTopTargets);
 
       const result = await analyticsApi.getTopTargets(20, {
         start_date: '2024-01-01',
@@ -485,7 +477,7 @@ describe('analyticsApi', () => {
         avg_active_duration: 1500,
       };
 
-      (api.get as any).mockResolvedValue({ data: mockStats });
+      (api.get as any).mockResolvedValue(mockStats);
 
       const result = await analyticsApi.getRealtimeStats();
 
@@ -517,10 +509,8 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: {
-          data: mockAnomalies,
-          pagination: { total: 1, limit: 20, offset: 0, has_more: false },
-        },
+        data: mockAnomalies,
+        pagination: { total: 1, limit: 20, offset: 0, has_more: false },
       });
 
       const result = await analyticsApi.listAnomalies({
@@ -545,7 +535,7 @@ describe('analyticsApi', () => {
         status: 'resolved',
       };
 
-      (api.patch as any).mockResolvedValue({ data: mockResponse });
+      (api.patch as any).mockResolvedValue(mockResponse);
 
       const result = await analyticsApi.updateAnomalyStatus('anomaly-1', {
         status: 'resolved',
@@ -567,7 +557,7 @@ describe('analyticsApi', () => {
         last_assessed: '2024-01-15T10:00:00Z',
       };
 
-      (api.get as any).mockResolvedValue({ data: mockSummary });
+      (api.get as any).mockResolvedValue(mockSummary);
 
       const result = await analyticsApi.getComplianceSummary('SOC2');
 
@@ -586,7 +576,7 @@ describe('analyticsApi', () => {
         last_assessed: '2024-01-10T10:00:00Z',
       };
 
-      (api.get as any).mockResolvedValue({ data: mockSummary });
+      (api.get as any).mockResolvedValue(mockSummary);
 
       const result = await analyticsApi.getComplianceSummary();
 
@@ -634,17 +624,15 @@ describe('analyticsApi', () => {
   describe('Request Parameters', () => {
     it('should properly encode date parameters', async () => {
       (api.get as any).mockResolvedValue({
-        data: {
-          active_sessions: 1,
-          peak_concurrent_sessions: 1,
-          total_sessions_today: 1,
-          total_sessions_week: 7,
-          avg_session_duration_seconds: 1,
-          total_session_duration_today_seconds: 1,
-          sessions_by_type: {},
-          sessions_by_environment: {},
-          sessions_over_time: [],
-        },
+        active_sessions: 1,
+        peak_concurrent_sessions: 1,
+        total_sessions_today: 1,
+        total_sessions_week: 7,
+        avg_session_duration_seconds: 1,
+        total_session_duration_today_seconds: 1,
+        sessions_by_type: {},
+        sessions_by_environment: {},
+        sessions_over_time: [],
       });
 
       await analyticsApi.getSessionMetrics({
@@ -662,10 +650,8 @@ describe('analyticsApi', () => {
 
     it('should handle pagination parameters correctly', async () => {
       (api.get as any).mockResolvedValue({
-        data: {
-          data: [],
-          pagination: { total: 0, limit: 50, offset: 100, has_more: false },
-        },
+        data: [],
+        pagination: { total: 0, limit: 50, offset: 100, has_more: false },
       });
 
       await analyticsApi.getUserActivity({
@@ -681,10 +667,8 @@ describe('analyticsApi', () => {
 
     it('should handle boolean parameters', async () => {
       (api.get as any).mockResolvedValue({
-        data: {
-          data: [],
-          pagination: { total: 0, limit: 20, offset: 0, has_more: false },
-        },
+        data: [],
+        pagination: { total: 0, limit: 20, offset: 0, has_more: false },
       });
 
       await analyticsApi.getUserActivity({
@@ -711,7 +695,7 @@ describe('analyticsApi', () => {
         sessions_over_time: [],
       };
 
-      (api.get as any).mockResolvedValue({ data: mockMetrics });
+      (api.get as any).mockResolvedValue(mockMetrics);
 
       const result = await analyticsApi.getSessionMetrics();
 
@@ -737,10 +721,8 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: {
-          data: mockActivity,
-          pagination: { total: 1, limit: 20, offset: 0, has_more: false },
-        },
+        data: mockActivity,
+        pagination: { total: 1, limit: 20, offset: 0, has_more: false },
       });
 
       const result = await analyticsApi.getUserActivity();
@@ -761,7 +743,7 @@ describe('analyticsApi', () => {
         expires_at: '2024-01-16T00:00:00Z',
       };
 
-      (api.post as any).mockResolvedValue({ data: mockExport });
+      (api.post as any).mockResolvedValue(mockExport);
 
       const result = await analyticsApi.exportUserActivity({
         format: 'csv',
@@ -785,7 +767,7 @@ describe('analyticsApi', () => {
         expires_at: '2024-01-16T12:00:00Z',
       };
 
-      (api.post as any).mockResolvedValue({ data: mockExport });
+      (api.post as any).mockResolvedValue(mockExport);
 
       const result = await analyticsApi.exportCommandAnalysis({
         format: 'json',
