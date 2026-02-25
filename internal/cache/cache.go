@@ -239,10 +239,15 @@ func (c *Cache) PubSub() *PubSub {
 }
 
 // Event represents a real-time event
-// SECURITY: Signature is included for event verification to prevent spoofing
+// SECURITY: All fields needed for signature verification are included to prevent event spoofing
+// The signature is computed over: ID, Type, TenantID, ActorID, Action, Resource, Timestamp, Data
 type Event struct {
+	ID        string                 `json:"id"`        // Event ID for signature verification
 	Type      string                 `json:"type"`
 	TenantID  string                 `json:"tenant_id"`
+	ActorID   string                 `json:"actor_id"`  // Actor ID for signature verification
+	Action    string                 `json:"action"`    // Action for signature verification
+	Resource  string                 `json:"resource"`  // Resource for signature verification
 	Data      map[string]interface{} `json:"data"`
 	Timestamp int64                  `json:"timestamp"`
 	Signature string                 `json:"signature"` // HMAC signature for event verification

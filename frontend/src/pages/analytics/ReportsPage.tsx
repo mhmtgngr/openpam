@@ -204,12 +204,6 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
-  const activeFilterCount =
-    (filters.type ? 1 : 0) +
-    (filters.status ? 1 : 0) +
-    (filters.format ? 1 : 0) +
-    (filters.search ? 1 : 0);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -561,15 +555,6 @@ export const ReportsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Report Viewer Modal */}
-      {selectedSnapshot && (
-        <ReportViewer
-          report={currentSnapshot}
-          isLoading={isLoadingDetail}
-          onClose={() => setSelectedIds(new Set())}
-          onDownload={(r) => downloadSnapshot(r.id)}
-        />
-      )}
     </div>
   );
 };

@@ -36,11 +36,12 @@ import (
 // - Command blacklist enforcement
 // - SSH key analytics
 type Service struct {
-	repo            *Repository
-	anomalyRepo     *AnomalyRepository
-	reportRepo      *ReportRepository
-	cache           *cache.Cache
-	logger          zerolog.Logger
+	repo                    *Repository
+	anomalyRepo             *AnomalyRepository
+	reportRepo              *ReportRepository
+	complianceExceptionRepo *ComplianceExceptionRepository
+	cache                   *cache.Cache
+	logger                  zerolog.Logger
 
 	// Worker status
 	aggregationWorkerRunning bool
@@ -49,13 +50,14 @@ type Service struct {
 }
 
 // NewService creates a new analytics service
-func NewService(repo *Repository, anomalyRepo *AnomalyRepository, reportRepo *ReportRepository, cache *cache.Cache, logger zerolog.Logger) *Service {
+func NewService(repo *Repository, anomalyRepo *AnomalyRepository, reportRepo *ReportRepository, complianceExceptionRepo *ComplianceExceptionRepository, cache *cache.Cache, logger zerolog.Logger) *Service {
 	return &Service{
-		repo:        repo,
-		anomalyRepo: anomalyRepo,
-		reportRepo:  reportRepo,
-		cache:       cache,
-		logger:      logger,
+		repo:                    repo,
+		anomalyRepo:             anomalyRepo,
+		reportRepo:              reportRepo,
+		complianceExceptionRepo: complianceExceptionRepo,
+		cache:                   cache,
+		logger:                  logger,
 	}
 }
 
@@ -542,30 +544,93 @@ func (s *Service) DeleteComplianceReport(ctx context.Context, id, tenantID uuid.
 
 // CreateComplianceException creates a new compliance exception
 func (s *Service) CreateComplianceException(ctx context.Context, tenantID, createdBy uuid.UUID, req *CreateComplianceExceptionRequest) (*ComplianceExceptionResponse, error) {
-	exception := &ComplianceExceptionResponse{
-		ID:              uuid.New(),
-		TenantID:        tenantID,
-		ControlID:       req.ControlID,
-		ControlName:     req.ControlName,
-		Framework:       req.Framework,
-		Status:          "pending",
-		RiskLevel:       req.RiskLevel,
-		RequestedBy:     createdBy,
-		RequestedAt:     time.Now(),
-		Justification:   req.Justification,
-		BusinessReason:  req.BusinessReason,
+	if s.complianceExceptionRepo == nil {
+		return nil, fmt.Errorf("compliance exception repository not configured")
 	}
 
-	// Store exception
-	// TODO: Add exception persistence
+	// Create the exception entity
+	exception := &ComplianceException{
+		TenantID:            tenantID,
+		ControlID:           req.ControlID,
+		ControlName:         req.ControlName,
+		Framework:           req.Framework,
+		Status:              ExceptionStatusPending,
+		RiskLevel:           req.RiskLevel,
+		RequestedBy:         createdBy,
+		Justification:       req.Justification,
+		BusinessReason:      req.BusinessReason,
+		CompensatingControls: req.CompensatingControls,
+	}
 
-	return exception, nil
+	if req.ExpiresAt != nil {
+		exception.ExpiresAt = req.ExpiresAt
+	}
+
+	if req.Metadata != nil {
+		exception.Metadata = mustMarshalJSON(req.Metadata)
+	}
+
+	// Persist the exception
+	if err := s.complianceExceptionRepo.Create(ctx, exception); err != nil {
+		return nil, fmt.Errorf("service.CreateComplianceException: %w", err)
+	}
+
+	return &ComplianceExceptionResponse{
+		ID:             exception.ID,
+		TenantID:       exception.TenantID,
+		ControlID:      exception.ControlID,
+		ControlName:    exception.ControlName,
+		Framework:      exception.Framework,
+		Status:         string(exception.Status),
+		RiskLevel:      exception.RiskLevel,
+		RequestedBy:    exception.RequestedBy,
+		RequestedAt:    exception.RequestedAt,
+		ApprovedBy:     exception.ApprovedBy,
+		ApprovedAt:     exception.ApprovedAt,
+		Justification:  exception.Justification,
+		BusinessReason: exception.BusinessReason,
+	}, nil
 }
 
-// ListComplianceExceptions lists all compliance exceptions for a tenant
-func (s *Service) ListComplianceExceptions(ctx context.Context, tenantID uuid.UUID) ([]ComplianceExceptionResponse, error) {
-	// TODO: Implement exception listing
-	return []ComplianceExceptionResponse{}, nil
+// ListComplianceExceptions lists all compliance exceptions for a tenant with filters
+func (s *Service) ListComplianceExceptions(ctx context.Context, tenantID uuid.UUID, status *ExceptionStatus, framework string) ([]ComplianceExceptionResponse, error) {
+	if s.complianceExceptionRepo == nil {
+		return nil, fmt.Errorf("compliance exception repository not configured")
+	}
+
+	filter := ExceptionFilter{
+		TenantID:  tenantID,
+		Status:    status,
+		Framework: framework,
+		Limit:     100,
+		Offset:    0,
+	}
+
+	exceptions, _, err := s.complianceExceptionRepo.List(ctx, tenantID, filter)
+	if err != nil {
+		return nil, fmt.Errorf("service.ListComplianceExceptions: %w", err)
+	}
+
+	responses := make([]ComplianceExceptionResponse, len(exceptions))
+	for i, exc := range exceptions {
+		responses[i] = ComplianceExceptionResponse{
+			ID:             exc.ID,
+			TenantID:       exc.TenantID,
+			ControlID:      exc.ControlID,
+			ControlName:    exc.ControlName,
+			Framework:      exc.Framework,
+			Status:         string(exc.Status),
+			RiskLevel:      exc.RiskLevel,
+			RequestedBy:    exc.RequestedBy,
+			RequestedAt:    exc.RequestedAt,
+			ApprovedBy:     exc.ApprovedBy,
+			ApprovedAt:     exc.ApprovedAt,
+			Justification:  exc.Justification,
+			BusinessReason: exc.BusinessReason,
+		}
+	}
+
+	return responses, nil
 }
 
 // Anomaly Detection Methods
@@ -1475,37 +1540,6 @@ func (s *Service) DeleteReport(ctx context.Context, id uuid.UUID) error {
 	return s.repo.DeleteReport(ctx, id)
 }
 
-// GenerateReportSnapshot generates a report snapshot
-func (s *Service) GenerateReportSnapshot(ctx context.Context, reportID, createdBy uuid.UUID, startDate, endDate time.Time, format string) (*ReportSnapshot, error) {
-	report, err := s.repo.GetReport(ctx, reportID)
-	if err != nil {
-		return nil, err
-	}
-
-	snapshot := &ReportSnapshot{
-		ReportID:     reportID,
-		TenantID:     report.TenantID,
-		SnapshotName: report.Name,
-		Framework:    string(report.ReportType),
-		GeneratedAt:  time.Now(),
-		GeneratedBy:  createdBy,
-		PeriodStart:  startDate,
-		PeriodEnd:    endDate,
-		Status:       ReportSnapshotStatusPending,
-		FileFormat:   &format,
-	}
-
-	if err := s.reportRepo.CreateReportSnapshot(ctx, snapshot); err != nil {
-		return nil, err
-	}
-
-	// TODO: Generate report data asynchronously
-	// For now, mark as completed with placeholder data
-	_ = s.reportRepo.UpdateReportSnapshotStatus(ctx, snapshot.ID, report.TenantID, ReportSnapshotStatusCompleted, nil, nil, nil)
-
-	return snapshot, nil
-}
-
 // ListReportSnapshots lists snapshots for a tenant with filters
 func (s *Service) ListReportSnapshots(ctx context.Context, tenantID uuid.UUID, filter ReportSnapshotFilter) ([]ReportSnapshot, int, error) {
 	if filter.Limit == 0 {
@@ -1527,6 +1561,126 @@ func (s *Service) UpdateReportSnapshotStatus(ctx context.Context, snapshotID, te
 // GetReportSnapshotStats retrieves statistics for report snapshots
 func (s *Service) GetReportSnapshotStats(ctx context.Context, tenantID uuid.UUID) (*ReportSnapshotStats, error) {
 	return s.reportRepo.GetReportSnapshotStats(ctx, tenantID)
+}
+
+// =============================================================================
+// Report Job Methods (Aliases for handler compatibility)
+// =============================================================================
+
+// GetReportJob retrieves a report generation job (alias for GetReportGenerationJob)
+func (s *Service) GetReportJob(ctx context.Context, jobID, tenantID uuid.UUID) (*ReportGenerationJob, error) {
+	return s.GetReportGenerationJob(ctx, jobID, tenantID)
+}
+
+// ListReportJobs lists report generation jobs (alias for ListReportGenerationJobs)
+func (s *Service) ListReportJobs(ctx context.Context, tenantID uuid.UUID, filter ReportJobFilter) ([]ReportGenerationJob, int, error) {
+	return s.ListReportGenerationJobs(ctx, tenantID, filter)
+}
+
+// CancelReportJob cancels a report generation job
+func (s *Service) CancelReportJob(ctx context.Context, jobID, tenantID uuid.UUID) error {
+	return s.reportRepo.UpdateReportGenerationJobStatus(ctx, jobID, tenantID, ReportJobStatusCancelled, 0, stringPtr("Job cancelled by user"), nil)
+}
+
+// RetryReportJob retries a failed report generation job
+func (s *Service) RetryReportJob(ctx context.Context, jobID, tenantID uuid.UUID) error {
+	job, err := s.GetReportJob(ctx, jobID, tenantID)
+	if err != nil {
+		return err
+	}
+
+	if job.Status != ReportJobStatusFailed {
+		return fmt.Errorf("only failed jobs can be retried")
+	}
+
+	// Reset job to queued status
+	return s.reportRepo.UpdateReportGenerationJobStatus(ctx, jobID, tenantID, ReportJobStatusQueued, 0, stringPtr(""), nil)
+}
+
+// =============================================================================
+// Report Schedule Control Methods
+// =============================================================================
+
+// PauseReportSchedule pauses a report schedule
+func (s *Service) PauseReportSchedule(ctx context.Context, scheduleID, tenantID uuid.UUID) error {
+	schedule, err := s.reportRepo.GetReportScheduleByID(ctx, scheduleID, tenantID)
+	if err != nil {
+		return err
+	}
+
+	schedule.Status = ReportScheduleStatusPaused
+	return s.reportRepo.UpdateReportSchedule(ctx, schedule)
+}
+
+// ResumeReportSchedule resumes a paused report schedule
+func (s *Service) ResumeReportSchedule(ctx context.Context, scheduleID, tenantID uuid.UUID) error {
+	schedule, err := s.reportRepo.GetReportScheduleByID(ctx, scheduleID, tenantID)
+	if err != nil {
+		return err
+	}
+
+	schedule.Status = ReportScheduleStatusActive
+
+	// Recalculate next run time
+	nextRunAt, err := s.calculateNextRunTime(schedule.ScheduleType, schedule.CronExpression)
+	if err != nil {
+		return err
+	}
+	schedule.NextRunAt = nextRunAt
+
+	return s.reportRepo.UpdateReportSchedule(ctx, schedule)
+}
+
+// =============================================================================
+// Report Snapshot Generation (Async with job queue)
+// =============================================================================
+
+// GenerateReportSnapshot generates a report snapshot asynchronously with job queue
+func (s *Service) GenerateReportSnapshot(ctx context.Context, tenantID, createdBy, reportID uuid.UUID, periodStart, periodEnd time.Time, format string) (*ReportSnapshot, error) {
+	// Get the source report
+	report, err := s.reportRepo.GetComplianceReportByID(ctx, reportID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	snapshot := &ReportSnapshot{
+		ReportID:     reportID,
+		TenantID:     report.TenantID,
+		SnapshotName: report.Framework + " Compliance Report",
+		Framework:    report.Framework,
+		GeneratedAt:  time.Now(),
+		GeneratedBy:  createdBy,
+		PeriodStart:  periodStart,
+		PeriodEnd:    periodEnd,
+		Status:       ReportSnapshotStatusPending,
+		FileFormat:   &format,
+	}
+
+	if err := s.reportRepo.CreateReportSnapshot(ctx, snapshot); err != nil {
+		return nil, err
+	}
+
+	// Create async generation job
+	job := &ReportGenerationJob{
+		TenantID:   tenantID,
+		JobType:    "compliance",
+		SnapshotID: &snapshot.ID,
+		ReportID:   &reportID,
+		Status:     ReportJobStatusQueued,
+		Progress:   0,
+		Format:     format,
+		QueuedAt:   time.Now(),
+		MaxRetries: 3,
+	}
+
+	if err := s.reportRepo.CreateReportGenerationJob(ctx, job); err != nil {
+		return nil, fmt.Errorf("create generation job: %w", err)
+	}
+
+	// TODO: Enqueue job to worker when worker is available
+	// For now, the job will be picked up by the dispatcher
+
+	return snapshot, nil
 }
 
 // Alert Methods

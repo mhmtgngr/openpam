@@ -21,8 +21,9 @@ func TestNewService(t *testing.T) {
 		repo := &Repository{}
 		anomalyRepo := &AnomalyRepository{}
 		reportRepo := &ReportRepository{}
+		complianceExceptionRepo := &ComplianceExceptionRepository{}
 
-		service := NewService(repo, anomalyRepo, reportRepo, nil, logger)
+		service := NewService(repo, anomalyRepo, reportRepo, complianceExceptionRepo, nil, logger)
 
 		assert.NotNil(t, service)
 		assert.NotNil(t, service.logger)
@@ -34,8 +35,9 @@ func TestNewService(t *testing.T) {
 		repo := &Repository{}
 		anomalyRepo := &AnomalyRepository{}
 		reportRepo := &ReportRepository{}
+		complianceExceptionRepo := &ComplianceExceptionRepository{}
 
-		service := NewService(repo, anomalyRepo, reportRepo, nil, logger)
+		service := NewService(repo, anomalyRepo, reportRepo, complianceExceptionRepo, nil, logger)
 
 		assert.False(t, service.aggregationWorkerRunning)
 		assert.False(t, service.alertEvaluatorRunning)

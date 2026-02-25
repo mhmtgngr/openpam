@@ -166,11 +166,15 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	if eb.cache != nil && eb.cache.IsAvailable() {
 		channel := fmt.Sprintf("events:%s", event.Type)
 
-		// SECURITY: Publish the signed event including the signature
-		// The signature is now included in cache.Event for verification by subscribers
+		// SECURITY: Publish the signed event including all fields needed for signature verification
+		// This ensures subscribers can verify the signature to prevent event injection/spoofing
 		if err := eb.cache.PubSub().Publish(ctx, channel, cache.Event{
+			ID:        event.ID,
 			Type:      event.Type,
 			TenantID:  event.TenantID,
+			ActorID:   event.ActorID,
+			Action:    event.Action,
+			Resource:  event.Resource,
 			Data:      event.Data,
 			Timestamp: event.Timestamp.Unix(),
 			Signature: event.Signature,
@@ -241,16 +245,15 @@ func (eb *EventBus) startSubscriptionListener() {
 			continue
 		}
 
-		// Reconstruct the full Event for signature verification
-		// Note: We need the original event fields for proper signature computation
-		// The pub/sub event includes Type, TenantID, Data, Timestamp, and Signature
+		// SECURITY FIX: Reconstruct the full Event with all fields for signature verification
+		// All required fields are now included in cache.Event for proper signature verification
 		event := Event{
-			ID:        "", // ID is generated during computeSignature, may be empty for pub/sub events
+			ID:        cacheEvent.ID,
 			Type:      cacheEvent.Type,
 			TenantID:  cacheEvent.TenantID,
-			ActorID:   "", // Not included in cache events, verification will handle this
-			Action:    "",
-			Resource:  "",
+			ActorID:   cacheEvent.ActorID,
+			Action:    cacheEvent.Action,
+			Resource:  cacheEvent.Resource,
 			Data:      cacheEvent.Data,
 			Timestamp: time.Unix(cacheEvent.Timestamp, 0),
 			Signature: cacheEvent.Signature,
@@ -258,11 +261,12 @@ func (eb *EventBus) startSubscriptionListener() {
 
 		// SECURITY FIX: Verify event signature before processing
 		// This prevents event injection and spoofing attacks
-		// Note: For pub/sub events, we do a best-effort verification since some fields may be missing
 		if !eb.verifySignature(event) {
 			eb.logger.Warn().
+				Str("event_id", event.ID).
 				Str("event_type", event.Type).
 				Str("tenant_id", event.TenantID).
+				Str("actor_id", event.ActorID).
 				Msg("Rejected event with invalid signature")
 			continue
 		}
@@ -274,6 +278,7 @@ func (eb *EventBus) startSubscriptionListener() {
 		for _, handler := range handlers {
 			if err := handler(ctx, event); err != nil {
 				eb.logger.Error().
+					Str("event_id", event.ID).
 					Str("event_type", event.Type).
 					Err(err).
 					Msg("Handler error")

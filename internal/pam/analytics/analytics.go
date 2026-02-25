@@ -28,7 +28,8 @@ func InitService(db *sqlx.DB, cache *cache.Cache, logger zerolog.Logger) (*Servi
 	repo := NewRepository(db, logger)
 	anomalyRepo := NewAnomalyRepository(db, logger)
 	reportRepo := NewReportRepository(db, logger)
-	service := NewService(repo, anomalyRepo, reportRepo, cache, logger)
+	complianceExceptionRepo := NewComplianceExceptionRepository(db, logger)
+	service := NewService(repo, anomalyRepo, reportRepo, complianceExceptionRepo, cache, logger)
 
 	// Initialize background workers
 	aggregationWorker := NewAggregationWorker(repo, cache, logger)
@@ -167,7 +168,7 @@ func GenerateWeeklyReport(ctx context.Context, service *Service, tenantID, gener
 		return nil, err
 	}
 
-	snapshot, err := service.GenerateReportSnapshot(ctx, report.ID, generatedBy, weekAgo, now, format)
+	snapshot, err := service.GenerateReportSnapshot(ctx, tenantID, generatedBy, report.ID, weekAgo, now, format)
 	if err != nil {
 		return nil, err
 	}

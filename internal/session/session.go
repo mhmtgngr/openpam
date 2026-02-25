@@ -37,15 +37,17 @@ const (
 )
 
 // Session represents a privileged access session
+// SECURITY: Sensitive fields are exposed via JSON for API responses, but ForLog() method
+// should be used for any logging to prevent credential/target information leakage
 type Session struct {
 	ID           uuid.UUID       `db:"id" json:"id"`
 	UserID       uuid.UUID       `db:"user_id" json:"user_id"`
-	CredentialID uuid.UUID       `db:"credential_id" json:"credential_id"`
+	CredentialID uuid.UUID       `db:"credential_id" json:"credential_id"` // Sensitive: should be redacted in logs
 	TargetID     *uuid.UUID      `db:"target_id" json:"target_id,omitempty"`
 	Type         SessionType     `db:"type" json:"type"`
 	Status       SessionStatus   `db:"status" json:"status"`
 
-	// Connection details
+	// Connection details - SENSITIVE: should be redacted in logs
 	TargetHost   string          `db:"target_host" json:"target_host"`
 	TargetPort   int             `db:"target_port" json:"target_port"`
 	ClientIP     string          `db:"client_ip" json:"client_ip"`
@@ -66,6 +68,72 @@ type Session struct {
 	TenantID     uuid.UUID       `db:"tenant_id" json:"tenant_id"`
 	CreatedAt    time.Time       `db:"created_at" json:"created_at"`
 	UpdatedAt    time.Time       `db:"updated_at" json:"updated_at"`
+}
+
+// SessionLoggable represents a sanitized version of Session safe for logging
+// SECURITY: This type ensures sensitive information is never logged
+type SessionLoggable struct {
+	ID           uuid.UUID     `json:"id"`
+	UserID       uuid.UUID     `json:"user_id"`
+	TargetID     *uuid.UUID    `json:"target_id,omitempty"`
+	Type         SessionType   `json:"type"`
+	Status       SessionStatus `json:"status"`
+	// Sensitive fields are redacted
+	TargetHost   string        `json:"target_host,omitempty"`   // Redacted in ForLog()
+	TargetPort   int           `json:"target_port,omitempty"`   // Redacted in ForLog()
+	ClientIP     string        `json:"client_ip,omitempty"`     // Redacted in ForLog()
+	UserAgent    string        `json:"user_agent,omitempty"`
+	RecordingID  *uuid.UUID    `json:"recording_id,omitempty"`
+	RecordingURL string        `json:"recording_url,omitempty"`
+	StartedAt    time.Time     `json:"started_at"`
+	EndedAt      *time.Time    `json:"ended_at,omitempty"`
+	TerminatedBy *uuid.UUID    `json:"terminated_by,omitempty"`
+	TerminateReason string     `json:"terminate_reason,omitempty"`
+	TenantID     uuid.UUID     `json:"tenant_id"`
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
+}
+
+// ForLog returns a sanitized version of the session safe for logging
+// SECURITY: This method must be used when logging sessions to prevent leakage of:
+// - CredentialID (which credential was used)
+// - TargetHost (which system was accessed)
+// - TargetPort (which port on the target)
+// - ClientIP (the accessing IP address)
+func (s *Session) ForLog() SessionLoggable {
+	return SessionLoggable{
+		ID:             s.ID,
+		UserID:         s.UserID,
+		TargetID:       s.TargetID,
+		Type:           s.Type,
+		Status:         s.Status,
+		TargetHost:     "[REDACTED]",
+		TargetPort:     0,
+		ClientIP:       "[REDACTED]",
+		UserAgent:      s.UserAgent,
+		RecordingID:    s.RecordingID,
+		RecordingURL:   s.RecordingURL,
+		StartedAt:      s.StartedAt,
+		EndedAt:        s.EndedAt,
+		TerminatedBy:   s.TerminatedBy,
+		TerminateReason: s.TerminateReason,
+		TenantID:       s.TenantID,
+		CreatedAt:      s.CreatedAt,
+		UpdatedAt:      s.UpdatedAt,
+	}
+}
+
+// MarshalJSON implements custom JSON marshaling with optional redaction
+// SECURITY: By default, this marshals the full session including sensitive fields
+// For logging purposes, use ForLog() method instead
+func (s *Session) MarshalJSON() ([]byte, error) {
+	// Define a local type to avoid recursive MarshalJSON
+	type Alias Session
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(s),
+	})
 }
 
 // ActiveSession holds runtime session data
@@ -310,7 +378,8 @@ func (s *Service) StartSession(ctx context.Context, session *Session) error {
 	s.logger.Info().
 		Str("session_id", session.ID.String()).
 		Str("user_id", session.UserID.String()).
-		Str("target", fmt.Sprintf("%s:%d", session.TargetHost, session.TargetPort)).
+		Str("target_host", "[REDACTED]").
+		Int("target_port", 0).
 		Str("type", string(session.Type)).
 		Msg("Session started")
 

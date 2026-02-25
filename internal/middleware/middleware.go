@@ -641,6 +641,12 @@ var sensitiveFields = map[string]bool{
 	"recovery_code":           true,
 	"backup_code":             true,
 	"answer":                  true, // security question answers
+	// Additional PAM-specific sensitive fields
+	"credential_id":           true,
+	"checkout_token":          true,
+	"recording_key":           true,
+	"vault_key":               true,
+	"encryption_key":          true,
 }
 
 // Sensitive endpoints that should never have their bodies logged
@@ -804,6 +810,52 @@ func join(strs []string, sep string) string {
 		result += sep + s
 	}
 	return result
+}
+
+// SanitizedRequestBodyKey is the context key for storing sanitized request bodies
+const SanitizedRequestBodyKey = "sanitized_body"
+
+// SanitizeRequestBody reads and sanitizes the request body before processing
+// SECURITY: This middleware ensures sensitive credential data is never logged
+// It stores the sanitized body in context for safe logging while preserving the original body for handlers
+func SanitizeRequestBody() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Only process POST, PUT, PATCH requests
+		if c.Request.Method != "POST" && c.Request.Method != "PUT" && c.Request.Method != "PATCH" {
+			c.Next()
+			return
+		}
+
+		// Read the body
+		bodyBytes, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			// If we can't read the body, just continue without sanitization
+			c.Next()
+			return
+		}
+
+		// Restore the original body for handlers
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		// Sanitize and store in context for logging
+		sanitized := sanitizeRequestBody(bodyBytes)
+		if sanitized != nil {
+			c.Set(SanitizedRequestBodyKey, sanitized)
+		}
+
+		c.Next()
+	}
+}
+
+// GetSanitizedBody retrieves the sanitized request body from context
+// SECURITY: Always use this for logging instead of reading the raw request body
+func GetSanitizedBody(c *gin.Context) map[string]interface{} {
+	if sanitized, exists := c.Get(SanitizedRequestBodyKey); exists {
+		if body, ok := sanitized.(map[string]interface{}); ok {
+			return body
+		}
+	}
+	return nil
 }
 
 // AuthRateLimiter provides strict rate limiting for authentication endpoints

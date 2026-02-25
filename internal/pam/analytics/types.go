@@ -1207,3 +1207,22 @@ type ReportScheduleFilter struct {
 	Limit     int        `json:"limit"`
 	Offset    int        `json:"offset"`
 }
+
+// =============================================================================
+// Compliance Exception Filter Types
+// =============================================================================
+
+// ExceptionFilter represents filter options for compliance exception queries
+type ExceptionFilter struct {
+	TenantID       uuid.UUID  `json:"tenant_id"`
+	Status         *ExceptionStatus `json:"status,omitempty"`
+	Framework      string            `json:"framework,omitempty"`
+	RiskLevel      string            `json:"risk_level,omitempty"`
+	ControlID      string            `json:"control_id,omitempty"`
+	DateFrom       time.Time         `json:"date_from,omitempty"`
+	DateTo         time.Time         `json:"date_to,omitempty"`
+	ExpiringSoon   bool              `json:"expiring_soon,omitempty"`
+	IncludeExpired bool              `json:"include_expired,omitempty"`
+	Limit          int               `json:"limit"`
+	Offset         int               `json:"offset"`
+}
