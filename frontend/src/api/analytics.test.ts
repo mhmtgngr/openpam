@@ -32,14 +32,18 @@ describe('analyticsApi', () => {
         active_sessions: 5,
         peak_concurrent_sessions: 12,
         total_sessions_today: 23,
+        total_sessions_week: 161,
         avg_session_duration_seconds: 1800,
+        total_session_duration_today_seconds: 41400,
         sessions_by_type: { ssh: 15, rdp: 8 },
+        sessions_by_environment: { production: 15, staging: 8 },
         sessions_over_time: [],
       };
 
       (api.get as any).mockResolvedValue({ data: mockMetrics });
 
-      const result = await analyticsApi.getSessionMetrics();
+      const response = await analyticsApi.getSessionMetrics();
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/sessions/metrics', undefined);
       expect(result).toEqual(mockMetrics);
@@ -50,8 +54,11 @@ describe('analyticsApi', () => {
         active_sessions: 10,
         peak_concurrent_sessions: 20,
         total_sessions_today: 50,
+        total_sessions_week: 350,
         avg_session_duration_seconds: 2400,
+        total_session_duration_today_seconds: 120000,
         sessions_by_type: { ssh: 30, rdp: 20 },
+        sessions_by_environment: { production: 30, staging: 15, development: 5 },
         sessions_over_time: [],
       };
 
@@ -63,7 +70,8 @@ describe('analyticsApi', () => {
         granularity: 'day' as const,
       };
 
-      const result = await analyticsApi.getSessionMetrics(params);
+      const response = await analyticsApi.getSessionMetrics(params);
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/sessions/metrics', params);
       expect(result).toEqual(mockMetrics);
@@ -88,7 +96,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTrends });
 
-      const result = await analyticsApi.getDashboardTrends();
+      const response = await analyticsApi.getDashboardTrends();
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/dashboard/trends', { period: undefined });
       expect(result).toEqual(mockTrends);
@@ -105,7 +114,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTrends });
 
-      const result = await analyticsApi.getDashboardTrends('month');
+      const response = await analyticsApi.getDashboardTrends('month');
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/dashboard/trends', { period: 'month' });
       expect(result).toEqual(mockTrends);
@@ -138,8 +148,11 @@ describe('analyticsApi', () => {
         active_sessions: 8,
         peak_concurrent_sessions: 15,
         total_sessions_today: 30,
+        total_sessions_week: 210,
         avg_session_duration_seconds: 2100,
+        total_session_duration_today_seconds: 63000,
         sessions_by_type: { ssh: 20, rdp: 10 },
+        sessions_by_environment: { production: 20, staging: 10 },
         sessions_over_time: [],
       };
 
@@ -172,8 +185,9 @@ describe('analyticsApi', () => {
       });
 
       const result = await analyticsApi.getDashboard();
+      const data = result.data;
 
-      expect(result).toEqual({
+      expect(data).toEqual({
         metrics: mockMetrics,
         trends: mockTrends,
         realtime: mockRealtime,
@@ -183,7 +197,17 @@ describe('analyticsApi', () => {
     it('should pass date params to dashboard endpoint', async () => {
       (api.get as any).mockResolvedValue({
         data: {
-          metrics: { active_sessions: 1, sessions_by_type: {}, sessions_over_time: [] },
+          metrics: {
+            active_sessions: 1,
+            peak_concurrent_sessions: 1,
+            total_sessions_today: 1,
+            total_sessions_week: 7,
+            avg_session_duration_seconds: 1,
+            total_session_duration_today_seconds: 1,
+            sessions_by_type: {},
+            sessions_by_environment: {},
+            sessions_over_time: [],
+          },
           trends: {
             sessions: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
             users: { current: 1, previous: 1, change_percent: 0, trend: 'up', data_points: [] },
@@ -214,11 +238,12 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTimeSeries });
 
-      const result = await analyticsApi.getTimeSeries({
+      const response = await analyticsApi.getTimeSeries({
         metric: 'sessions',
         start_date: '2024-01-01',
         end_date: '2024-01-31',
       });
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/timeseries', {
         metric: 'sessions',
@@ -303,14 +328,15 @@ describe('analyticsApi', () => {
         last_activity_at: '2024-01-15T10:30:00Z',
         most_used_targets: ['server-1', 'server-2', 'server-3'],
         activity_heatmap: [
-          { hour: 9, day: 'Monday', count: 5 },
-          { hour: 14, day: 'Monday', count: 3 },
+          { date: '2024-01-15', hour: 9, session_count: 5 },
+          { date: '2024-01-15', hour: 14, session_count: 3 },
         ],
       };
 
       (api.get as any).mockResolvedValue({ data: mockDetail });
 
-      const result = await analyticsApi.getUserActivityDetail('user-123');
+      const response = await analyticsApi.getUserActivityDetail('user-123');
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/user-123/activity', undefined);
       expect(result).toEqual(mockDetail);
@@ -321,9 +347,7 @@ describe('analyticsApi', () => {
     it('should get command frequency', async () => {
       const mockCommands: CommandFrequency[] = [
         {
-          id: '1',
           command: 'ls -la',
-          base_command: 'ls',
           risk_level: 'low',
           count: 1500,
           first_seen_at: '2024-01-01T00:00:00Z',
@@ -332,9 +356,7 @@ describe('analyticsApi', () => {
           targets: [],
         },
         {
-          id: '2',
           command: 'sudo su',
-          base_command: 'sudo',
           risk_level: 'high',
           count: 45,
           first_seen_at: '2024-01-01T00:00:00Z',
@@ -367,7 +389,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockSummary });
 
-      const result = await analyticsApi.getCommandRiskSummary();
+      const response = await analyticsApi.getCommandRiskSummary();
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/commands/risk-summary', undefined);
       expect(result.total_commands).toBe(3500);
@@ -382,11 +405,12 @@ describe('analyticsApi', () => {
 
       (api.post as any).mockResolvedValue({ data: mockExport });
 
-      const result = await analyticsApi.exportCommandAnalysis({
+      const response = await analyticsApi.exportCommandAnalysis({
         format: 'csv',
         start_date: '2024-01-01',
         end_date: '2024-01-15',
       });
+      const result = response.data;
 
       expect(api.post).toHaveBeenCalledWith('/analytics/commands/export', {
         format: 'csv',
@@ -418,7 +442,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTopUsers });
 
-      const result = await analyticsApi.getTopUsers(10);
+      const response = await analyticsApi.getTopUsers(10);
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/top', {
         limit: 10,
@@ -446,10 +471,11 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockTopTargets });
 
-      const result = await analyticsApi.getTopTargets(20, {
+      const response = await analyticsApi.getTopTargets(20, {
         start_date: '2024-01-01',
         end_date: '2024-01-31',
       });
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/targets/top', {
         limit: 20,
@@ -471,9 +497,10 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockStats });
 
-      const result = await analyticsApi.getRealtimeStats();
+      const response = await analyticsApi.getRealtimeStats();
+      const result = response.data;
 
-      expect(api.get).toHaveBeenCalledWith('/analytics/realtime', undefined);
+      expect(api.get).toHaveBeenCalledWith('/analytics/realtime');
       expect(result.active_sessions).toBe(8);
       expect(result.active_users).toBe(5);
     });
@@ -529,10 +556,11 @@ describe('analyticsApi', () => {
 
       (api.patch as any).mockResolvedValue({ data: mockResponse });
 
-      const result = await analyticsApi.updateAnomalyStatus('anomaly-1', {
+      const response = await analyticsApi.updateAnomalyStatus('anomaly-1', {
         status: 'resolved',
         notes: 'Investigated and confirmed as legitimate',
       });
+      const result = response.data;
 
       expect((api.patch as any).mock.calls[0][0]).toContain('/analytics/anomalies/anomaly-1');
       expect(result.status).toBe('resolved');
@@ -551,7 +579,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockSummary });
 
-      const result = await analyticsApi.getComplianceSummary('SOC2');
+      const response = await analyticsApi.getComplianceSummary('SOC2');
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/compliance/summary', {
         framework: 'SOC2',
@@ -570,7 +599,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockSummary });
 
-      const result = await analyticsApi.getComplianceSummary();
+      const response = await analyticsApi.getComplianceSummary();
+      const result = response.data;
 
       expect(api.get).toHaveBeenCalledWith('/analytics/compliance/summary', {
         framework: undefined,
@@ -618,7 +648,13 @@ describe('analyticsApi', () => {
       (api.get as any).mockResolvedValue({
         data: {
           active_sessions: 1,
+          peak_concurrent_sessions: 1,
+          total_sessions_today: 1,
+          total_sessions_week: 7,
+          avg_session_duration_seconds: 1,
+          total_session_duration_today_seconds: 1,
           sessions_by_type: {},
+          sessions_by_environment: {},
           sessions_over_time: [],
         },
       });
@@ -685,7 +721,8 @@ describe('analyticsApi', () => {
 
       (api.get as any).mockResolvedValue({ data: mockMetrics });
 
-      const result = await analyticsApi.getSessionMetrics();
+      const response = await analyticsApi.getSessionMetrics();
+      const result = response.data;
 
       // Type check - should have SessionMetrics properties
       expect(result).toHaveProperty('active_sessions');
@@ -733,12 +770,13 @@ describe('analyticsApi', () => {
 
       (api.post as any).mockResolvedValue({ data: mockExport });
 
-      const result = await analyticsApi.exportUserActivity({
+      const response = await analyticsApi.exportUserActivity({
         format: 'csv',
         start_date: '2024-01-01',
         end_date: '2024-01-15',
         limit: 1000,
       });
+      const result = response.data;
 
       expect(api.post).toHaveBeenCalledWith('/analytics/users/export', {
         format: 'csv',
@@ -757,9 +795,10 @@ describe('analyticsApi', () => {
 
       (api.post as any).mockResolvedValue({ data: mockExport });
 
-      const result = await analyticsApi.exportCommandAnalysis({
+      const response = await analyticsApi.exportCommandAnalysis({
         format: 'json',
       });
+      const result = response.data;
 
       expect((api.post as any).mock.calls[0][1]).toHaveProperty('format', 'json');
       expect(result.download_url).toContain('.json');
