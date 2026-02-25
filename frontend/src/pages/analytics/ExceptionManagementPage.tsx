@@ -227,7 +227,7 @@ export const ExceptionManagementPage: React.FC = () => {
         />
         <StatCard
           title="Active Exceptions"
-          value={exceptions.filter((e) => e.status === 'approved').length}
+          value={exceptions.filter((e: ComplianceException) => e.status === 'approved').length}
           icon={CheckCircle}
           color="green"
         />
@@ -269,7 +269,7 @@ export const ExceptionManagementPage: React.FC = () => {
             </div>
             {showExpiring && (
               <div className="mt-4 space-y-2">
-                {expiringExceptions.map((exception) => (
+                {expiringExceptions.map((exception: ComplianceException) => (
                   <div
                     key={exception.id}
                     className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3"
@@ -368,8 +368,8 @@ export const ExceptionManagementPage: React.FC = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-700">
-              {exceptions.map((exception) => {
-                const StatusIcon = statusIcons[exception.status];
+              {exceptions.map((exception: ComplianceException) => {
+                const StatusIcon = statusIcons[exception.status as ExceptionStatus];
                 const isPending = exception.status === 'pending';
                 const isApproved = exception.status === 'approved';
                 const isExpiring = isExpiringSoon(exception);

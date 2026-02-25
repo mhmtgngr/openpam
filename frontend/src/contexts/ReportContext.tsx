@@ -17,6 +17,7 @@ import type {
   ReportTemplate,
   ComplianceFramework,
   Report,
+  GenerateReportResponse,
 } from '@/types/reports';
 
 interface ReportContextType {
@@ -39,7 +40,7 @@ interface ReportContextType {
     include_sections?: string[];
     filters?: Record<string, unknown>;
     framework?: ComplianceFramework;
-  }) => Promise<{ snapshot_id: string; status: string } | undefined>;
+  }) => Promise<GenerateReportResponse | undefined>;
   deleteSnapshot: (id: string) => Promise<void>;
   downloadSnapshot: (id: string) => Promise<void>;
   getSnapshotProgress: (id: string) => Promise<void>;

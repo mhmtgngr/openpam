@@ -106,7 +106,7 @@ export const ReportTemplatesPage: React.FC = () => {
         config: template.config,
         sections: template.sections,
       });
-      setTemplates((prev) => [...prev, newTemplate]);
+      setTemplates((prev) => [...prev, newTemplate as ReportTemplate]);
       setSuccessMessage('Template duplicated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -133,11 +133,11 @@ export const ReportTemplatesPage: React.FC = () => {
       if (selectedTemplate) {
         // Update existing
         const updated = await reportsApi.update(selectedTemplate.id, data);
-        setTemplates((prev) => prev.map((t) => (t.id === selectedTemplate.id ? updated : t)));
+        setTemplates((prev) => prev.map((t) => (t.id === selectedTemplate.id ? updated as ReportTemplate : t)));
       } else {
         // Create new
         const created = await reportsApi.create(data as any);
-        setTemplates((prev) => [...prev, created]);
+        setTemplates((prev) => [...prev, created as ReportTemplate]);
       }
       setViewMode('list');
       setSuccessMessage(selectedTemplate ? 'Template updated successfully' : 'Template created successfully');
@@ -350,7 +350,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({
             {TYPE_LABELS[template.type]}
           </span>
           <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded">
-            {FRAMEWORK_LABELS[template.framework]}
+            {template.framework ? FRAMEWORK_LABELS[template.framework] : 'No Framework'}
           </span>
         </div>
 

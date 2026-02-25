@@ -93,13 +93,9 @@ export const ComplianceDashboardPage: React.FC = () => {
     const partialCount = controls.filter((c) => c.status === 'partial').length;
     const notApplicableCount = controls.filter((c) => c.status === 'not_applicable').length;
 
-    const criticalFindings = controls.reduce((sum, c) => {
-      return sum + (c.findings || []).filter((f: { severity?: string }) => f?.severity === 'critical').length;
-    }, 0);
+    const criticalFindings = controls.filter((c) => c.status === 'non_compliant').length;
 
-    const highFindings = controls.reduce((sum, c) => {
-      return sum + (c.findings || []).filter((f: { severity?: string }) => f?.severity === 'high').length;
-    }, 0);
+    const highFindings = controls.filter((c) => c.status === 'partial').length;
 
     const exceptionsActive = exceptions.filter((e) => e.status === 'active').length;
 
