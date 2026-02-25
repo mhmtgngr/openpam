@@ -1,23 +1,184 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e4]:
-  - generic [ref=e5]:
-    - img [ref=e7]
-    - heading "OpenPAM" [level=1] [ref=e9]
-    - paragraph [ref=e10]: Sign in to your account
-  - generic [ref=e12]:
-    - generic [ref=e13]:
-      - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
-        - /placeholder: you@example.com
-    - generic [ref=e17]:
-      - generic [ref=e18]: Password
-      - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
-          - /placeholder: ••••••••
-        - button [ref=e22] [cursor=pointer]:
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
           - img [ref=e23]
-    - button "Sign In" [ref=e26] [cursor=pointer]
-  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Reports" [ref=e60] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e61]
+          - generic [ref=e64]: Reports
+        - link "Exceptions" [ref=e65] [cursor=pointer]:
+          - /url: /compliance/exceptions
+          - img [ref=e66]
+          - generic [ref=e68]: Exceptions
+        - link "Analytics" [ref=e69] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e70]
+          - generic [ref=e72]: Analytics
+        - link "Audit Logs" [ref=e73] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e74]
+          - generic [ref=e77]: Audit Logs
+        - link "Settings" [ref=e78] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e79]
+          - generic [ref=e82]: Settings
+      - generic [ref=e84]:
+        - generic [ref=e85]: TU
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: Test User
+          - paragraph [ref=e88]: test@example.com
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - textbox "Search targets, credentials, users..." [ref=e96]
+        - generic [ref=e97]:
+          - button "Refresh data" [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+          - button "TU test@example.com" [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]: TU
+            - generic [ref=e112]: test@example.com
+            - img [ref=e113]
+      - main [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - link "Back" [ref=e118] [cursor=pointer]:
+              - /url: /credentials
+              - button "Back" [ref=e119]:
+                - img [ref=e121]
+                - text: Back
+            - generic [ref=e123]:
+              - img [ref=e125]
+              - generic [ref=e129]:
+                - heading "Edit Credential" [level=1] [ref=e130]
+                - paragraph [ref=e131]: Update credential configuration and rotation settings
+          - generic [ref=e132]:
+            - generic [ref=e135]:
+              - heading "Basic Information" [level=3] [ref=e136]
+              - generic [ref=e137]:
+                - generic [ref=e139]:
+                  - generic [ref=e140]: Credential Name
+                  - textbox "Credential Name" [ref=e142]:
+                    - /placeholder: e.g., Production DB Admin
+                - generic [ref=e144]:
+                  - generic [ref=e145]: Credential Type
+                  - combobox "Credential Type" [disabled] [ref=e146]:
+                    - option "Password" [selected]
+                    - option "SSH Key"
+                    - option "API Key"
+                    - option "Certificate"
+                    - option "Database"
+                    - option "Service Account"
+                - generic [ref=e148]:
+                  - generic [ref=e149]: Associated Target
+                  - combobox "Associated Target" [ref=e150]:
+                    - option "No Target" [selected]
+                - generic [ref=e152]:
+                  - generic [ref=e153]: Folder
+                  - combobox "Folder" [ref=e154]:
+                    - option "No Folder" [selected]
+                - generic [ref=e156]:
+                  - generic [ref=e157]: Description
+                  - textbox "Description" [ref=e158]:
+                    - /placeholder: Optional description of this credential...
+            - generic [ref=e161]:
+              - heading "Credential Details" [level=3] [ref=e162]
+              - generic [ref=e163]:
+                - generic [ref=e165]:
+                  - generic [ref=e166]: Username / Account
+                  - textbox "Username / Account" [ref=e168]:
+                    - /placeholder: e.g., admin, root, service-account
+                - paragraph [ref=e170]: Service account credentials require JSON key file upload. This feature will be available soon.
+            - generic [ref=e173]:
+              - heading "Rotation Policy" [level=3] [ref=e174]
+              - generic [ref=e177]:
+                - generic [ref=e178]: Rotation Policy
+                - combobox "Rotation Policy" [ref=e179]:
+                  - option "Manual" [selected]
+                  - option "Daily"
+                  - option "Weekly"
+                  - option "Monthly"
+                  - option "On Check-in"
+                  - option "On Expiry"
+            - generic [ref=e182]:
+              - heading "Checkout Settings" [level=3] [ref=e183]
+              - generic [ref=e184]:
+                - generic [ref=e185]:
+                  - switch [checked] [ref=e186] [cursor=pointer]
+                  - generic [ref=e187]:
+                    - generic [ref=e188]: Enable Checkout
+                    - generic [ref=e189]: Allow users to check out this credential
+                - generic [ref=e191]:
+                  - generic [ref=e192]: Max Checkout Duration (minutes)
+                  - spinbutton "Max Checkout Duration (minutes)" [ref=e194]: "60"
+                - generic [ref=e195]:
+                  - switch [ref=e196] [cursor=pointer]
+                  - generic [ref=e197]:
+                    - generic [ref=e198]: Auto Check-in
+                    - generic [ref=e199]: Automatically check in credentials when session ends
+                - generic [ref=e200]:
+                  - switch [ref=e201] [cursor=pointer]
+                  - generic [ref=e202]:
+                    - generic [ref=e203]: Require Approval
+                    - generic [ref=e204]: Checkout requests require approval
+            - generic [ref=e207]:
+              - heading "Tags" [level=3] [ref=e208]
+              - generic [ref=e209]:
+                - textbox "Add a tag..." [ref=e212]
+                - button "Add" [ref=e213] [cursor=pointer]
+              - paragraph [ref=e215]: No tags added
+            - generic [ref=e216]:
+              - link "Cancel" [ref=e217] [cursor=pointer]:
+                - /url: /credentials
+                - button "Cancel" [ref=e218]
+              - button "Save Changes" [ref=e219] [cursor=pointer]:
+                - img [ref=e221]
+                - text: Save Changes
+  - generic:
+    - status [ref=e230]: An error occurred
+    - status [ref=e236]: An error occurred
+    - status [ref=e242]: An error occurred
 ```

@@ -1,23 +1,349 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e4]:
-  - generic [ref=e5]:
-    - img [ref=e7]
-    - heading "OpenPAM" [level=1] [ref=e9]
-    - paragraph [ref=e10]: Sign in to your account
-  - generic [ref=e12]:
-    - generic [ref=e13]:
-      - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
-        - /placeholder: you@example.com
-    - generic [ref=e17]:
-      - generic [ref=e18]: Password
-      - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
-          - /placeholder: ••••••••
-        - button [ref=e22] [cursor=pointer]:
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
           - img [ref=e23]
-    - button "Sign In" [ref=e26] [cursor=pointer]
-  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Reports" [ref=e60] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e61]
+          - generic [ref=e64]: Reports
+        - link "Exceptions" [ref=e65] [cursor=pointer]:
+          - /url: /compliance/exceptions
+          - img [ref=e66]
+          - generic [ref=e68]: Exceptions
+        - link "Analytics" [ref=e69] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e70]
+          - generic [ref=e72]: Analytics
+        - link "Audit Logs" [ref=e73] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e74]
+          - generic [ref=e77]: Audit Logs
+        - link "Settings" [ref=e78] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e79]
+          - generic [ref=e82]: Settings
+      - generic [ref=e84]:
+        - generic [ref=e85]: TU
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: Test User
+          - paragraph [ref=e88]: test@example.com
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - textbox "Search targets, credentials, users..." [ref=e96]
+        - generic [ref=e97]:
+          - button "Refresh data" [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+          - button "TU test@example.com" [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]: TU
+            - generic [ref=e112]: test@example.com
+            - img [ref=e113]
+      - main [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - generic [ref=e119]:
+              - button [ref=e120] [cursor=pointer]:
+                - img [ref=e121]
+              - generic [ref=e123]:
+                - heading "Anomaly Detection" [level=1] [ref=e124]
+                - paragraph [ref=e125]: Monitor and investigate security anomalies
+            - generic [ref=e126]:
+              - button "Export" [ref=e127] [cursor=pointer]:
+                - img [ref=e129]
+                - text: Export
+              - button "Refresh" [ref=e132] [cursor=pointer]:
+                - img [ref=e134]
+                - text: Refresh
+          - generic [ref=e139]:
+            - generic [ref=e141]:
+              - paragraph [ref=e143]: Total
+              - paragraph [ref=e144]: "0"
+            - generic [ref=e146]:
+              - paragraph [ref=e148]: Critical
+              - paragraph [ref=e149]: "0"
+            - generic [ref=e151]:
+              - paragraph [ref=e153]: High
+              - paragraph [ref=e154]: "0"
+            - generic [ref=e156]:
+              - paragraph [ref=e158]: Medium
+              - paragraph [ref=e159]: "0"
+            - generic [ref=e161]:
+              - paragraph [ref=e163]: Low
+              - paragraph [ref=e164]: "0"
+            - generic [ref=e166]:
+              - paragraph [ref=e168]: Resolved This Period
+              - paragraph [ref=e169]: "0"
+          - generic [ref=e173]:
+            - generic [ref=e175]:
+              - img [ref=e176]
+              - generic [ref=e178]: Filters
+            - generic [ref=e179]:
+              - combobox [ref=e182]:
+                - option "Last 7 days"
+                - option "Last 14 days"
+                - option "Last 30 days" [selected]
+                - option "Last 90 days"
+              - generic [ref=e185]:
+                - img [ref=e187]
+                - textbox "Search anomalies..." [ref=e190]
+              - combobox [ref=e193]:
+                - option "All Severities" [selected]
+                - option "Critical"
+                - option "High"
+                - option "Medium"
+                - option "Low"
+              - combobox [ref=e196]:
+                - option "All Statuses" [selected]
+                - option "Open"
+                - option "Investigating"
+                - option "Resolved"
+                - option "False Positive"
+              - combobox [ref=e199]:
+                - option "All Types" [selected]
+                - option "Unusual Access Time"
+                - option "Unusual Location"
+                - option "Privileged Escalation"
+                - option "Bulk Data Access"
+                - option "Command Injection"
+                - option "Ransomware Indicators"
+                - option "Impossible Travel"
+                - option "Account Takeover"
+                - option "Credential Theft"
+                - option "Excessive Failed Logins"
+          - generic [ref=e201]:
+            - generic [ref=e203]:
+              - heading "Anomalies (5)" [level=3] [ref=e204]
+              - paragraph [ref=e205]: Detected security anomalies requiring investigation
+            - table [ref=e207]:
+              - rowgroup [ref=e208]:
+                - row "Severity Type Title User Target Detected Confidence Status Actions" [ref=e209]:
+                  - columnheader [ref=e210]:
+                    - checkbox [ref=e211]
+                  - columnheader "Severity" [ref=e212]
+                  - columnheader "Type" [ref=e213]
+                  - columnheader "Title" [ref=e214]
+                  - columnheader "User" [ref=e215]
+                  - columnheader "Target" [ref=e216]
+                  - columnheader "Detected" [ref=e217]
+                  - columnheader "Confidence" [ref=e218]
+                  - columnheader "Status" [ref=e219]
+                  - columnheader "Actions" [ref=e220]
+              - rowgroup [ref=e221]:
+                - row "critical Unusual Access Time Unusual After-Hours Access User accessed production system at 3 AM Admin User prod-server-01 Feb 25, 09:44 92% Open View" [ref=e222]:
+                  - cell [ref=e223]:
+                    - checkbox [ref=e224]
+                  - cell "critical" [ref=e225]:
+                    - generic [ref=e226]:
+                      - img [ref=e228]
+                      - generic [ref=e230]: critical
+                  - cell "Unusual Access Time" [ref=e231]
+                  - cell "Unusual After-Hours Access User accessed production system at 3 AM" [ref=e232]:
+                    - generic [ref=e233]:
+                      - paragraph [ref=e234]: Unusual After-Hours Access
+                      - paragraph [ref=e235]: User accessed production system at 3 AM
+                  - cell "Admin User" [ref=e236]:
+                    - generic [ref=e237]:
+                      - img [ref=e238]
+                      - generic [ref=e241]: Admin User
+                  - cell "prod-server-01" [ref=e242]:
+                    - generic [ref=e243]:
+                      - img [ref=e244]
+                      - generic [ref=e247]: prod-server-01
+                  - cell "Feb 25, 09:44" [ref=e248]:
+                    - generic [ref=e249]:
+                      - img [ref=e250]
+                      - generic [ref=e253]: Feb 25, 09:44
+                  - cell "92%" [ref=e254]:
+                    - generic [ref=e257]: 92%
+                  - cell "Open" [ref=e260]:
+                    - generic [ref=e261]:
+                      - img [ref=e262]
+                      - generic [ref=e264]: Open
+                  - cell "View" [ref=e265]:
+                    - button "View" [ref=e267] [cursor=pointer]:
+                      - img [ref=e269]
+                      - text: View
+                - row "high Privileged Escalation Sudden Privilege Escalation User escalated privileges multiple times in short period Regular User prod-server-01 Feb 25, 08:44 85% Investigating View" [ref=e272]:
+                  - cell [ref=e273]:
+                    - checkbox [ref=e274]
+                  - cell "high" [ref=e275]:
+                    - generic [ref=e276]:
+                      - img [ref=e278]
+                      - generic [ref=e280]: high
+                  - cell "Privileged Escalation" [ref=e281]
+                  - cell "Sudden Privilege Escalation User escalated privileges multiple times in short period" [ref=e282]:
+                    - generic [ref=e283]:
+                      - paragraph [ref=e284]: Sudden Privilege Escalation
+                      - paragraph [ref=e285]: User escalated privileges multiple times in short period
+                  - cell "Regular User" [ref=e286]:
+                    - generic [ref=e287]:
+                      - img [ref=e288]
+                      - generic [ref=e291]: Regular User
+                  - cell "prod-server-01" [ref=e292]:
+                    - generic [ref=e293]:
+                      - img [ref=e294]
+                      - generic [ref=e297]: prod-server-01
+                  - cell "Feb 25, 08:44" [ref=e298]:
+                    - generic [ref=e299]:
+                      - img [ref=e300]
+                      - generic [ref=e303]: Feb 25, 08:44
+                  - cell "85%" [ref=e304]:
+                    - generic [ref=e307]: 85%
+                  - cell "Investigating" [ref=e310]:
+                    - generic [ref=e311]:
+                      - img [ref=e312]
+                      - generic [ref=e315]: Investigating
+                  - cell "View" [ref=e316]:
+                    - button "View" [ref=e318] [cursor=pointer]:
+                      - img [ref=e320]
+                      - text: View
+                - row "medium Unusual Location Access from Unusual Location Login detected from previously unseen geographic location Dev User staging-db-01 Feb 25, 07:44 75% Open View" [ref=e323]:
+                  - cell [ref=e324]:
+                    - checkbox [ref=e325]
+                  - cell "medium" [ref=e326]:
+                    - generic [ref=e327]:
+                      - img [ref=e329]
+                      - generic [ref=e331]: medium
+                  - cell "Unusual Location" [ref=e332]
+                  - cell "Access from Unusual Location Login detected from previously unseen geographic location" [ref=e333]:
+                    - generic [ref=e334]:
+                      - paragraph [ref=e335]: Access from Unusual Location
+                      - paragraph [ref=e336]: Login detected from previously unseen geographic location
+                  - cell "Dev User" [ref=e337]:
+                    - generic [ref=e338]:
+                      - img [ref=e339]
+                      - generic [ref=e342]: Dev User
+                  - cell "staging-db-01" [ref=e343]:
+                    - generic [ref=e344]:
+                      - img [ref=e345]
+                      - generic [ref=e348]: staging-db-01
+                  - cell "Feb 25, 07:44" [ref=e349]:
+                    - generic [ref=e350]:
+                      - img [ref=e351]
+                      - generic [ref=e354]: Feb 25, 07:44
+                  - cell "75%" [ref=e355]:
+                    - generic [ref=e358]: 75%
+                  - cell "Open" [ref=e361]:
+                    - generic [ref=e362]:
+                      - img [ref=e363]
+                      - generic [ref=e365]: Open
+                  - cell "View" [ref=e366]:
+                    - button "View" [ref=e368] [cursor=pointer]:
+                      - img [ref=e370]
+                      - text: View
+                - row "high Bulk Data Access Bulk Data Export Detected Large volume of data exported from database Admin User prod-db-01 Feb 25, 06:44 88% Open View" [ref=e373]:
+                  - cell [ref=e374]:
+                    - checkbox [ref=e375]
+                  - cell "high" [ref=e376]:
+                    - generic [ref=e377]:
+                      - img [ref=e379]
+                      - generic [ref=e381]: high
+                  - cell "Bulk Data Access" [ref=e382]
+                  - cell "Bulk Data Export Detected Large volume of data exported from database" [ref=e383]:
+                    - generic [ref=e384]:
+                      - paragraph [ref=e385]: Bulk Data Export Detected
+                      - paragraph [ref=e386]: Large volume of data exported from database
+                  - cell "Admin User" [ref=e387]:
+                    - generic [ref=e388]:
+                      - img [ref=e389]
+                      - generic [ref=e392]: Admin User
+                  - cell "prod-db-01" [ref=e393]:
+                    - generic [ref=e394]:
+                      - img [ref=e395]
+                      - generic [ref=e398]: prod-db-01
+                  - cell "Feb 25, 06:44" [ref=e399]:
+                    - generic [ref=e400]:
+                      - img [ref=e401]
+                      - generic [ref=e404]: Feb 25, 06:44
+                  - cell "88%" [ref=e405]:
+                    - generic [ref=e408]: 88%
+                  - cell "Open" [ref=e411]:
+                    - generic [ref=e412]:
+                      - img [ref=e413]
+                      - generic [ref=e415]: Open
+                  - cell "View" [ref=e416]:
+                    - button "View" [ref=e418] [cursor=pointer]:
+                      - img [ref=e420]
+                      - text: View
+                - row "critical Command Injection Potential Command Injection Suspicious command pattern detected in session Contractor prod-server-01 Feb 25, 05:44 95% Resolved View" [ref=e423]:
+                  - cell [ref=e424]:
+                    - checkbox [ref=e425]
+                  - cell "critical" [ref=e426]:
+                    - generic [ref=e427]:
+                      - img [ref=e429]
+                      - generic [ref=e431]: critical
+                  - cell "Command Injection" [ref=e432]
+                  - cell "Potential Command Injection Suspicious command pattern detected in session" [ref=e433]:
+                    - generic [ref=e434]:
+                      - paragraph [ref=e435]: Potential Command Injection
+                      - paragraph [ref=e436]: Suspicious command pattern detected in session
+                  - cell "Contractor" [ref=e437]:
+                    - generic [ref=e438]:
+                      - img [ref=e439]
+                      - generic [ref=e442]: Contractor
+                  - cell "prod-server-01" [ref=e443]:
+                    - generic [ref=e444]:
+                      - img [ref=e445]
+                      - generic [ref=e448]: prod-server-01
+                  - cell "Feb 25, 05:44" [ref=e449]:
+                    - generic [ref=e450]:
+                      - img [ref=e451]
+                      - generic [ref=e454]: Feb 25, 05:44
+                  - cell "95%" [ref=e455]:
+                    - generic [ref=e458]: 95%
+                  - cell "Resolved" [ref=e461]:
+                    - generic [ref=e462]:
+                      - img [ref=e463]
+                      - generic [ref=e466]: Resolved
+                  - cell "View" [ref=e467]:
+                    - button "View" [ref=e469] [cursor=pointer]:
+                      - img [ref=e471]
+                      - text: View
+  - generic:
+    - status [ref=e479]: An error occurred
+    - status [ref=e485]: An error occurred
 ```

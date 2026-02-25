@@ -1,23 +1,164 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e4]:
-  - generic [ref=e5]:
-    - img [ref=e7]
-    - heading "OpenPAM" [level=1] [ref=e9]
-    - paragraph [ref=e10]: Sign in to your account
-  - generic [ref=e12]:
-    - generic [ref=e13]:
-      - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
-        - /placeholder: you@example.com
-    - generic [ref=e17]:
-      - generic [ref=e18]: Password
-      - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
-          - /placeholder: ••••••••
-        - button [ref=e22] [cursor=pointer]:
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
           - img [ref=e23]
-    - button "Sign In" [ref=e26] [cursor=pointer]
-  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Reports" [ref=e60] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e61]
+          - generic [ref=e64]: Reports
+        - link "Exceptions" [ref=e65] [cursor=pointer]:
+          - /url: /compliance/exceptions
+          - img [ref=e66]
+          - generic [ref=e68]: Exceptions
+        - link "Analytics" [ref=e69] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e70]
+          - generic [ref=e72]: Analytics
+        - link "Audit Logs" [ref=e73] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e74]
+          - generic [ref=e77]: Audit Logs
+        - link "Settings" [ref=e78] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e79]
+          - generic [ref=e82]: Settings
+      - generic [ref=e84]:
+        - generic [ref=e85]: TU
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: Test User
+          - paragraph [ref=e88]: test@example.com
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - textbox "Search targets, credentials, users..." [ref=e96]
+        - generic [ref=e97]:
+          - button "Refresh data" [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+          - button "TU test@example.com" [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]: TU
+            - generic [ref=e112]: test@example.com
+            - img [ref=e113]
+      - main [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - link "Back" [ref=e118] [cursor=pointer]:
+              - /url: /policies/session
+              - button "Back" [ref=e119]:
+                - img [ref=e121]
+                - text: Back
+            - generic [ref=e123]:
+              - img [ref=e125]
+              - generic [ref=e128]:
+                - heading "Create Session Policy" [level=1] [ref=e129]
+                - paragraph [ref=e130]: Configure session security and monitoring settings
+          - generic [ref=e131]:
+            - generic [ref=e134]:
+              - heading "Basic Settings" [level=3] [ref=e135]
+              - generic [ref=e136]:
+                - generic [ref=e138]:
+                  - generic [ref=e139]: Policy Name
+                  - textbox "Policy Name" [ref=e141]:
+                    - /placeholder: e.g., Standard Session Policy
+                - generic [ref=e143]:
+                  - generic [ref=e144]: Max Session Duration (minutes)
+                  - spinbutton "Max Session Duration (minutes)" [ref=e146]: "480"
+                - generic [ref=e148]:
+                  - generic [ref=e149]: Idle Timeout (minutes)
+                  - spinbutton "Idle Timeout (minutes)" [ref=e151]: "15"
+                - generic [ref=e153]:
+                  - generic [ref=e154]: Warning Before End (minutes)
+                  - spinbutton "Warning Before End (minutes)" [ref=e156]: "5"
+            - generic [ref=e159]:
+              - heading "Access Requirements" [level=3] [ref=e160]
+              - generic [ref=e161]:
+                - generic [ref=e162]:
+                  - switch [ref=e163] [cursor=pointer]
+                  - generic [ref=e164]:
+                    - generic [ref=e165]: Require Approval
+                    - generic [ref=e166]: Session access requires approval from authorized users
+                - generic [ref=e167]:
+                  - switch [checked] [ref=e168] [cursor=pointer]
+                  - generic [ref=e169]:
+                    - generic [ref=e170]: Require Reason
+                    - generic [ref=e171]: Users must provide a reason for session access
+                - generic [ref=e172]:
+                  - switch [checked] [ref=e173] [cursor=pointer]
+                  - generic [ref=e174]:
+                    - generic [ref=e175]: Require MFA
+                    - generic [ref=e176]: Multi-factor authentication required for session access
+                - generic [ref=e177]:
+                  - switch [checked] [ref=e178] [cursor=pointer]
+                  - generic [ref=e179]:
+                    - generic [ref=e180]: Allow Recording
+                    - generic [ref=e181]: Record sessions for audit and compliance
+            - generic [ref=e184]:
+              - heading "Content Monitoring" [level=3] [ref=e185]
+              - generic [ref=e186]:
+                - generic [ref=e187]: Monitor Keywords
+                - paragraph [ref=e188]: Alert when these keywords appear during a session
+                - generic [ref=e189]:
+                  - textbox "Add a keyword to monitor..." [ref=e192]
+                  - button "Add" [active] [ref=e193] [cursor=pointer]
+                - paragraph [ref=e195]: No keywords configured
+              - generic [ref=e196]:
+                - generic [ref=e197]: Blocked Commands
+                - paragraph [ref=e198]: Commands that will be blocked during a session
+                - generic [ref=e199]:
+                  - textbox "Add a command to block..." [ref=e202]: sudo su
+                  - button "Add" [ref=e203] [cursor=pointer]
+                - paragraph [ref=e205]: No commands blocked
+            - generic [ref=e206]:
+              - link "Cancel" [ref=e207] [cursor=pointer]:
+                - /url: /policies/session
+                - button "Cancel" [ref=e208]
+              - button "Create Policy" [ref=e209] [cursor=pointer]:
+                - img [ref=e211]
+                - text: Create Policy
+  - generic:
+    - status [ref=e220]: An error occurred
+    - status [ref=e226]: An error occurred
 ```

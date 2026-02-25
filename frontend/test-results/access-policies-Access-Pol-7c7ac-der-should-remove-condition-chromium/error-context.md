@@ -1,23 +1,272 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e4]:
-  - generic [ref=e5]:
-    - img [ref=e7]
-    - heading "OpenPAM" [level=1] [ref=e9]
-    - paragraph [ref=e10]: Sign in to your account
-  - generic [ref=e12]:
-    - generic [ref=e13]:
-      - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
-        - /placeholder: you@example.com
-    - generic [ref=e17]:
-      - generic [ref=e18]: Password
-      - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
-          - /placeholder: ••••••••
-        - button [ref=e22] [cursor=pointer]:
-          - img [ref=e23]
-    - button "Sign In" [ref=e26] [cursor=pointer]
-  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: OpenPAM
+      - button [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - link "Dashboard" [ref=e15] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e16]
+        - generic [ref=e21]: Dashboard
+      - link "Users" [ref=e22] [cursor=pointer]:
+        - /url: /users
+        - img [ref=e23]
+        - generic [ref=e28]: Users
+      - link "Roles" [ref=e29] [cursor=pointer]:
+        - /url: /roles
+        - img [ref=e30]
+        - generic [ref=e32]: Roles
+      - link "Targets" [ref=e33] [cursor=pointer]:
+        - /url: /targets
+        - img [ref=e34]
+        - generic [ref=e37]: Targets
+      - link "Credentials" [ref=e38] [cursor=pointer]:
+        - /url: /credentials
+        - img [ref=e39]
+        - generic [ref=e43]: Credentials
+      - link "My Requests" [ref=e44] [cursor=pointer]:
+        - /url: /requests/my
+        - img [ref=e45]
+        - generic [ref=e50]: My Requests
+      - link "Approvals" [ref=e51] [cursor=pointer]:
+        - /url: /approvals
+        - img [ref=e52]
+        - generic [ref=e55]: Approvals
+      - link "Sessions" [ref=e56] [cursor=pointer]:
+        - /url: /sessions
+        - img [ref=e57]
+        - generic [ref=e59]: Sessions
+      - link "Reports" [ref=e60] [cursor=pointer]:
+        - /url: /reports
+        - img [ref=e61]
+        - generic [ref=e64]: Reports
+      - link "Exceptions" [ref=e65] [cursor=pointer]:
+        - /url: /compliance/exceptions
+        - img [ref=e66]
+        - generic [ref=e68]: Exceptions
+      - link "Analytics" [ref=e69] [cursor=pointer]:
+        - /url: /analytics
+        - img [ref=e70]
+        - generic [ref=e72]: Analytics
+      - link "Audit Logs" [ref=e73] [cursor=pointer]:
+        - /url: /audit
+        - img [ref=e74]
+        - generic [ref=e77]: Audit Logs
+      - link "Settings" [ref=e78] [cursor=pointer]:
+        - /url: /settings
+        - img [ref=e79]
+        - generic [ref=e82]: Settings
+    - generic [ref=e84]:
+      - generic [ref=e85]: TU
+      - generic [ref=e86]:
+        - paragraph [ref=e87]: Test User
+        - paragraph [ref=e88]: test@example.com
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - generic [ref=e92]:
+        - img [ref=e93]
+        - textbox "Search targets, credentials, users..." [ref=e96]
+      - generic [ref=e97]:
+        - button "Refresh data" [ref=e98] [cursor=pointer]:
+          - img [ref=e99]
+        - button [ref=e105] [cursor=pointer]:
+          - img [ref=e106]
+        - button "TU test@example.com" [ref=e110] [cursor=pointer]:
+          - generic [ref=e111]: TU
+          - generic [ref=e112]: test@example.com
+          - img [ref=e113]
+    - main [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - link "Back" [ref=e118] [cursor=pointer]:
+            - /url: /policies/access
+            - button "Back" [ref=e119]:
+              - img [ref=e121]
+              - text: Back
+          - generic [ref=e123]:
+            - img [ref=e125]
+            - generic [ref=e127]:
+              - heading "Create Access Policy" [level=1] [ref=e128]
+              - paragraph [ref=e129]: Define rules for controlling resource access
+        - generic [ref=e130]:
+          - generic [ref=e133]:
+            - heading "Basic Settings" [level=3] [ref=e134]
+            - generic [ref=e135]:
+              - generic [ref=e137]:
+                - generic [ref=e138]: Policy Name
+                - textbox "Policy Name" [active] [ref=e140]:
+                  - /placeholder: e.g., Production Database Access
+              - generic [ref=e142]:
+                - generic [ref=e143]: Description
+                - textbox "Description" [ref=e144]:
+                  - /placeholder: Describe what this policy controls...
+              - generic [ref=e145]:
+                - generic [ref=e146]: Status
+                - combobox [ref=e148]:
+                  - option "Draft" [selected]
+                  - option "Active"
+                  - option "Inactive"
+                - paragraph [ref=e149]: Only active policies are evaluated during access checks
+              - generic [ref=e150]:
+                - generic [ref=e151]:
+                  - generic [ref=e152]: Priority
+                  - spinbutton "Priority" [ref=e154]: "100"
+                - paragraph [ref=e155]: Higher numbers = higher priority (evaluated first)
+              - generic [ref=e156]:
+                - generic [ref=e157]: Conflict Resolution
+                - combobox [ref=e159]:
+                  - option "Deny Overrides - Deny decisions take precedence (recommended for security)" [selected]
+                  - option "Allow Overrides - Allow decisions take precedence"
+                  - option "First Applicable - First matching rule wins (evaluate by priority)"
+                - paragraph [ref=e160]: How to resolve when multiple rules match
+              - generic [ref=e161]:
+                - generic [ref=e162]: Tags
+                - generic [ref=e163]:
+                  - textbox "Add a tag..." [ref=e166]
+                  - button "Add" [ref=e167] [cursor=pointer]
+                - generic [ref=e169]: No tags
+          - generic [ref=e172]:
+            - generic [ref=e174]:
+              - heading "Rules" [level=3] [ref=e175]
+              - paragraph [ref=e176]: Define access rules with conditions
+            - generic [ref=e177]:
+              - generic [ref=e179]:
+                - generic [ref=e180]:
+                  - img [ref=e181]
+                  - generic [ref=e185]:
+                    - textbox [ref=e188]: Rule 1
+                    - generic [ref=e189]: ALLOW
+                    - generic [ref=e190]: "Priority: 1"
+                  - generic [ref=e191]:
+                    - generic [ref=e192]: 1 condition(s)
+                    - button [ref=e193] [cursor=pointer]:
+                      - img [ref=e194]
+                    - button "Duplicate rule" [ref=e196] [cursor=pointer]:
+                      - img [ref=e197]
+                - generic [ref=e200]:
+                  - generic [ref=e201]:
+                    - generic [ref=e202]: Description
+                    - textbox "Describe what this rule does..." [ref=e204]
+                  - generic [ref=e205]:
+                    - generic [ref=e206]:
+                      - generic [ref=e207]: Effect
+                      - combobox [ref=e209]:
+                        - option "Allow" [selected]
+                        - option "Deny"
+                    - generic [ref=e210]:
+                      - generic [ref=e211]: Logical Operator
+                      - combobox [ref=e213]:
+                        - option "AND - All conditions must be true" [selected]
+                        - option "OR - At least one condition must be true"
+                    - generic [ref=e214]:
+                      - generic [ref=e215]: Priority
+                      - spinbutton [ref=e218]: "1"
+                  - generic [ref=e219]:
+                    - generic [ref=e220]: Resources
+                    - generic [ref=e221]:
+                      - generic [ref=e222]:
+                        - combobox [ref=e224]:
+                          - option "Select or type a resource..." [disabled]
+                          - option "credential:*" [selected]
+                          - option "target:*"
+                          - option "session:*"
+                          - option "request:*"
+                          - option "policy:*"
+                          - option "user:*"
+                        - textbox "Or type custom resource..." [ref=e227]
+                      - generic [ref=e229]: No resources specified (matches all)
+                  - generic [ref=e230]:
+                    - generic [ref=e231]: Actions
+                    - generic [ref=e232]:
+                      - generic [ref=e233]:
+                        - combobox [ref=e235]:
+                          - option "Select or type an action..." [disabled]
+                          - option "checkout" [selected]
+                          - option "connect"
+                          - option "approve"
+                          - option "deny"
+                          - option "view"
+                          - option "edit"
+                          - option "delete"
+                          - option "export"
+                          - option "rotate"
+                          - option "terminate"
+                        - textbox "Or type custom action..." [ref=e238]
+                      - generic [ref=e240]: No actions specified (matches all)
+                  - generic [ref=e241]:
+                    - generic [ref=e242]: Roles
+                    - generic [ref=e243]:
+                      - textbox "Enter roles (comma-separated)..." [ref=e246]
+                      - generic [ref=e248]: No roles specified (matches all)
+                  - generic [ref=e249]:
+                    - generic [ref=e250]:
+                      - generic [ref=e251]: Conditions
+                      - generic [ref=e252]: AND - All conditions must be met
+                    - generic [ref=e253]:
+                      - generic [ref=e255]:
+                        - generic [ref=e256]:
+                          - generic [ref=e257]:
+                            - img [ref=e258]
+                            - generic [ref=e261]: "Time Range: (not set)"
+                          - generic [ref=e262]:
+                            - button "−" [ref=e263] [cursor=pointer]
+                            - switch [ref=e265] [cursor=pointer]
+                            - button [ref=e266] [cursor=pointer]:
+                              - img [ref=e267]
+                        - generic [ref=e270]:
+                          - generic [ref=e271]:
+                            - generic [ref=e272]:
+                              - generic [ref=e273]: Condition Type
+                              - combobox [ref=e275]:
+                                - option "Time Range" [selected]
+                                - option "IP Range"
+                                - option "Role"
+                                - option "User Attribute"
+                                - option "Resource"
+                                - option "Custom Expression"
+                            - generic [ref=e276]:
+                              - generic [ref=e277]: Operator
+                              - combobox [ref=e279]:
+                                - option "Between" [selected]
+                                - option "Day of Week"
+                            - generic [ref=e280]:
+                              - generic [ref=e281]: Field Name
+                              - textbox "Enter field name" [ref=e284]: time
+                            - generic [ref=e285]:
+                              - generic [ref=e286]: Value
+                              - generic [ref=e287]:
+                                - textbox [ref=e290]
+                                - textbox [ref=e293]
+                          - generic [ref=e294]: Restrict access to specific time periods
+                      - button "Add Condition" [ref=e295] [cursor=pointer]:
+                        - img [ref=e297]
+                        - text: Add Condition
+              - button "Add Rule" [ref=e298] [cursor=pointer]:
+                - img [ref=e300]
+                - text: Add Rule
+          - generic [ref=e303]:
+            - heading "Effective Period (Optional)" [level=3] [ref=e304]
+            - paragraph [ref=e305]: Set a time range for when this policy should be active
+            - generic [ref=e306]:
+              - generic [ref=e307]:
+                - generic [ref=e308]: Effective From
+                - textbox [ref=e311]
+              - generic [ref=e312]:
+                - generic [ref=e313]: Effective Until
+                - textbox [ref=e316]
+          - generic [ref=e317]:
+            - generic [ref=e318]: 1 allow,0 deny rules
+            - generic [ref=e319]:
+              - link "Cancel" [ref=e320] [cursor=pointer]:
+                - /url: /policies/access
+                - button "Cancel" [ref=e321]
+              - button "Create Policy" [ref=e322] [cursor=pointer]:
+                - img [ref=e324]
+                - text: Create Policy
 ```

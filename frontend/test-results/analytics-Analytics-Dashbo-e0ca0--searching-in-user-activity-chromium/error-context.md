@@ -1,23 +1,196 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e4]:
-  - generic [ref=e5]:
-    - img [ref=e7]
-    - heading "OpenPAM" [level=1] [ref=e9]
-    - paragraph [ref=e10]: Sign in to your account
-  - generic [ref=e12]:
-    - generic [ref=e13]:
-      - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
-        - /placeholder: you@example.com
-    - generic [ref=e17]:
-      - generic [ref=e18]: Password
-      - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
-          - /placeholder: ••••••••
-        - button [ref=e22] [cursor=pointer]:
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
           - img [ref=e23]
-    - button "Sign In" [ref=e26] [cursor=pointer]
-  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Reports" [ref=e60] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e61]
+          - generic [ref=e64]: Reports
+        - link "Exceptions" [ref=e65] [cursor=pointer]:
+          - /url: /compliance/exceptions
+          - img [ref=e66]
+          - generic [ref=e68]: Exceptions
+        - link "Analytics" [ref=e69] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e70]
+          - generic [ref=e72]: Analytics
+        - link "Audit Logs" [ref=e73] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e74]
+          - generic [ref=e77]: Audit Logs
+        - link "Settings" [ref=e78] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e79]
+          - generic [ref=e82]: Settings
+      - generic [ref=e84]:
+        - generic [ref=e85]: TU
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: Test User
+          - paragraph [ref=e88]: test@example.com
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - textbox "Search targets, credentials, users..." [ref=e96]
+        - generic [ref=e97]:
+          - button "Refresh data" [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+          - button "TU test@example.com" [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]: TU
+            - generic [ref=e112]: test@example.com
+            - img [ref=e113]
+      - main [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - heading "Analytics" [level=1] [ref=e118]
+            - paragraph [ref=e119]: Comprehensive analytics and compliance monitoring
+          - navigation [ref=e121]:
+            - button "Overview" [ref=e122] [cursor=pointer]:
+              - img [ref=e123]
+              - text: Overview
+            - button "Session Metrics" [ref=e128] [cursor=pointer]:
+              - img [ref=e129]
+              - text: Session Metrics
+            - button "User Activity" [active] [ref=e131] [cursor=pointer]:
+              - img [ref=e132]
+              - text: User Activity
+            - button "Command Analysis" [ref=e137] [cursor=pointer]:
+              - img [ref=e138]
+              - text: Command Analysis
+            - button "Compliance" [ref=e140] [cursor=pointer]:
+              - img [ref=e141]
+              - text: Compliance
+            - button "Anomalies" [ref=e144] [cursor=pointer]:
+              - img [ref=e145]
+              - text: Anomalies
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - generic [ref=e150]:
+                - heading "User Activity" [level=3] [ref=e151]
+                - paragraph [ref=e152]: Track user access patterns and behavior
+              - generic [ref=e154]:
+                - combobox [ref=e156]:
+                  - option "Last 7 days"
+                  - option "Last 14 days"
+                  - option "Last 30 days" [selected]
+                  - option "Last 90 days"
+                - generic [ref=e157]:
+                  - img [ref=e158]
+                  - generic [ref=e160]: Last 30 days
+            - generic [ref=e167]:
+              - img [ref=e169]
+              - textbox "Search users..." [ref=e172]
+            - table [ref=e176]:
+              - rowgroup [ref=e177]:
+                - row "User Sessions Total Time Avg Duration Last Activity" [ref=e178]:
+                  - columnheader "User" [ref=e179]:
+                    - generic [ref=e180]:
+                      - img [ref=e181]
+                      - text: User
+                  - columnheader "Sessions" [ref=e184]
+                  - columnheader "Total Time" [ref=e185]
+                  - columnheader "Avg Duration" [ref=e186]
+                  - columnheader "Last Activity" [ref=e187]:
+                    - generic [ref=e188]:
+                      - img [ref=e189]
+                      - text: Last Activity
+                  - columnheader [ref=e192]
+              - rowgroup [ref=e193]:
+                - row "J John Doe john.doe@example.com 9h 0m NaNh NaNm Never" [ref=e194]:
+                  - cell "J John Doe john.doe@example.com" [ref=e195]:
+                    - generic [ref=e196]:
+                      - generic [ref=e197]: J
+                      - generic [ref=e198]:
+                        - paragraph [ref=e199]: John Doe
+                        - paragraph [ref=e200]: john.doe@example.com
+                  - cell [ref=e201]
+                  - cell "9h 0m" [ref=e202]
+                  - cell "NaNh NaNm" [ref=e203]
+                  - cell "Never" [ref=e204]:
+                    - generic [ref=e205]:
+                      - img [ref=e206]
+                      - text: Never
+                  - cell [ref=e209]:
+                    - button [ref=e210] [cursor=pointer]:
+                      - img [ref=e211]
+                - row "J Jane Smith jane.smith@example.com 8h 0m NaNh NaNm Never" [ref=e213]:
+                  - cell "J Jane Smith jane.smith@example.com" [ref=e214]:
+                    - generic [ref=e215]:
+                      - generic [ref=e216]: J
+                      - generic [ref=e217]:
+                        - paragraph [ref=e218]: Jane Smith
+                        - paragraph [ref=e219]: jane.smith@example.com
+                  - cell [ref=e220]
+                  - cell "8h 0m" [ref=e221]
+                  - cell "NaNh NaNm" [ref=e222]
+                  - cell "Never" [ref=e223]:
+                    - generic [ref=e224]:
+                      - img [ref=e225]
+                      - text: Never
+                  - cell [ref=e228]:
+                    - button [ref=e229] [cursor=pointer]:
+                      - img [ref=e230]
+                - row "B Bob Johnson bob.johnson@example.com 4h 0m NaNh NaNm Never" [ref=e232]:
+                  - cell "B Bob Johnson bob.johnson@example.com" [ref=e233]:
+                    - generic [ref=e234]:
+                      - generic [ref=e235]: B
+                      - generic [ref=e236]:
+                        - paragraph [ref=e237]: Bob Johnson
+                        - paragraph [ref=e238]: bob.johnson@example.com
+                  - cell [ref=e239]
+                  - cell "4h 0m" [ref=e240]
+                  - cell "NaNh NaNm" [ref=e241]
+                  - cell "Never" [ref=e242]:
+                    - generic [ref=e243]:
+                      - img [ref=e244]
+                      - text: Never
+                  - cell [ref=e247]:
+                    - button [ref=e248] [cursor=pointer]:
+                      - img [ref=e249]
+  - generic:
+    - status [ref=e256]: An error occurred
+    - status [ref=e262]: An error occurred
 ```

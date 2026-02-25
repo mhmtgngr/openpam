@@ -1,23 +1,175 @@
 # Page snapshot
 
 ```yaml
-- generic [ref=e4]:
-  - generic [ref=e5]:
-    - img [ref=e7]
-    - heading "OpenPAM" [level=1] [ref=e9]
-    - paragraph [ref=e10]: Sign in to your account
-  - generic [ref=e12]:
-    - generic [ref=e13]:
-      - generic [ref=e14]: Email
-      - textbox "Email" [active] [ref=e16]:
-        - /placeholder: you@example.com
-    - generic [ref=e17]:
-      - generic [ref=e18]: Password
-      - generic [ref=e19]:
-        - textbox "Password" [ref=e20]:
-          - /placeholder: ••••••••
-        - button [ref=e22] [cursor=pointer]:
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
           - img [ref=e23]
-    - button "Sign In" [ref=e26] [cursor=pointer]
-  - paragraph [ref=e27]: © 2024 OpenPAM. All rights reserved.
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Reports" [ref=e60] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e61]
+          - generic [ref=e64]: Reports
+        - link "Exceptions" [ref=e65] [cursor=pointer]:
+          - /url: /compliance/exceptions
+          - img [ref=e66]
+          - generic [ref=e68]: Exceptions
+        - link "Analytics" [ref=e69] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e70]
+          - generic [ref=e72]: Analytics
+        - link "Audit Logs" [ref=e73] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e74]
+          - generic [ref=e77]: Audit Logs
+        - link "Settings" [ref=e78] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e79]
+          - generic [ref=e82]: Settings
+      - generic [ref=e84]:
+        - generic [ref=e85]: TU
+        - generic [ref=e86]:
+          - paragraph [ref=e87]: Test User
+          - paragraph [ref=e88]: test@example.com
+    - generic [ref=e89]:
+      - banner [ref=e90]:
+        - generic [ref=e92]:
+          - img [ref=e93]
+          - textbox "Search targets, credentials, users..." [ref=e96]
+        - generic [ref=e97]:
+          - button "Refresh data" [ref=e98] [cursor=pointer]:
+            - img [ref=e99]
+          - button [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+          - button "TU test@example.com" [ref=e110] [cursor=pointer]:
+            - generic [ref=e111]: TU
+            - generic [ref=e112]: test@example.com
+            - img [ref=e113]
+      - main [ref=e115]:
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - button [ref=e119] [cursor=pointer]:
+                - img [ref=e120]
+              - img [ref=e123]
+              - generic [ref=e125]:
+                - generic [ref=e126]:
+                  - heading "Unusual After-Hours Access" [level=1] [ref=e127]
+                  - generic [ref=e128]: critical
+                  - generic [ref=e129]:
+                    - img [ref=e130]
+                    - text: Open
+                - paragraph [ref=e132]: User accessed production system at 3 AM
+            - generic [ref=e133]:
+              - button "Acknowledge" [ref=e134] [cursor=pointer]:
+                - img [ref=e136]
+                - text: Acknowledge
+              - button "Update Status" [ref=e139] [cursor=pointer]
+          - generic [ref=e140]:
+            - generic [ref=e143]:
+              - heading "Basic Information" [level=3] [ref=e146]
+              - generic [ref=e148]:
+                - generic [ref=e149]:
+                  - img [ref=e150]
+                  - generic [ref=e152]:
+                    - paragraph [ref=e153]: Detected At
+                    - paragraph [ref=e154]: Feb 25, 2026 09:46:09
+                - generic [ref=e155]:
+                  - img [ref=e156]
+                  - generic [ref=e158]:
+                    - paragraph [ref=e159]: Confidence Score
+                    - paragraph [ref=e160]: 92%
+                - generic [ref=e161]:
+                  - img [ref=e162]
+                  - generic [ref=e165]:
+                    - paragraph [ref=e166]: User ID
+                    - paragraph [ref=e167]: user-1
+                - generic [ref=e168]:
+                  - img [ref=e169]
+                  - generic [ref=e172]:
+                    - paragraph [ref=e173]: Target ID
+                    - paragraph [ref=e174]: target-1
+                - generic [ref=e175]:
+                  - img [ref=e176]
+                  - generic [ref=e179]:
+                    - paragraph [ref=e180]: Session ID
+                    - paragraph [ref=e181]: sess-1
+            - generic [ref=e182]:
+              - generic [ref=e184]:
+                - heading "Status & Assignment" [level=3] [ref=e187]
+                - generic [ref=e188]:
+                  - generic [ref=e189]:
+                    - generic [ref=e190]: Status
+                    - combobox [disabled] [ref=e191]:
+                      - option "Open" [selected]
+                      - option "Investigating"
+                      - option "Resolved"
+                      - option "False Positive"
+                  - generic [ref=e192]:
+                    - generic [ref=e193]: Assigned To
+                    - textbox "Email or user ID" [disabled] [ref=e196]
+                  - generic [ref=e197]:
+                    - generic [ref=e198]: Resolution Notes
+                    - textbox "Add investigation notes or resolution details..." [disabled] [ref=e200]
+              - generic [ref=e202]:
+                - heading "Related Entities" [level=3] [ref=e205]
+                - generic [ref=e206]:
+                  - generic [ref=e207]:
+                    - img [ref=e209]
+                    - generic [ref=e212]:
+                      - paragraph [ref=e213]: User
+                      - paragraph [ref=e214]: Admin User
+                  - generic [ref=e215]:
+                    - img [ref=e217]
+                    - generic [ref=e220]:
+                      - paragraph [ref=e221]: Target
+                      - paragraph [ref=e222]: prod-server-01
+                  - button "View Session Recording" [ref=e223] [cursor=pointer]
+              - generic [ref=e225]:
+                - heading "Anomaly Type" [level=3] [ref=e228]
+                - generic [ref=e229]:
+                  - paragraph [ref=e230]: Unusual Access Time
+                  - paragraph [ref=e231]:
+                    - text: "Type code:"
+                    - code [ref=e232]: unusual_access_time
+  - generic:
+    - status [ref=e238]: An error occurred
+    - status [ref=e244]: An error occurred
 ```
