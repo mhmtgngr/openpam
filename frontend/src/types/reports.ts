@@ -43,10 +43,12 @@ export type ReportStatus =
  */
 export type ReportScheduleFrequency =
   | 'once'
+  | 'hourly'
   | 'daily'
   | 'weekly'
   | 'monthly'
-  | 'quarterly';
+  | 'quarterly'
+  | 'yearly';
 
 /**
  * Exception Status Types
@@ -125,6 +127,7 @@ export interface ReportFilter {
   risk_levels?: string[];
   statuses?: string[];
   environments?: string[];
+  session_types?: string[];
   tags?: string[];
   custom_filters?: Record<string, unknown>;
 }
@@ -244,6 +247,9 @@ export interface ScheduledReportExecution {
   status: ReportStatus;
   snapshot_id?: string;
   error_message?: string;
+  recipients?: string[];
+  run_count?: number;
+  last_job_id?: string;
 }
 
 /**

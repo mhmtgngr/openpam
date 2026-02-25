@@ -26,6 +26,7 @@ import { Card, CardHeader, CardFooter } from '@/components/common';
 import { Button } from '@/components/common';
 import { Badge } from '@/components/common';
 import { LoadingState } from '@/components/common';
+import { EmptyState } from '@/components/common';
 import { ReportViewer } from '@/components/common/ReportViewer';
 import { toast } from 'react-hot-toast';
 import type { ReportSnapshot } from '@/types/reports';
@@ -149,13 +150,7 @@ export const ReportDetailPage: React.FC = () => {
   if (!snapshot) {
     return (
       <div className="flex min-h-[600px] items-center justify-center">
-        <div className="text-center">
-          <FileText className="mx-auto h-12 w-12 text-gray-600" />
-          <h3 className="mt-4 text-lg font-medium text-white">Report not found</h3>
-          <Button variant="primary" className="mt-4" onClick={() => navigate('/analytics/reports')}>
-            Go to Reports
-          </Button>
-        </div>
+        <EmptyState title="Report not found" description="The requested report could not be found." />
       </div>
     );
   }

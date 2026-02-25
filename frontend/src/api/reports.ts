@@ -1,13 +1,10 @@
 /**
  * Reports API client for the PAM platform
- * Handles report generation, retrieval, and management
+ * Handles report generation, retrieval, templates, and management
  */
 
 import { api } from './client';
-import type {
-  PaginatedResponse,
-  ComplianceFramework,
-} from '@/types';
+import type { PaginatedResponse, ComplianceFramework, User } from '@/types';
 import type {
   ReportSnapshot,
   ReportType,
@@ -27,10 +24,15 @@ import type {
   ComplianceReport,
   ReportJob,
   ReportSchedule,
+  ReportConfig,
+  FormatOptions,
   FrameworkMetadata,
   ReportDashboardData,
   ReportScheduleListParams,
   UpdateExceptionData,
+  CreateReportData,
+  CreateReportScheduleData,
+  UpdateReportScheduleData,
   GenerateReportResponse,
   ExportReportResponse,
 } from '@/types/reports';
@@ -78,34 +80,10 @@ export const reportsApi = {
   get: (id: string) => api.get<ComplianceReport>(`/reports/${id}`),
 
   // Create report definition
-  create: (data: {
-    name: string;
-    type: ReportType;
-    framework?: ComplianceFramework;
-    description?: string;
-    schedule?: ReportSchedule;
-    config: {
-      period_start: string;
-      period_end: string;
-      include_sections: string[];
-      filters?: Record<string, unknown>;
-    };
-  }) => api.post<ComplianceReport>('/reports', data),
+  create: (data: CreateReportData) => api.post<ComplianceReport>('/reports', data),
 
   // Update report definition
-  update: (id: string, data: Partial<{
-    name: string;
-    type: ReportType;
-    framework?: ComplianceFramework;
-    description?: string;
-    schedule?: ReportSchedule;
-    config: {
-      period_start: string;
-      period_end: string;
-      include_sections: string[];
-      filters?: Record<string, unknown>;
-    };
-  }>) =>
+  update: (id: string, data: Partial<CreateReportData>) =>
     api.patch<ComplianceReport>(`/reports/${id}`, data),
 
   // Delete report definition
@@ -168,6 +146,30 @@ export const reportsApi = {
 
   // Get specific template
   getTemplate: (id: string) => api.get<ReportTemplate>(`/reports/templates/${id}`),
+
+  // Create template
+  createTemplate: (data: {
+    name: string;
+    type: ReportType;
+    framework?: ComplianceFramework;
+    description?: string;
+    config: ReportConfig;
+    sections: ReportTemplateSection[];
+  }) =>
+    api.post<ReportTemplate>('/reports/templates', data),
+
+  // Update template
+  updateTemplate: (id: string, data: Partial<{
+    name: string;
+    description?: string;
+    config: ReportConfig;
+    sections: ReportTemplateSection[];
+  }>) =>
+    api.patch<ReportTemplate>(`/reports/templates/${id}`, data),
+
+  // Delete template
+  deleteTemplate: (id: string) =>
+    api.delete<void>(`/reports/templates/${id}`),
 
   // Generate from template
   generateFromTemplate: (templateId: string, data: {
@@ -252,43 +254,11 @@ export const reportSchedulesApi = {
     api.get<ReportSchedule>(`/reports/schedules/${id}`),
 
   // Create schedule
-  create: (data: {
-    name: string;
-    description?: string;
-    report_id?: string;
-    framework: ComplianceFramework;
-    frequency: string;
-    cron_expression?: string;
-    timezone?: string;
-    is_active?: boolean;
-    recipients: string[];
-    distribution_config: Record<string, unknown>;
-    report_config: {
-      period_start: string;
-      period_end: string;
-      include_sections: string[];
-      filters?: Record<string, unknown>;
-    };
-  }) =>
+  create: (data: CreateReportScheduleData) =>
     api.post<ReportSchedule>('/reports/schedules', data),
 
   // Update schedule
-  update: (id: string, data: Partial<{
-    name?: string;
-    description?: string;
-    frequency?: string;
-    cron_expression?: string;
-    timezone?: string;
-    is_active?: boolean;
-    recipients?: string[];
-    distribution_config?: Record<string, unknown>;
-    report_config?: {
-      period_start: string;
-      period_end: string;
-      include_sections: string[];
-      filters?: Record<string, unknown>;
-    };
-  }>) =>
+  update: (id: string, data: UpdateReportScheduleData) =>
     api.patch<ReportSchedule>(`/reports/schedules/${id}`, data),
 
   // Delete schedule
@@ -305,18 +275,18 @@ export const reportSchedulesApi = {
 
   // Trigger immediate run
   runNow: (id: string) =>
-    api.post<GenerateReportResponse>(`/reports/schedules/${id}/run`, {}),
+    api.post<{ snapshot_id: string; status: string }>(`/reports/schedules/${id}/run`, {}),
 
   // Get schedule run history
   getHistory: (id: string, params?: { limit?: number; offset?: number }) =>
-    api.get<PaginatedResponse<ReportJob>>(`/reports/schedules/${id}/history`, params),
+    api.get<PaginatedResponse<ScheduledReportExecution>>(`/reports/schedules/${id}/history`, params),
 
   // Preview next run times
   previewNextRuns: (id: string, count: number = 5) =>
     api.get<{ next_runs: string[] }>(`/reports/schedules/${id}/preview`, { count }),
 };
 
-// Report Snapshots API (legacy methods for backward compatibility)
+// Report Snapshots Extended API
 export const reportSnapshotsApi = {
   // List snapshots for a report
   list: (reportId: string, params?: { limit?: number; offset?: number }) =>
@@ -340,7 +310,7 @@ export const reportSnapshotsApi = {
 
   // Restore snapshot to create new report version
   restore: (id: string) =>
-    api.post<Report>(`/reports/snapshots/${id}/restore`, {}),
+    api.post<ComplianceReport>(`/reports/snapshots/${id}/restore`, {}),
 
   // Download snapshot
   download: (id: string) => {
@@ -446,4 +416,43 @@ export type {
   GenerateReportResponse,
   ExportReportResponse,
   ComplianceReport,
+  ReportConfig,
+  FormatOptions,
 };
+
+// Additional type definitions for this file
+export interface ReportTemplateSection {
+  id: string;
+  name: string;
+  title: string;
+  type: 'table' | 'chart' | 'summary' | 'text' | 'heatmap';
+  required: boolean;
+  config: Record<string, unknown>;
+  order: number;
+}
+
+export interface ReportScheduleListParams {
+  limit?: number;
+  offset?: number;
+  is_active?: boolean;
+  framework?: ComplianceFramework;
+  frequency?: ReportScheduleFrequency;
+  search?: string;
+}
+
+export interface UserSummary {
+  id: string;
+  email: string;
+  display_name?: string;
+  first_name?: string;
+  last_name?: string;
+}
+
+export interface ExceptionDocument {
+  id: string;
+  name: string;
+  file_url: string;
+  file_size_bytes: number;
+  uploaded_at: string;
+  uploaded_by: string;
+}

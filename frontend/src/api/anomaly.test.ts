@@ -149,7 +149,7 @@ describe('anomalyApi', () => {
         },
       };
 
-      (api.get as any).mockResolvedValue({ data: mockResponse });
+      (api.get as any).mockResolvedValue(mockResponse);
 
       const result = await anomalyApi.list();
 
@@ -168,7 +168,7 @@ describe('anomalyApi', () => {
         },
       };
 
-      (api.get as any).mockResolvedValue({ data: mockResponse });
+      (api.get as any).mockResolvedValue(mockResponse);
 
       const filters = {
         severity: 'critical' as AnomalySeverity,
@@ -195,7 +195,7 @@ describe('anomalyApi', () => {
         },
       };
 
-      (api.get as any).mockResolvedValue({ data: mockResponse });
+      (api.get as any).mockResolvedValue(mockResponse);
 
       const result = await anomalyApi.list();
 
@@ -212,7 +212,7 @@ describe('anomalyApi', () => {
 
   describe('get', () => {
     it('should get a single anomaly by ID', async () => {
-      (api.get as any).mockResolvedValue({ data: mockAnomalies[0] });
+      (api.get as any).mockResolvedValue(mockAnomalies[0]);
 
       const result = await anomalyApi.get('anom-1');
 
@@ -243,7 +243,7 @@ describe('anomalyApi', () => {
         ...updateData,
       };
 
-      (api.patch as any).mockResolvedValue({ data: updatedAnomaly });
+      (api.patch as any).mockResolvedValue(updatedAnomaly);
 
       const result = await anomalyApi.update('anom-1', updateData);
 
@@ -262,7 +262,7 @@ describe('anomalyApi', () => {
         ...updateData,
       };
 
-      (api.patch as any).mockResolvedValue({ data: updatedAnomaly });
+      (api.patch as any).mockResolvedValue(updatedAnomaly);
 
       const result = await anomalyApi.update('anom-1', updateData);
 
@@ -279,7 +279,7 @@ describe('anomalyApi', () => {
         status: 'investigating',
       };
 
-      (api.post as any).mockResolvedValue({ data: acknowledgedAnomaly });
+      (api.post as any).mockResolvedValue(acknowledgedAnomaly);
 
       const result = await anomalyApi.acknowledge('anom-1');
 
@@ -293,7 +293,7 @@ describe('anomalyApi', () => {
         status: 'investigating',
       };
 
-      (api.post as any).mockResolvedValue({ data: acknowledgedAnomaly });
+      (api.post as any).mockResolvedValue(acknowledgedAnomaly);
 
       await anomalyApi.acknowledge('anom-1');
 
@@ -303,7 +303,7 @@ describe('anomalyApi', () => {
 
   describe('getSummary', () => {
     it('should get anomaly summary statistics', async () => {
-      (api.get as any).mockResolvedValue({ data: mockAnomalySummary });
+      (api.get as any).mockResolvedValue(mockAnomalySummary);
 
       const result = await anomalyApi.getSummary();
 
@@ -314,7 +314,7 @@ describe('anomalyApi', () => {
     });
 
     it('should get summary with date filters', async () => {
-      (api.get as any).mockResolvedValue({ data: mockAnomalySummary });
+      (api.get as any).mockResolvedValue(mockAnomalySummary);
 
       const params = {
         start_date: '2024-01-01',
@@ -339,7 +339,7 @@ describe('anomalyApi', () => {
         failed: [] as string[],
       };
 
-      (api.post as any).mockResolvedValue({ data: bulkResult });
+      (api.post as any).mockResolvedValue(bulkResult);
 
       const result = await anomalyApi.bulkUpdate(['anom-1', 'anom-2'], updateData);
 
@@ -361,7 +361,7 @@ describe('anomalyApi', () => {
         failed: ['anom-2'],
       };
 
-      (api.post as any).mockResolvedValue({ data: bulkResult });
+      (api.post as any).mockResolvedValue(bulkResult);
 
       const result = await anomalyApi.bulkUpdate(['anom-1', 'anom-2'], updateData);
 
@@ -382,7 +382,7 @@ describe('anomalyApi', () => {
         },
       };
 
-      (api.get as any).mockResolvedValue({ data: relatedAnomalies });
+      (api.get as any).mockResolvedValue(relatedAnomalies);
 
       const result = await anomalyApi.getRelated({
         user_id: 'user-1',
@@ -407,7 +407,7 @@ describe('anomalyApi', () => {
         },
       };
 
-      (api.get as any).mockResolvedValue({ data: relatedAnomalies });
+      (api.get as any).mockResolvedValue(relatedAnomalies);
 
       const result = await anomalyApi.getRelated({
         session_id: 'sess-1',
@@ -430,7 +430,7 @@ describe('anomalyApi', () => {
         },
       };
 
-      (api.get as any).mockResolvedValue({ data: relatedAnomalies });
+      (api.get as any).mockResolvedValue(relatedAnomalies);
 
       const result = await anomalyApi.getRelated({
         target_id: 'target-1',
@@ -450,7 +450,7 @@ describe('anomalyApi', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       };
 
-      (api.post as any).mockResolvedValue({ data: exportResult });
+      (api.post as any).mockResolvedValue(exportResult);
 
       const result = await anomalyApi.export({
         format: 'csv',
@@ -471,7 +471,7 @@ describe('anomalyApi', () => {
         expires_at: new Date(Date.now() + 3600000).toISOString(),
       };
 
-      (api.post as any).mockResolvedValue({ data: exportResult });
+      (api.post as any).mockResolvedValue(exportResult);
 
       const result = await anomalyApi.export({
         format: 'json',
@@ -561,7 +561,7 @@ describe('anomalyApi type safety', () => {
   });
 
   it('should preserve AnomalyDetection type structure', async () => {
-    (api.get as any).mockResolvedValue({ data: mockAnomalies[0] });
+    (api.get as any).mockResolvedValue(mockAnomalies[0]);
 
     const result = await anomalyApi.get('anom-1');
 
@@ -577,7 +577,7 @@ describe('anomalyApi type safety', () => {
   });
 
   it('should preserve indicators array structure', async () => {
-    (api.get as any).mockResolvedValue({ data: mockAnomalies[0] });
+    (api.get as any).mockResolvedValue(mockAnomalies[0]);
 
     const result = await anomalyApi.get('anom-1');
 
@@ -596,7 +596,7 @@ describe('anomalyApi params serialization', () => {
   });
 
   it('should serialize date range params correctly', async () => {
-    (api.get as any).mockResolvedValue({ data: [] });
+    (api.get as any).mockResolvedValue([]);
 
     const filters = {
       start_date: '2024-01-01T00:00:00Z',
@@ -610,7 +610,7 @@ describe('anomalyApi params serialization', () => {
   });
 
   it('should handle complex filter combinations', async () => {
-    (api.get as any).mockResolvedValue({ data: [] });
+    (api.get as any).mockResolvedValue([]);
 
     const filters = {
       severity: 'high' as AnomalySeverity,

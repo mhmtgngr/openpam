@@ -99,6 +99,8 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
         return `Runs on the ${dayOfMonth}${getOrdinalSuffix(dayOfMonth)} of each month at ${timeStr}${recipientStr}`;
       case 'quarterly':
         return `Runs on the last day of each quarter (Mar 31, Jun 30, Sep 30, Dec 31) at ${timeStr}${recipientStr}`;
+      default:
+        return '';
     }
   };
 
