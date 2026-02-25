@@ -44,9 +44,10 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 	// SSL mode must be explicitly set to a secure value
 	sslMode := cfg.SSLMode
 	if sslMode == "" {
-		// Default to require for security
-		sslMode = "require"
-		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'require'")
+		// SECURITY FIX: Default to verify-full for maximum security
+		// verify-full ensures the server certificate is valid AND the hostname matches
+		sslMode = "verify-full"
+		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'verify-full'")
 	}
 
 	// SECURITY FIX: Reject insecure SSL modes unconditionally

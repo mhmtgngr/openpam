@@ -302,16 +302,20 @@ test.describe('Access Policy Management', () => {
       // Wait for rule to be added - the first rule is expanded by default
       await accessPolicyPage.waitForTimeout(500);
 
-      // Set effect to deny - use a more specific selector
-      // Find the select by checking its options
-      const effectSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
-        const options = await select.locator('option').allTextContents();
-        return options.includes('Allow') && options.includes('Deny') && options.length <= 3;
-      }).first();
+      // Set effect to deny - find the select by its adjacent label "Effect"
+      const effectLabel = accessPolicyPage.getByText('Effect').all();
+      // Find the Effect label within the expanded rule section
+      const effectSelect = accessPolicyPage.locator('.card-body').filter({ hasText: /Rules/i })
+        .locator('*').filter({ hasText: 'Effect' })
+        .locator('..')
+        .locator('select').filter(async (select, _) => {
+          const options = await select.locator('option').allTextContents();
+          return options.includes('Allow') && options.includes('Deny');
+        }).first();
 
       await effectSelect.selectOption('deny');
 
-      await expect(accessPolicyPage.getByText('DENY')).toBeVisible();
+      await expect(accessPolicyPage.getByText('DENY', { exact: true })).toBeVisible();
     });
 
     test('should set logical operator', async ({ accessPolicyPage }) => {
@@ -325,11 +329,11 @@ test.describe('Access Policy Management', () => {
       // Wait for rule to be added
       await accessPolicyPage.waitForTimeout(500);
 
-      // Set operator to OR - find select with AND/OR options
-      const operatorSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
-        const options = await select.locator('option').allTextContents();
-        return options.some(o => o.includes('AND - All conditions')) && options.some(o => o.includes('OR - At least one'));
-      }).first();
+      // Set operator to OR - find the Logical Operator select by its adjacent label
+      const operatorSelect = accessPolicyPage.locator('.card-body').filter({ hasText: /Rules/i })
+        .locator('*').filter({ hasText: 'Logical Operator' })
+        .locator('..')
+        .locator('select').first();
 
       await operatorSelect.selectOption('OR');
 
@@ -347,11 +351,11 @@ test.describe('Access Policy Management', () => {
       // Wait for rule to be added
       await accessPolicyPage.waitForTimeout(500);
 
-      // Add a resource - find select with "credential:*" option
-      const resourceSelect = accessPolicyPage.locator('select').filter(async (select, _) => {
-        const options = await select.locator('option').allTextContents();
-        return options.includes('credential:*');
-      }).first();
+      // Add a resource - find the Resources select by its label
+      const resourceSelect = accessPolicyPage.locator('.card-body').filter({ hasText: /Rules/i })
+        .locator('*').filter({ hasText: 'Resources' })
+        .locator('..')
+        .locator('select').first();
 
       await resourceSelect.selectOption('credential:*');
 

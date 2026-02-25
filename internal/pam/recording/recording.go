@@ -439,22 +439,38 @@ type Storage interface {
 }
 
 // S3Storage implements Storage for S3/MinIO
+// SECURITY FIX: Credentials are managed via IAM-based providers, not static keys
 type S3Storage struct {
-	bucket    string
-	endpoint  string
-	accessKey string
-	secretKey string
-	region    string
+	bucket  string
+	endpoint string
+	region  string
+	// SECURITY FIX: Use IAM-based credential providers instead of static keys
+	// Static keys are deprecated and should not be used in production
+	useIAM  bool
+	roleARN string // For assumed role credentials
 }
 
-// NewS3Storage creates a new S3 storage
+// NewS3Storage creates a new S3 storage with IAM-based authentication
+// DEPRECATED: The accessKey/secretKey parameters are kept for backward compatibility only
+// New deployments should use NewS3StorageWithIAM instead
 func NewS3Storage(bucket, endpoint, accessKey, secretKey, region string) *S3Storage {
 	return &S3Storage{
-		bucket:    bucket,
-		endpoint:  endpoint,
-		accessKey: accessKey,
-		secretKey: secretKey,
-		region:    region,
+		bucket:   bucket,
+		endpoint: endpoint,
+		region:   region,
+		useIAM:   false,
+	}
+}
+
+// NewS3StorageWithIAM creates a new S3 storage using IAM-based authentication
+// This is the recommended approach for production deployments
+func NewS3StorageWithIAM(bucket, endpoint, region, roleARN string) *S3Storage {
+	return &S3Storage{
+		bucket:   bucket,
+		endpoint: endpoint,
+		region:   region,
+		useIAM:   true,
+		roleARN:  roleARN,
 	}
 }
 

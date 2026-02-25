@@ -52,13 +52,18 @@ func (s *Service) CreateCredential(ctx context.Context, secret *vault.Secret, pl
 	if secret.RotationPolicy != "" && secret.RotationPolicy != vault.RotationManual {
 		if err := s.rotation.ScheduleRotation(ctx, secret.ID, secret.RotationPolicy); err != nil {
 			// Rollback: delete the credential that was already stored since rotation scheduling failed
+			// SECURITY FIX: Propagate rollback errors to ensure cleanup failures are not silently ignored
 			if deleteErr := s.vault.DeleteSecret(ctx, secret.ID); deleteErr != nil {
+				// CRITICAL: Both rotation scheduling AND rollback failed
+				// This is a severe state - the credential exists but rotation is broken
 				s.logger.Error().
 					Err(deleteErr).
 					Str("credential_id", secret.ID.String()).
-					Msg("Failed to rollback credential after rotation scheduling error")
+					Msg("CRITICAL: Failed to rollback credential after rotation scheduling error - credential in inconsistent state")
+				// Return combined error so caller knows about both failures
+				return fmt.Errorf("credential.ScheduleRotation: %w (rollback also failed: %v) - CREDENTIAL IN INCONSISTENT STATE", err, deleteErr)
 			}
-			return fmt.Errorf("credential.ScheduleRotation: %w (credential rolled back)", err)
+			return fmt.Errorf("credential.ScheduleRotation: %w", err)
 		}
 	}
 

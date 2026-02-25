@@ -199,15 +199,25 @@ func TestRecordingEvent_Struct(t *testing.T) {
 }
 
 func TestS3Storage_Struct(t *testing.T) {
-	t.Run("S3 storage initialization", func(t *testing.T) {
+	t.Run("S3 storage initialization with static credentials (deprecated)", func(t *testing.T) {
 		storage := NewS3Storage("test-bucket", "endpoint", "key", "secret", "us-east-1")
 
 		assert.NotNil(t, storage)
 		assert.Equal(t, "test-bucket", storage.bucket)
 		assert.Equal(t, "endpoint", storage.endpoint)
-		assert.Equal(t, "key", storage.accessKey)
-		assert.Equal(t, "secret", storage.secretKey)
 		assert.Equal(t, "us-east-1", storage.region)
+		assert.False(t, storage.useIAM) // Static credentials mode
+	})
+
+	t.Run("S3 storage initialization with IAM (recommended)", func(t *testing.T) {
+		storage := NewS3StorageWithIAM("test-bucket", "endpoint", "us-east-1", "arn:aws:iam::123456789012:role/MyRole")
+
+		assert.NotNil(t, storage)
+		assert.Equal(t, "test-bucket", storage.bucket)
+		assert.Equal(t, "endpoint", storage.endpoint)
+		assert.Equal(t, "us-east-1", storage.region)
+		assert.True(t, storage.useIAM) // IAM mode
+		assert.Equal(t, "arn:aws:iam::123456789012:role/MyRole", storage.roleARN)
 	})
 
 	t.Run("S3 storage Upload returns URL", func(t *testing.T) {

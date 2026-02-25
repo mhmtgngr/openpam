@@ -35,12 +35,18 @@ type RecordingEncryption struct {
 
 // RecordingConfig holds configuration for recording encryption
 // SECURITY FIX: MasterKey is removed - use KeyManager instead
+// SECURITY FIX: Static access/secret keys are deprecated - use IAM-based credentials
 type RecordingConfig struct {
 	MinioEndpoint        string
+	// DEPRECATED: Use IAM-based credentials instead of static keys
 	MinioAccessKey       string
 	MinioSecretKey       string
 	MinioBucket          string
 	MinioUseSSL          bool
+	// SECURITY FIX: IAM-based authentication (preferred for cloud deployments)
+	MinioUseIAM          bool
+	MinioRegion          string
+	MinioRoleARN         string // For assumed role credentials
 	// DEPRECATED: MasterKey is removed for security. Use KeyManager instead.
 	// MasterKey            []byte
 	KeyManager           kms.KeyManager // KMS for master key management
@@ -79,10 +85,27 @@ func NewRecordingEncryption(config RecordingConfig, logger zerolog.Logger) (*Rec
 		testKey[i] = 0
 	}
 
-	// Initialize MinIO client
+	// SECURITY FIX: Initialize MinIO client with IAM-based credentials when available
+	// IAM-based authentication eliminates the need for static, long-lived access keys
+	var creds *credentials.Credentials
+	if config.MinioUseIAM {
+		// Use IAM-based credential chain (environment, EC2 role, ECS task role)
+		// This is the recommended approach for cloud deployments
+		creds = credentials.NewIAM(config.MinioRoleARN)
+		logger.Info().Msg("Using IAM-based authentication for MinIO/S3")
+	} else {
+		// Fall back to static credentials (should only be used for local development)
+		if config.MinioAccessKey == "" || config.MinioSecretKey == "" {
+			return nil, fmt.Errorf("session: static credentials required when IAM is disabled")
+		}
+		creds = credentials.NewStaticV4(config.MinioAccessKey, config.MinioSecretKey, "")
+		logger.Warn().Msg("Using static access keys for MinIO/S3 - consider migrating to IAM-based authentication")
+	}
+
 	minioClient, err := minio.New(config.MinioEndpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(config.MinioAccessKey, config.MinioSecretKey, ""),
+		Creds:  creds,
 		Secure: config.MinioUseSSL,
+		Region: config.MinioRegion,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("session.MinioInit: %w", err)

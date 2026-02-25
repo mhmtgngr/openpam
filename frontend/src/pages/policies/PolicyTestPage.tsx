@@ -317,10 +317,8 @@ export const PolicyTestPage: React.FC = () => {
                           {/* User & Roles */}
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-1">
-                                User ID
-                              </label>
                               <Input
+                                label="User ID"
                                 value={scenario.user_id}
                                 onChange={(e) => updateScenario(index, { user_id: e.target.value })}
                                 placeholder="user-123"
@@ -328,10 +326,8 @@ export const PolicyTestPage: React.FC = () => {
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-1">
-                                Roles (comma-separated)
-                              </label>
                               <Input
+                                label="Roles (comma-separated)"
                                 value={scenario.user_roles.join(',')}
                                 onChange={(e) =>
                                   updateScenario(index, {
@@ -346,10 +342,8 @@ export const PolicyTestPage: React.FC = () => {
                           {/* Resource & Action */}
                           <div className="grid grid-cols-2 gap-4">
                             <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-1">
-                                Resource
-                              </label>
                               <Select
+                                label="Resource"
                                 value={scenario.resource}
                                 onChange={(e) => updateScenario(index, { resource: e.target.value })}
                                 options={COMMON_RESOURCES.map((r) => ({ value: r, label: r }))}
@@ -357,10 +351,8 @@ export const PolicyTestPage: React.FC = () => {
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-300 mb-1">
-                                Action
-                              </label>
                               <Select
+                                label="Action"
                                 value={scenario.action}
                                 onChange={(e) => updateScenario(index, { action: e.target.value })}
                                 options={COMMON_ACTIONS.map((a) => ({ value: a, label: a }))}
@@ -369,44 +361,36 @@ export const PolicyTestPage: React.FC = () => {
                           </div>
 
                           {/* Context */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Context (JSON)
-                            </label>
-                            <Textarea
-                              value={JSON.stringify(scenario.context, null, 2)}
-                              onChange={(e) => {
-                                try {
-                                  const context = JSON.parse(e.target.value);
-                                  updateScenario(index, { context });
-                                } catch {
-                                  // Invalid JSON, ignore
-                                }
-                              }}
-                              rows={3}
-                              placeholder='{"ip_address": "192.168.1.100"}'
-                            />
-                          </div>
+                          <Textarea
+                            label="Context (JSON)"
+                            value={JSON.stringify(scenario.context, null, 2)}
+                            onChange={(e) => {
+                              try {
+                                const context = JSON.parse(e.target.value);
+                                updateScenario(index, { context });
+                              } catch {
+                                // Invalid JSON, ignore
+                              }
+                            }}
+                            rows={3}
+                            placeholder='{"ip_address": "192.168.1.100"}'
+                          />
 
                           {/* Expected Result */}
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Expected Result (Optional)
-                            </label>
-                            <Select
-                              value={scenario.expected_allowed === undefined ? '' : String(scenario.expected_allowed)}
-                              onChange={(e) =>
-                                updateScenario(index, {
-                                  expected_allowed: e.target.value === '' ? undefined : e.target.value === 'true',
-                                })
-                              }
-                              options={[
-                                { value: '', label: 'Any' },
-                                { value: 'true', label: 'Allow' },
-                                { value: 'false', label: 'Deny' },
-                              ]}
-                            />
-                          </div>
+                          <Select
+                            label="Expected Result (Optional)"
+                            value={scenario.expected_allowed === undefined ? '' : String(scenario.expected_allowed)}
+                            onChange={(e) =>
+                              updateScenario(index, {
+                                expected_allowed: e.target.value === '' ? undefined : e.target.value === 'true',
+                              })
+                            }
+                            options={[
+                              { value: '', label: 'Any' },
+                              { value: 'true', label: 'Allow' },
+                              { value: 'false', label: 'Deny' },
+                            ]}
+                          />
 
                           {/* Result Details */}
                           {result && (
