@@ -712,3 +712,30 @@ export interface TrendData {
   trend: 'up' | 'down' | 'stable';
   data_points: Array<{ date: string; value: number }>;
 }
+
+// Usage Limit Types
+export interface UsageLimitError {
+  error: {
+    code: string;
+    message: string;
+    details?: UsageLimitDetails;
+  };
+  request_id?: string;
+  market_context?: MarketContext;
+}
+
+export interface UsageLimitDetails {
+  limit_type?: 'hourly' | 'daily' | 'monthly';
+  limit_amount?: number;
+  current_usage?: number;
+  reset_at?: string;
+  window_start?: string;
+  window_end?: string;
+}
+
+export interface MarketContext {
+  competitors_analyzed: string[];
+  key_gaps: string[];
+  trends: string[];
+  unique_selling_points: string[];
+}

@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import toast from 'react-hot-toast';
-import type { ApiError } from '@/types';
+import type { ApiError, UsageLimitError } from '@/types';
 
 const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
 
@@ -28,11 +28,52 @@ client.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Check if error is a usage limit error
+const isUsageLimitError = (error: AxiosError<ApiError | UsageLimitError>): boolean => {
+  const code = error.response?.data?.error?.code;
+  return code === '1308' ||
+    code === 'USAGE_LIMIT_REACHED' ||
+    code === 'RATE_LIMIT_EXCEEDED' ||
+    error.response?.status === 429;
+};
+
+// Handle usage limit error
+const handleUsageLimitError = (error: AxiosError<ApiError | UsageLimitError>) => {
+  const data = error.response?.data as UsageLimitError;
+  const resetAt = data?.error?.details?.reset_at || extractResetTime(data?.error?.message) || '';
+
+  // Store error data for usage limit page
+  localStorage.setItem('usage_limit_code', data?.error?.code || '1308');
+  localStorage.setItem('usage_limit_message', data?.error?.message || 'Usage limit reached');
+  if (resetAt) {
+    localStorage.setItem('usage_limit_reset_at', resetAt);
+  }
+  if (data?.request_id) {
+    localStorage.setItem('usage_limit_request_id', data.request_id);
+  }
+
+  // Redirect to usage limit page
+  window.location.href = '/usage-limit';
+};
+
+// Extract reset time from error message (fallback)
+const extractResetTime = (message?: string): string | null => {
+  if (!message) return null;
+  const match = message.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+  return match ? match[1] : null;
+};
+
 // Response interceptor
 client.interceptors.response.use(
   (response: AxiosResponse) => response,
-  async (error: AxiosError<ApiError>) => {
+  async (error: AxiosError<ApiError | UsageLimitError>) => {
     const originalRequest = error.config as AxiosResponse & { _retry?: boolean };
+
+    // Handle usage limit errors
+    if (isUsageLimitError(error)) {
+      handleUsageLimitError(error);
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
