@@ -6,19 +6,26 @@ import React, { useState } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { vi } from 'vitest';
 import { AnalyticsPage } from './AnalyticsPage';
-import { analyticsApi } from '@/api/analytics';
-import { complianceApi } from '@/api/compliance';
+import * as analyticsApiModule from '@/api/analytics';
+import * as complianceApiModule from '@/api/compliance';
+
+const analyticsApi = analyticsApiModule.analyticsApi;
+const complianceApi = complianceApiModule.complianceApi;
 
 // Mock the analytics API
-jest.mock('@/api/analytics');
-jest.mock('@/api/compliance');
+vi.mock('@/api/analytics');
+vi.mock('@/api/compliance');
 
 // Mock react-router-dom
-jest.mock('react-router-dom', () => ({
-  ...jest.requireActual('react-router-dom'),
-  useNavigate: () => jest.fn(),
-}));
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => vi.fn(),
+  };
+});
 
 const createMockQueryClient = () => {
   return new QueryClient({
@@ -41,10 +48,10 @@ const renderWithQueryClient = (component: React.ReactElement) => {
 
 describe('AnalyticsPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Setup default mocks
-    (analyticsApi.getDashboardTrends as jest.Mock).mockResolvedValue({
+    (analyticsApi.getDashboardTrends as any).mockResolvedValue({
       data: {
         sessions: { current: 145, previous: 130, change_percent: 11.5, trend: 'up', data_points: [] },
         users: { current: 45, previous: 42, change_percent: 7.1, trend: 'up', data_points: [] },
@@ -54,7 +61,7 @@ describe('AnalyticsPage', () => {
       },
     });
 
-    (analyticsApi.getRealtimeStats as jest.Mock).mockResolvedValue({
+    (analyticsApi.getRealtimeStats as any).mockResolvedValue({
       data: {
         active_sessions: 5,
         active_users: 3,
@@ -63,7 +70,7 @@ describe('AnalyticsPage', () => {
       },
     });
 
-    (complianceApi.getAnomalySummary as jest.Mock).mockResolvedValue({
+    (complianceApi.getAnomalySummary as any).mockResolvedValue({
       data: {
         total: 5,
         by_severity: { critical: 1, high: 1, medium: 2, low: 1 },
@@ -74,7 +81,7 @@ describe('AnalyticsPage', () => {
       },
     });
 
-    (analyticsApi.getCommandRiskSummary as jest.Mock).mockResolvedValue({
+    (analyticsApi.getCommandRiskSummary as any).mockResolvedValue({
       data: {
         total_commands: 350,
         high_risk_commands: 15,
@@ -186,7 +193,7 @@ describe('AnalyticsPage', () => {
 
         // Check that only this tab is active
         const allTabs = screen.getAllByRole('button');
-        const activeTabs = allTabs.filter(btn => btn.classList.contains(/border-primary-500/));
+        const activeTabs = allTabs.filter((btn: HTMLElement) => btn.classList.contains('border-primary-500'));
         expect(activeTabs).toHaveLength(1);
         expect(activeTabs[0]).toHaveTextContent(tabName);
       }
@@ -276,7 +283,7 @@ describe('AnalyticsPage', () => {
   describe('Loading States', () => {
     it('should show loading state initially', () => {
       // Make the API call pending
-      (analyticsApi.getDashboardTrends as jest.Mock).mockImplementation(
+      (analyticsApi.getDashboardTrends as any).mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
 
@@ -294,7 +301,7 @@ describe('AnalyticsPage', () => {
     });
 
     it('should show loading state when switching tabs', async () => {
-      (analyticsApi.getUserActivity as jest.Mock).mockImplementation(
+      (analyticsApi.getUserActivity as any).mockImplementation(
         () => new Promise(() => {}) // Never resolves
       );
 
@@ -310,7 +317,7 @@ describe('AnalyticsPage', () => {
 
   describe('Error States', () => {
     it('should handle API error gracefully', async () => {
-      (analyticsApi.getDashboardTrends as jest.Mock).mockRejectedValue(
+      (analyticsApi.getDashboardTrends as any).mockRejectedValue(
         new Error('Failed to fetch trends')
       );
 
@@ -324,7 +331,7 @@ describe('AnalyticsPage', () => {
 
     it('should display error message for failed requests', async () => {
       // Mock a failed request
-      (complianceApi.getAnomalySummary as jest.Mock).mockRejectedValue(
+      (complianceApi.getAnomalySummary as any).mockRejectedValue(
         new Error('Failed to fetch anomalies')
       );
 
@@ -408,7 +415,7 @@ describe('AnalyticsPage', () => {
       renderWithQueryClient(<AnalyticsPage />);
 
       const headings = screen.getAllByRole('heading');
-      const h1Count = headings.filter(h => h.tagName === 'H1').length;
+      const h1Count = headings.filter((h: HTMLElement) => h.tagName === 'H1').length;
       expect(h1Count).toBe(1);
     });
   });
@@ -532,7 +539,7 @@ describe('AnalyticsPage', () => {
 
   describe('Edge Cases', () => {
     it('should handle zero values gracefully', async () => {
-      (analyticsApi.getRealtimeStats as jest.Mock).mockResolvedValue({
+      (analyticsApi.getRealtimeStats as any).mockResolvedValue({
         data: {
           active_sessions: 0,
           active_users: 0,
@@ -549,7 +556,7 @@ describe('AnalyticsPage', () => {
     });
 
     it('should handle very large numbers gracefully', async () => {
-      (analyticsApi.getDashboardTrends as jest.Mock).mockResolvedValue({
+      (analyticsApi.getDashboardTrends as any).mockResolvedValue({
         data: {
           sessions: { current: 999999, previous: 888888, change_percent: 12.5, trend: 'up', data_points: [] },
           users: { current: 10000, previous: 9000, change_percent: 11.1, trend: 'up', data_points: [] },
@@ -567,7 +574,7 @@ describe('AnalyticsPage', () => {
     });
 
     it('should handle negative trends correctly', async () => {
-      (analyticsApi.getDashboardTrends as jest.Mock).mockResolvedValue({
+      (analyticsApi.getDashboardTrends as any).mockResolvedValue({
         data: {
           sessions: { current: 90, previous: 100, change_percent: -10, trend: 'down', data_points: [] },
           users: { current: 35, previous: 40, change_percent: -12.5, trend: 'down', data_points: [] },
@@ -582,14 +589,14 @@ describe('AnalyticsPage', () => {
       await waitFor(() => {
         const negativeChanges = screen.getAllByText(/-\d+%/);
         expect(negativeChanges.length).toBeGreaterThan(0);
-        negativeChanges.forEach(change => {
+        negativeChanges.forEach((change: HTMLElement) => {
           expect(change).toHaveClass(/text-danger-400/);
         });
       });
     });
 
     it('should handle empty anomaly data gracefully', async () => {
-      (complianceApi.getAnomalySummary as jest.Mock).mockResolvedValue({
+      (complianceApi.getAnomalySummary as any).mockResolvedValue({
         data: {
           total: 0,
           by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
@@ -641,7 +648,7 @@ describe('AnalyticsPage', () => {
     });
 
     it('should call tab-specific API when tab is activated', async () => {
-      (analyticsApi.getUserActivity as jest.Mock).mockResolvedValue({
+      (analyticsApi.getUserActivity as any).mockResolvedValue({
         data: [],
         pagination: { total: 0, limit: 20, offset: 0, has_more: false },
       });
@@ -655,7 +662,7 @@ describe('AnalyticsPage', () => {
       });
 
       // Clear mock calls
-      (analyticsApi.getUserActivity as jest.Mock).mockClear();
+      (analyticsApi.getUserActivity as any).mockClear();
 
       // Click User Activity tab
       const usersTab = screen.getByText('User Activity');
@@ -710,7 +717,7 @@ describe('AnalyticsPage', () => {
 
       await waitFor(() => {
         const statsCards = screen.getAllByText(/Sessions|Users|Commands|Anomalies/);
-        statsCards.forEach(card => {
+        statsCards.forEach((card: HTMLElement) => {
           const cardElement = card.closest('.card');
           expect(cardElement).toBeInTheDocument();
         });

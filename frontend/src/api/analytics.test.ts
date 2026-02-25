@@ -2,7 +2,7 @@
  * Tests for analytics API client
  */
 
-import { vi } from 'vitest';
+import { vi, describe, beforeEach, it, expect } from 'vitest';
 import { analyticsApi } from './analytics';
 import { api } from './client';
 import type {
@@ -282,23 +282,27 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: mockActivity,
-        pagination: { total: 2, limit: 20, offset: 0, has_more: false },
+        data: {
+          data: mockActivity,
+          pagination: { total: 2, limit: 20, offset: 0, has_more: false },
+        },
       });
 
       const result = await analyticsApi.getUserActivity();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/activity', undefined);
-      expect(result.data).toEqual(mockActivity);
-      expect(result.pagination.total).toBe(2);
+      expect(result.data.data).toEqual(mockActivity);
+      expect(result.data.pagination.total).toBe(2);
     });
 
     it('should get user activity with filters', async () => {
       const mockActivity: UserActivity[] = [];
 
       (api.get as any).mockResolvedValue({
-        data: mockActivity,
-        pagination: { total: 0, limit: 10, offset: 0, has_more: false },
+        data: {
+          data: mockActivity,
+          pagination: { total: 0, limit: 10, offset: 0, has_more: false },
+        },
       });
 
       const params = {
@@ -314,7 +318,7 @@ describe('analyticsApi', () => {
       const result = await analyticsApi.getUserActivity(params);
 
       expect(api.get).toHaveBeenCalledWith('/analytics/users/activity', params);
-      expect(result.data).toEqual(mockActivity);
+      expect(result.data.data).toEqual(mockActivity);
     });
 
     it('should get user activity detail', async () => {
@@ -367,14 +371,16 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: mockCommands,
-        pagination: { total: 2, limit: 20, offset: 0, has_more: false },
+        data: {
+          data: mockCommands,
+          pagination: { total: 2, limit: 20, offset: 0, has_more: false },
+        },
       });
 
       const result = await analyticsApi.getCommandFrequency();
 
       expect(api.get).toHaveBeenCalledWith('/analytics/commands/frequency', undefined);
-      expect(result.data).toHaveLength(2);
+      expect(result.data.data).toHaveLength(2);
     });
 
     it('should get command risk summary', async () => {
@@ -528,8 +534,10 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: mockAnomalies,
-        pagination: { total: 1, limit: 20, offset: 0, has_more: false },
+        data: {
+          data: mockAnomalies,
+          pagination: { total: 1, limit: 20, offset: 0, has_more: false },
+        },
       });
 
       const result = await analyticsApi.listAnomalies({
@@ -545,7 +553,7 @@ describe('analyticsApi', () => {
         start_date: '2024-01-01',
         end_date: '2024-01-31',
       });
-      expect(result.data).toHaveLength(1);
+      expect(result.data.data).toHaveLength(1);
     });
 
     it('should update anomaly status', async () => {
@@ -674,8 +682,10 @@ describe('analyticsApi', () => {
 
     it('should handle pagination parameters correctly', async () => {
       (api.get as any).mockResolvedValue({
-        data: [],
-        pagination: { total: 0, limit: 50, offset: 100, has_more: false },
+        data: {
+          data: [],
+          pagination: { total: 0, limit: 50, offset: 100, has_more: false },
+        },
       });
 
       await analyticsApi.getUserActivity({
@@ -691,8 +701,10 @@ describe('analyticsApi', () => {
 
     it('should handle boolean parameters', async () => {
       (api.get as any).mockResolvedValue({
-        data: [],
-        pagination: { total: 0, limit: 20, offset: 0, has_more: false },
+        data: {
+          data: [],
+          pagination: { total: 0, limit: 20, offset: 0, has_more: false },
+        },
       });
 
       await analyticsApi.getUserActivity({
@@ -746,17 +758,19 @@ describe('analyticsApi', () => {
       ];
 
       (api.get as any).mockResolvedValue({
-        data: mockActivity,
-        pagination: { total: 1, limit: 20, offset: 0, has_more: false },
+        data: {
+          data: mockActivity,
+          pagination: { total: 1, limit: 20, offset: 0, has_more: false },
+        },
       });
 
       const result = await analyticsApi.getUserActivity();
 
       // Type check
-      expect(Array.isArray(result.data)).toBe(true);
-      if (result.data.length > 0) {
-        expect(result.data[0]).toHaveProperty('user_id');
-        expect(result.data[0]).toHaveProperty('user_email');
+      expect(Array.isArray(result.data.data)).toBe(true);
+      if (result.data.data.length > 0) {
+        expect(result.data.data[0]).toHaveProperty('user_id');
+        expect(result.data.data[0]).toHaveProperty('user_email');
       }
     });
   });
