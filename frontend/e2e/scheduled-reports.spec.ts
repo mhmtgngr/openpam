@@ -480,6 +480,6 @@ test.describe('Scheduled Reports - Error Handling', () => {
     await scheduledReportsPage.runScheduleNow('Test Schedule');
 
     // Should show error message
-    await expect(page.locator('text=error').or(page.locator('text=failed').or(page.locator('text=incomplete'))).toBeVisible();
+    await expect(page.getByText(/error|failed|incomplete/)).toBeVisible();
   });
 });

@@ -39,6 +39,7 @@ const statusConfig: Record<ReportStatus, { variant: 'success' | 'warning' | 'dan
   failed: { variant: 'danger', icon: AlertCircle, label: 'Failed' },
   expired: { variant: 'neutral', icon: Clock, label: 'Expired' },
   scheduled: { variant: 'neutral', icon: Calendar, label: 'Scheduled' },
+  cancelled: { variant: 'neutral', icon: Clock, label: 'Cancelled' },
 };
 
 const formatLabels: Record<ReportFormat, string> = {

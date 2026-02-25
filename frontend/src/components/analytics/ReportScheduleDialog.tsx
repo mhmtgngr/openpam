@@ -31,13 +31,13 @@ const frequencyOptions: Array<{ value: ReportScheduleFrequency; label: string; d
 ];
 
 const daysOfWeek = [
-  { value: 0, label: 'Sunday' },
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
+  { value: '0', label: 'Sunday' },
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
 ];
 
 const timezones = [
@@ -65,7 +65,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
   const [enabled, setEnabled] = useState(existingSchedule?.enabled ?? true);
   const [time, setTime] = useState(existingSchedule?.time || '09:00');
   const [timezone, setTimezone] = useState(existingSchedule?.timezone || 'UTC');
-  const [dayOfWeek, setDayOfWeek] = useState(existingSchedule?.day_of_week ?? 1);
+  const [dayOfWeek, setDayOfWeek] = useState(existingSchedule?.day_of_week?.toString() ?? '1');
   const [dayOfMonth, setDayOfMonth] = useState(existingSchedule?.day_of_month ?? 1);
   const [recipients, setRecipients] = useState(existingSchedule?.recipients?.join(', ') || '');
 
@@ -162,7 +162,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
               Turn off to pause automatic generation without deleting the schedule
             </p>
           </div>
-          <Toggle checked={enabled} onChange={(checked: boolean) => setEnabled(checked)} />
+          <Toggle checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         </div>
 
         {/* Frequency */}
