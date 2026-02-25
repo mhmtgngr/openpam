@@ -665,6 +665,11 @@ func (r *ReportRepository) ListReportSchedules(ctx context.Context, tenantID uui
 
 // UpdateReportSchedule updates a report schedule
 func (r *ReportRepository) UpdateReportSchedule(ctx context.Context, schedule *ReportSchedule) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, schedule.TenantID); err != nil {
+		return err
+	}
+
 	schedule.UpdatedAt = time.Now()
 
 	query := `
@@ -713,6 +718,11 @@ func (r *ReportRepository) UpdateScheduleAfterRun(ctx context.Context, id uuid.U
 
 // DeleteReportSchedule deletes a report schedule
 func (r *ReportRepository) DeleteReportSchedule(ctx context.Context, id, tenantID uuid.UUID) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return err
+	}
+
 	query := `DELETE FROM report_schedules WHERE id = $1 AND tenant_id = $2`
 	_, err := r.Db.ExecContext(ctx, query, id, tenantID)
 	if err != nil {
@@ -735,9 +745,4 @@ func (r *ReportRepository) GetDueSchedules(ctx context.Context, limit int) ([]Re
 		return nil, fmt.Errorf("report.GetDueSchedules: %w", err)
 	}
 	return schedules, nil
-}
-
-// SetTenantIDContext sets the tenant_id context for RLS
-func (r *ReportRepository) SetTenantIDContext(ctx context.Context, tenantID uuid.UUID) context.Context {
-	return context.WithValue(ctx, "tenant_id", tenantID.String())
 }

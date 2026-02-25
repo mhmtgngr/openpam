@@ -361,7 +361,7 @@ func (s *Service) GenerateComplianceReport(ctx context.Context, tenantID, genera
 
 	// Marshal report data for storage
 	reportData := mustMarshalJSON(map[string]interface{}{
-		"by_policy": status.ByPolicy,
+		"by_policy":  status.ByPolicy,
 		"violations": status.Violations,
 	})
 
@@ -381,6 +381,30 @@ func (s *Service) GenerateComplianceReport(ctx context.Context, tenantID, genera
 
 	if err := s.reportRepo.CreateComplianceReport(ctx, dbReport); err != nil {
 		return nil, fmt.Errorf("service.GenerateComplianceReport: %w", err)
+	}
+
+	// Create a report snapshot for file generation tracking
+	summary := fmt.Sprintf("Compliance report for %s framework: %.1f%% overall score",
+		framework, status.OverallPercentage)
+
+	snapshot := &ReportSnapshot{
+		TenantID:     tenantID,
+		ReportID:     dbReport.ID,
+		SnapshotName: fmt.Sprintf("%s Compliance Report - %s", framework, time.Now().Format("2006-01-02")),
+		Framework:    framework,
+		GeneratedAt:  time.Now(),
+		GeneratedBy:  generatedBy,
+		Status:       ReportSnapshotStatusCompleted,
+		PeriodStart:  startDate,
+		PeriodEnd:    endDate,
+		Summary:      &summary,
+		Metadata:     mustMarshalJSON(map[string]interface{}{"generated_by": generatedBy.String()}),
+	}
+
+	// For now, mark as completed without file storage
+	// In a full implementation, this would generate a PDF/Excel file
+	if err := s.reportRepo.CreateReportSnapshot(ctx, snapshot); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to create report snapshot, but report was created")
 	}
 
 	report := &ComplianceReportResponse{

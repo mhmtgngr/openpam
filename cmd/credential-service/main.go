@@ -88,7 +88,7 @@ func main() {
 	secretRepo := vault.NewSecretRepository(db.DB, redisCache, logger)
 	vaultSvc := vault.NewVaultService(secretRepo, envelope, logger)
 	rotationSvc := rotation.NewService(db.DB, vaultSvc, redisCache, logger)
-	credentialSvc := credential.NewService(db.DB, vaultSvc, rotationSvc, redisCache, logger)
+	credentialSvc := credential.NewService(db.DB, vaultSvc, rotationSvc, redisCache, eventPublisher, logger)
 
 	// Setup router
 	router := setupRouter(config, db, redisCache, credentialSvc, eventPublisher, logger)

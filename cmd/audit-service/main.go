@@ -320,6 +320,17 @@ func setupRouter(
 				analytics.GET("/blacklist/stats", handleGetBlacklistStats(analyticsSvc, logger))
 				analytics.POST("/blacklist/:id/enable", handleEnableCommandBlacklist(analyticsSvc, logger))
 				analytics.POST("/blacklist/:id/disable", handleDisableCommandBlacklist(analyticsSvc, logger))
+
+				// Compliance Reports
+				analytics.GET("/reports", handleListComplianceReports(pamAnalyticsSvc, logger))
+				analytics.GET("/reports/:id", handleGetComplianceReport(pamAnalyticsSvc, logger))
+				analytics.POST("/reports", handleGenerateComplianceReport(pamAnalyticsSvc, logger))
+				analytics.DELETE("/reports/:id", handleDeleteComplianceReport(pamAnalyticsSvc, logger))
+
+				// Report Snapshots
+				analytics.GET("/snapshots", handleListReportSnapshots(pamAnalyticsSvc, logger))
+				analytics.GET("/snapshots/:id", handleGetReportSnapshot(pamAnalyticsSvc, logger))
+				analytics.GET("/snapshots/stats", handleGetReportSnapshotStats(pamAnalyticsSvc, logger))
 			}
 
 			// Admin routes
@@ -1455,6 +1466,241 @@ func handleMergeDuplicateAnomalies(svc *audit.AnalyticsService, logger zerolog.L
 			"anomaly_id":       id.String(),
 			"duplicates_merged": count,
 		})
+	}
+}
+
+// =============================================================================
+// Compliance Report Handlers
+// =============================================================================
+
+// handleListComplianceReports handles GET /api/v1/analytics/reports
+func handleListComplianceReports(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		limit := getIntQuery(c, "limit", 50)
+		offset := getIntQuery(c, "offset", 0)
+		framework := c.Query("framework")
+
+		reports, total, err := svc.ListComplianceReports(c.Request.Context(), tenantID, framework, limit, offset)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to list compliance reports")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list reports"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"reports": reports,
+			"total":   total,
+			"limit":   limit,
+			"offset":  offset,
+		})
+	}
+}
+
+// handleGetComplianceReport handles GET /api/v1/analytics/reports/:id
+func handleGetComplianceReport(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		reportID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid report ID"}})
+			return
+		}
+
+		report, err := svc.GetComplianceReport(c.Request.Context(), reportID, tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get compliance report")
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Report not found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, report)
+	}
+}
+
+// handleGenerateComplianceReport handles POST /api/v1/analytics/reports
+func handleGenerateComplianceReport(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_USER", "message": "User ID not found in context"}})
+			return
+		}
+		userIDUUID, err := uuid.Parse(userID.(string))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_USER", "message": "Invalid user ID"}})
+			return
+		}
+
+		var req struct {
+			Framework  string `json:"framework" binding:"required"`
+			PeriodStart string `json:"period_start" binding:"required"`
+			PeriodEnd   string `json:"period_end" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		startDate, err := time.Parse(time.RFC3339, req.PeriodStart)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_DATE", "message": "Invalid period_start format"}})
+			return
+		}
+
+		endDate, err := time.Parse(time.RFC3339, req.PeriodEnd)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_DATE", "message": "Invalid period_end format"}})
+			return
+		}
+
+		report, err := svc.GenerateComplianceReport(c.Request.Context(), tenantID, userIDUUID, req.Framework, startDate, endDate)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to generate compliance report")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to generate report"}})
+			return
+		}
+
+		c.JSON(http.StatusCreated, report)
+	}
+}
+
+// handleDeleteComplianceReport handles DELETE /api/v1/analytics/reports/:id
+func handleDeleteComplianceReport(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		reportID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid report ID"}})
+			return
+		}
+
+		if err := svc.DeleteComplianceReport(c.Request.Context(), reportID, tenantID); err != nil {
+			logger.Error().Err(err).Msg("Failed to delete compliance report")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete report"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Report deleted successfully"})
+	}
+}
+
+// =============================================================================
+// Report Snapshot Handlers
+// =============================================================================
+
+// handleListReportSnapshots handles GET /api/v1/analytics/snapshots
+func handleListReportSnapshots(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		limit := getIntQuery(c, "limit", 50)
+		offset := getIntQuery(c, "offset", 0)
+
+		// Parse optional filters
+		var filter pamanalytics.ReportSnapshotFilter
+		filter.TenantID = tenantID
+		filter.Limit = limit
+		filter.Offset = offset
+
+		if reportID := c.Query("report_id"); reportID != "" {
+			if id, err := uuid.Parse(reportID); err == nil {
+				filter.ReportID = &id
+			}
+		}
+
+		if framework := c.Query("framework"); framework != "" {
+			filter.Framework = framework
+		}
+
+		if status := c.Query("status"); status != "" {
+			filter.Status = status
+		}
+
+		snapshots, total, err := svc.ListReportSnapshots(c.Request.Context(), tenantID, filter)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to list report snapshots")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list snapshots"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"snapshots": snapshots,
+			"total":     total,
+			"limit":     limit,
+			"offset":    offset,
+		})
+	}
+}
+
+// handleGetReportSnapshot handles GET /api/v1/analytics/snapshots/:id
+func handleGetReportSnapshot(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		snapshotID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid snapshot ID"}})
+			return
+		}
+
+		snapshot, err := svc.GetReportSnapshot(c.Request.Context(), snapshotID, tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get report snapshot")
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Snapshot not found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, snapshot)
+	}
+}
+
+// handleGetReportSnapshotStats handles GET /api/v1/analytics/snapshots/stats
+func handleGetReportSnapshotStats(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		stats, err := svc.GetReportSnapshotStats(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get report snapshot stats")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get stats"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, stats)
 	}
 }
 

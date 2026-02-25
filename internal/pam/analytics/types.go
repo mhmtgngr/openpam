@@ -888,12 +888,11 @@ type ReportSnapshot struct {
 	PeriodEnd   time.Time `db:"period_end" json:"period_end"`
 
 	// Content
-	Summary     *string          `db:"summary" json:"summary,omitempty"`
-	Data        json.RawMessage  `db:"data" json:"data,omitempty"`
-	Metadata    json.RawMessage  `db:"metadata" json:"metadata,omitempty"`
-	ExpiresAt   *time.Time       `db:"expires_at" json:"expires_at,omitempty"`
-	ErrorMessage *string         `db:"error_message" json:"error_message,omitempty"`
-	ErrorDetails json.RawMessage  `db:"error_details" json:"error_details,omitempty"`
+	Summary       *string         `db:"summary" json:"summary,omitempty"`
+	Metadata      json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	ExpiresAt     *time.Time      `db:"expires_at" json:"expires_at,omitempty"`
+	ErrorMessage  *string         `db:"error_message" json:"error_message,omitempty"`
+	ErrorDetails  json.RawMessage `db:"error_details" json:"error_details,omitempty"`
 
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`

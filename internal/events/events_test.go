@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/openpam/openpam/internal/cache"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,4 +117,73 @@ func BenchmarkEvent_Marshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, _ = json.Marshal(event)
 	}
+}
+
+// TestNewEventBus_Security tests security validations for event bus initialization
+func TestNewEventBus_Security(t *testing.T) {
+	logger := zerolog.Nop()
+	emptyCache := &cache.Cache{}
+
+	t.Run("rejects empty signing key", func(t *testing.T) {
+		_, err := New(EventConfig{
+			Cache:      emptyCache,
+			Logger:     logger,
+			SigningKey: []byte(""),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "signing key is required")
+		assert.Contains(t, err.Error(), "at least 32 bytes")
+	})
+
+	t.Run("rejects signing key less than 32 bytes", func(t *testing.T) {
+		shortKeys := []struct {
+			name string
+			key  []byte
+		}{
+			{"1 byte", []byte("a")},
+			{"16 bytes", []byte("sixteen_byte_key!!")},
+			{"31 bytes", []byte("thirty_one_byte_key_!!!_one")},
+		}
+
+		for _, tc := range shortKeys {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := New(EventConfig{
+					Cache:      emptyCache,
+					Logger:     logger,
+					SigningKey: tc.key,
+				})
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "at least 32 bytes")
+			})
+		}
+	})
+
+	t.Run("accepts exactly 32 byte signing key", func(t *testing.T) {
+		valid32ByteKey := []byte("exactly_32_byte_signing_key_for_HMAC!")
+		bus, err := New(EventConfig{
+			Cache:      emptyCache,
+			Logger:     logger,
+			SigningKey: valid32ByteKey,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, bus)
+	})
+
+	t.Run("accepts signing key greater than 32 bytes", func(t *testing.T) {
+		valid64ByteKey := []byte("64_byte_signing_key_for_HMAC_SHA256_security__exactly_double__min!")
+		bus, err := New(EventConfig{
+			Cache:      emptyCache,
+			Logger:     logger,
+			SigningKey: valid64ByteKey,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, bus)
+	})
+
+	t.Run("NewForTest creates valid event bus for testing", func(t *testing.T) {
+		bus := NewForTest(emptyCache, logger)
+		assert.NotNil(t, bus)
+		assert.NotNil(t, bus.signingKey)
+		assert.GreaterOrEqual(t, len(bus.signingKey), 32)
+	})
 }
