@@ -34,24 +34,19 @@ type RecordingEncryption struct {
 }
 
 // RecordingConfig holds configuration for recording encryption
-// SECURITY FIX: MasterKey is removed - use KeyManager instead
-// SECURITY FIX: Static access/secret keys are deprecated - use IAM-based credentials
+// SECURITY: Uses KMS for master key management and IAM-based credentials for S3/MinIO
 type RecordingConfig struct {
-	MinioEndpoint        string
-	// DEPRECATED: Use IAM-based credentials instead of static keys
-	MinioAccessKey       string
-	MinioSecretKey       string
-	MinioBucket          string
-	MinioUseSSL          bool
-	// SECURITY FIX: IAM-based authentication (preferred for cloud deployments)
-	MinioUseIAM          bool
-	MinioRegion          string
-	MinioRoleARN         string // For assumed role credentials
-	// DEPRECATED: MasterKey is removed for security. Use KeyManager instead.
-	// MasterKey            []byte
-	KeyManager           kms.KeyManager // KMS for master key management
-	MasterKeyID          string         // KMS key ID for the master key
-	DB                   *sqlx.DB
+	MinioEndpoint string
+	MinioBucket   string
+	MinioUseSSL   bool
+	// SECURITY: IAM-based authentication is required for cloud deployments
+	MinioUseIAM  bool
+	MinioRegion  string
+	MinioRoleARN string // For assumed role credentials
+	// SECURITY: KMS-based master key management
+	KeyManager  kms.KeyManager // KMS for master key management
+	MasterKeyID string         // KMS key ID for the master key
+	DB          *sqlx.DB
 }
 
 // NewRecordingEncryption creates a new recording encryption handler
@@ -85,21 +80,19 @@ func NewRecordingEncryption(config RecordingConfig, logger zerolog.Logger) (*Rec
 		testKey[i] = 0
 	}
 
-	// SECURITY FIX: Initialize MinIO client with IAM-based credentials when available
+	// SECURITY: Initialize MinIO client with IAM-based credentials
 	// IAM-based authentication eliminates the need for static, long-lived access keys
 	var creds *credentials.Credentials
 	if config.MinioUseIAM {
 		// Use IAM-based credential chain (environment, EC2 role, ECS task role)
-		// This is the recommended approach for cloud deployments
+		// This is the required approach for cloud deployments
 		creds = credentials.NewIAM(config.MinioRoleARN)
 		logger.Info().Msg("Using IAM-based authentication for MinIO/S3")
 	} else {
-		// Fall back to static credentials (should only be used for local development)
-		if config.MinioAccessKey == "" || config.MinioSecretKey == "" {
-			return nil, fmt.Errorf("session: static credentials required when IAM is disabled")
-		}
-		creds = credentials.NewStaticV4(config.MinioAccessKey, config.MinioSecretKey, "")
-		logger.Warn().Msg("Using static access keys for MinIO/S3 - consider migrating to IAM-based authentication")
+		// For local development, use environment-based credentials via minio-go's default chain
+		// This checks MINIO_ROOT_USER/MINIO_ROOT_PASSWORD or AWS credentials from environment
+		creds = credentials.New("") // Empty string triggers default credential chain
+		logger.Info().Msg("Using environment-based credentials for MinIO/S3 (local development)")
 	}
 
 	minioClient, err := minio.New(config.MinioEndpoint, &minio.Options{

@@ -18,14 +18,13 @@ import (
 )
 
 // EventBus handles event publishing and subscription
-// SECURITY FIX: All events must be signed to prevent event injection/spoofing
+// SECURITY: All events must be signed to prevent event injection/spoofing
 type EventBus struct {
-	cache        *cache.Cache
-	logger       zerolog.Logger
-	handlers     map[string][]Handler
-	signingKey   []byte // HMAC signing key for event signatures
-	allowUnsigned bool // SECURITY: When false, reject unsigned events
-	mu           sync.RWMutex
+	cache      *cache.Cache
+	logger     zerolog.Logger
+	handlers   map[string][]Handler
+	signingKey []byte // HMAC signing key for event signatures
+	mu         sync.RWMutex
 }
 
 // Handler processes an event
@@ -48,14 +47,13 @@ type Event struct {
 
 // EventConfig holds configuration for the event bus
 type EventConfig struct {
-	Cache        *cache.Cache
-	Logger       zerolog.Logger
-	SigningKey   []byte // HMAC signing key (should come from KMS in production)
-	AllowUnsigned bool  // When false, reject all unsigned events (default: false for security)
+	Cache      *cache.Cache
+	Logger     zerolog.Logger
+	SigningKey []byte // HMAC signing key (should come from KMS in production)
 }
 
 // New creates a new event bus
-// SECURITY FIX: Signing key is required. Events without valid signatures are rejected.
+// SECURITY: Signing key is required. Events without valid signatures are always rejected.
 func New(cfg EventConfig) *EventBus {
 	if len(cfg.SigningKey) < 32 {
 		cfg.Logger.Warn().Msg("events: signing key is less than 32 bytes, using default insecure key - DO NOT USE IN PRODUCTION")
@@ -63,11 +61,10 @@ func New(cfg EventConfig) *EventBus {
 	}
 
 	bus := &EventBus{
-		cache:        cfg.Cache,
-		logger:       cfg.Logger,
-		handlers:     make(map[string][]Handler),
-		signingKey:   cfg.SigningKey,
-		allowUnsigned: cfg.AllowUnsigned,
+		cache:      cfg.Cache,
+		logger:     cfg.Logger,
+		handlers:   make(map[string][]Handler),
+		signingKey: cfg.SigningKey,
 	}
 	go bus.startSubscriptionListener()
 	return bus
@@ -82,13 +79,13 @@ func NewWithConfig(cfg EventConfig) *EventBus {
 // DEPRECATED: Use New(EventConfig) instead
 // NewWithoutConfig creates a new event bus without explicit config
 // This is kept for backward compatibility but should not be used in production
+// SECURITY: Even this deprecated version requires signed events
 func NewWithoutConfig(c *cache.Cache, logger zerolog.Logger) *EventBus {
-	logger.Warn().Msg("events: Using deprecated New() function - events will NOT be signed. Use New(EventConfig) with a signing key for security.")
+	logger.Warn().Msg("events: Using deprecated New() function. Use New(EventConfig) with a proper signing key for security.")
 	return New(EventConfig{
-		Cache:        c,
-		Logger:       logger,
-		SigningKey:   []byte("INSECURE_DEFAULT_KEY_DO_NOT_USE_IN_PRODUCTION"),
-		AllowUnsigned: true, // Allow unsigned for backward compatibility
+		Cache:      c,
+		Logger:     logger,
+		SigningKey: []byte("INSECURE_DEFAULT_KEY_DO_NOT_USE_IN_PRODUCTION"),
 	})
 }
 
@@ -114,9 +111,11 @@ func (eb *EventBus) computeSignature(event Event) string {
 
 // verifySignature verifies the HMAC signature of an event
 // SECURITY: Uses hmac.Equal for constant-time comparison to prevent timing attacks
+// SECURITY: All events must have a valid signature - unsigned events are always rejected
 func (eb *EventBus) verifySignature(event Event) bool {
 	if event.Signature == "" {
-		return eb.allowUnsigned
+		// SECURITY: Never accept unsigned events
+		return false
 	}
 
 	expectedSig := eb.computeSignature(event)
@@ -125,7 +124,7 @@ func (eb *EventBus) verifySignature(event Event) bool {
 }
 
 // Publish publishes an event to the event bus
-// SECURITY FIX: Events must be signed. Unsigned events are rejected unless AllowUnsigned is true.
+// SECURITY: All events must be signed. Unsigned events are always rejected.
 func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	if event.ID == "" {
 		event.ID = uuid.New().String()

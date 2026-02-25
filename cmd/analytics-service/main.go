@@ -65,10 +65,9 @@ func main() {
 		logger.Warn().Msg("EVENT_SIGNING_KEY not set, using insecure default - DO NOT USE IN PRODUCTION")
 	}
 	eventBus := events.New(events.EventConfig{
-		Cache:        redisCache,
-		Logger:       logger,
-		SigningKey:   []byte(eventSigningKey),
-		AllowUnsigned: false, // Reject unsigned events for security
+		Cache:      redisCache,
+		Logger:     logger,
+		SigningKey: []byte(eventSigningKey),
 	})
 	eventPublisher := events.NewPublisher(eventBus)
 
