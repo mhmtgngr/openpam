@@ -32,7 +32,6 @@ import { SessionPolicyFormPage } from '@/pages/policies/SessionPolicyFormPage';
 import { AccessPolicyListPage } from '@/pages/policies/AccessPolicyListPage';
 import { AccessPolicyFormPage } from '@/pages/policies/AccessPolicyFormPage';
 import { PolicyTestPage } from '@/pages/policies/PolicyTestPage';
-<<<<<<< HEAD
 import {
   AnalyticsPage,
   AnomalyListPage,
@@ -42,9 +41,6 @@ import {
   ReportGeneratorPage,
   ExceptionManagementPage,
 } from '@/pages/analytics';
-=======
-import { AnalyticsPage, AnomalyListPage, AnomalyDetailPage, ReportsPage, ReportDetailPage, ReportGeneratorPage } from '@/pages/analytics';
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -313,11 +309,7 @@ const AppRoutes: React.FC = () => {
 
         {/* Reports */}
         <Route
-<<<<<<< HEAD
-          path="/reports"
-=======
           path="/analytics/reports"
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportsPage />
@@ -325,11 +317,7 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-<<<<<<< HEAD
-          path="/reports/generate"
-=======
           path="/analytics/reports/generate"
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportGeneratorPage />
@@ -337,18 +325,13 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-<<<<<<< HEAD
-          path="/reports/:id"
-=======
           path="/analytics/reports/:id"
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportDetailPage />
             </ProtectedRoute>
           }
         />
-<<<<<<< HEAD
 
         {/* Exceptions */}
         <Route
@@ -359,8 +342,6 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-=======
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
       </Route>
 
       {/* Default redirect */}
