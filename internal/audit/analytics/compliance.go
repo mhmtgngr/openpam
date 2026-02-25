@@ -13,7 +13,7 @@ import (
 // ComplianceEngine handles compliance framework evaluations
 type ComplianceEngine struct {
 	repo   Repository
-	cache  *RedisCache
+	cache  *RedisMetricsCache
 	logger zerolog.Logger
 
 	// Framework definitions
@@ -237,8 +237,8 @@ func (e *ComplianceEngine) GenerateReport(ctx context.Context, tenantID uuid.UUI
 }
 
 // evaluateControl evaluates a single control
-func (e *ComplianceEngine) evaluateControl(ctx context.Context, tenantID uuid.UUID, control ControlDefinition, periodStart, periodEnd time.Time) (*ComplianceControlEvaluation, error) {
-	evaluation := &ComplianceControlEvaluation{
+func (e *ComplianceEngine) evaluateControl(ctx context.Context, tenantID uuid.UUID, control ControlDefinition, periodStart, periodEnd time.Time) (*ControlEvaluation, error) {
+	evaluation := &ControlEvaluation{
 		ControlID:     control.ID,
 		ControlName:   control.Name,
 		ControlCategory: &control.Category,

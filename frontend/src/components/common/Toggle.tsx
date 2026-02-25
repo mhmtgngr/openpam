@@ -1,10 +1,15 @@
 import React from 'react';
 import clsx from 'clsx';
 
-export interface ToggleProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'size'> {
+export interface ToggleProps {
   label?: string;
   description?: string;
   size?: 'sm' | 'md';
+  checked?: boolean;
+  disabled?: boolean;
+  className?: string;
+  // Allow onChange to receive either a ChangeEvent or a boolean value directly
+  onChange?: ((event: React.ChangeEvent<HTMLInputElement>) => void) | ((value: boolean) => void);
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -39,7 +44,16 @@ export const Toggle: React.FC<ToggleProps> = ({
         role="switch"
         aria-checked={checked}
         disabled={disabled}
-        onClick={() => !disabled && onChange?.({ target: { checked: !checked } } as any)}
+        onClick={() => {
+          if (disabled) return;
+          const newChecked = !checked;
+          if (onChange) {
+            // Support both event handler pattern and direct boolean setter pattern
+            // Try to detect if onChange is a setState-like function by checking arity
+            // React setState functions receive either a value or a function
+            onChange(newChecked as any);
+          }
+        }}
         className={clsx(
           'relative inline-flex flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900',
           styles.toggle,

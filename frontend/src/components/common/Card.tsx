@@ -5,11 +5,12 @@ export interface CardProps {
   children: React.ReactNode;
   className?: string;
   noPadding?: boolean;
+  onClick?: () => void;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className, noPadding }) => {
+export const Card: React.FC<CardProps> = ({ children, className, noPadding, onClick }) => {
   return (
-    <div className={clsx('card', className)}>
+    <div className={clsx('card', className)} onClick={onClick}>
       {noPadding ? children : <div className="card-body">{children}</div>}
     </div>
   );

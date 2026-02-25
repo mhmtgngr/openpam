@@ -5,30 +5,6 @@
 
 import { api } from './client';
 import type {
-<<<<<<< HEAD
-  Report,
-  ReportSnapshot,
-  ReportJob,
-  ReportSchedule,
-  ComplianceException,
-  FrameworkMetadata,
-  ReportDashboardData,
-  ReportListParams,
-  ReportScheduleListParams,
-  ExceptionListParams,
-  CreateReportData,
-  UpdateReportData,
-  CreateReportScheduleData,
-  UpdateReportScheduleData,
-  CreateExceptionData,
-  UpdateExceptionData,
-  GenerateReportRequest,
-  GenerateReportResponse,
-  ExportReportRequest,
-  ExportReportResponse,
-} from '@/types/reports';
-import type { PaginatedResponse as BasePaginatedResponse } from '@/types';
-=======
   PaginatedResponse,
   ComplianceFramework,
   ComplianceReport as BaseComplianceReport,
@@ -47,269 +23,8 @@ import type {
   ScheduledReportExecution,
 } from '@/types/reports';
 
-export interface ReportListParams {
-  limit?: number;
-  offset?: number;
-  type?: ReportType;
-  framework?: ComplianceFramework;
-  status?: ReportStatus;
-  format?: ReportFormat;
-  generated_by?: string;
-  start_date?: string;
-  end_date?: string;
-  search?: string;
-  sort_by?: 'created_at' | 'period_start' | 'period_end' | 'type';
-  sort_order?: 'asc' | 'desc';
-}
-
-export interface CreateReportData {
-  name: string;
-  type: ReportType;
-  framework?: ComplianceFramework;
-  description?: string;
-  schedule?: string;
-  config: {
-    period_start: string;
-    period_end: string;
-    include_sections: string[];
-    filters?: Record<string, unknown>;
-  };
-}
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
-
 // Reports API
 export const reportsApi = {
-<<<<<<< HEAD
-  // List reports with filtering
-  list: (params?: ReportListParams) =>
-    api.get<BasePaginatedResponse<Report>>('/reports', params),
-
-  // Get report by ID
-  get: (id: string) =>
-    api.get<Report>(`/reports/${id}`),
-
-  // Create a new report
-  create: (data: CreateReportData) =>
-    api.post<Report>('/reports', data),
-
-  // Update report metadata
-  update: (id: string, data: UpdateReportData) =>
-    api.patch<Report>(`/reports/${id}`, data),
-
-  // Delete report (soft delete)
-  delete: (id: string) =>
-    api.delete<void>(`/reports/${id}`),
-
-  // Generate report on-demand
-  generate: (data: GenerateReportRequest) =>
-    api.post<GenerateReportResponse>('/reports/generate', data),
-
-  // Get generation job status
-  getJobStatus: (jobId: string) =>
-    api.get<ReportJob>(`/reports/jobs/${jobId}`),
-
-  // List jobs for a report
-  listJobs: (reportId: string, params?: { limit?: number; offset?: number }) =>
-    api.get<BasePaginatedResponse<ReportJob>>(`/reports/${reportId}/jobs`, params),
-
-  // Cancel running job
-  cancelJob: (jobId: string) =>
-    api.post<{ cancelled: boolean }>(`/reports/jobs/${jobId}/cancel`, {}),
-
-  // Export report
-  export: (id: string, request: ExportReportRequest) =>
-    api.post<ExportReportResponse>(`/reports/${id}/export`, request),
-
-  // Download report file
-  download: (id: string) => {
-    // Return the URL for direct download
-    const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
-    return `${API_BASE}/reports/${id}/download`;
-  },
-
-  // Get dashboard data
-  getDashboard: () =>
-    api.get<ReportDashboardData>('/reports/dashboard'),
-
-  // Get framework metadata
-  getFrameworkMetadata: (framework: string) =>
-    api.get<FrameworkMetadata>(`/reports/frameworks/${framework}`),
-
-  // List all frameworks
-  listFrameworks: () =>
-    api.get<FrameworkMetadata[]>('/reports/frameworks'),
-};
-
-// Report Schedules API
-export const reportSchedulesApi = {
-  // List schedules
-  list: (params?: ReportScheduleListParams) =>
-    api.get<BasePaginatedResponse<ReportSchedule>>('/reports/schedules', params),
-
-  // Get schedule by ID
-  get: (id: string) =>
-    api.get<ReportSchedule>(`/reports/schedules/${id}`),
-
-  // Create schedule
-  create: (data: CreateReportScheduleData) =>
-    api.post<ReportSchedule>('/reports/schedules', data),
-
-  // Update schedule
-  update: (id: string, data: UpdateReportScheduleData) =>
-    api.patch<ReportSchedule>(`/reports/schedules/${id}`, data),
-
-  // Delete schedule
-  delete: (id: string) =>
-    api.delete<void>(`/reports/schedules/${id}`),
-
-  // Pause schedule
-  pause: (id: string) =>
-    api.post<ReportSchedule>(`/reports/schedules/${id}/pause`, {}),
-
-  // Resume schedule
-  resume: (id: string) =>
-    api.post<ReportSchedule>(`/reports/schedules/${id}/resume`, {}),
-
-  // Trigger immediate run
-  runNow: (id: string) =>
-    api.post<GenerateReportResponse>(`/reports/schedules/${id}/run`, {}),
-
-  // Get schedule run history
-  getHistory: (id: string, params?: { limit?: number; offset?: number }) =>
-    api.get<BasePaginatedResponse<ReportJob>>(`/reports/schedules/${id}/history`, params),
-
-  // Preview next run times
-  previewNextRuns: (id: string, count: number = 5) =>
-    api.get<{ next_runs: string[] }>(`/reports/schedules/${id}/preview`, { count }),
-};
-
-// Report Snapshots API
-export const reportSnapshotsApi = {
-  // List snapshots for a report
-  list: (reportId: string, params?: { limit?: number; offset?: number }) =>
-    api.get<BasePaginatedResponse<ReportSnapshot>>(`/reports/${reportId}/snapshots`, params),
-
-  // Get specific snapshot
-  get: (id: string) =>
-    api.get<ReportSnapshot>(`/reports/snapshots/${id}`),
-
-  // Compare two snapshots
-  compare: (snapshotId1: string, snapshotId2: string) =>
-    api.get<{
-      snapshot1: ReportSnapshot;
-      snapshot2: ReportSnapshot;
-      differences: Array<{
-        field: string;
-        value1: unknown;
-        value2: unknown;
-      }>;
-    }>(`/reports/snapshots/compare`, { snapshot_id_1: snapshotId1, snapshot_id_2: snapshotId2 }),
-
-  // Restore snapshot to create new report version
-  restore: (id: string) =>
-    api.post<Report>(`/reports/snapshots/${id}/restore`, {}),
-
-  // Download snapshot
-  download: (id: string) => {
-    const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
-    return `${API_BASE}/reports/snapshots/${id}/download`;
-  },
-};
-
-// Compliance Exceptions API
-export const complianceExceptionsApi = {
-  // List exceptions
-  list: (params?: ExceptionListParams) =>
-    api.get<BasePaginatedResponse<ComplianceException>>('/compliance/exceptions', params),
-
-  // Get exception by ID
-  get: (id: string) =>
-    api.get<ComplianceException>(`/compliance/exceptions/${id}`),
-
-  // Create exception request
-  create: (data: CreateExceptionData) =>
-    api.post<ComplianceException>('/compliance/exceptions', data),
-
-  // Update exception (approve/deny/update notes)
-  update: (id: string, data: UpdateExceptionData) =>
-    api.patch<ComplianceException>(`/compliance/exceptions/${id}`, data),
-
-  // Delete exception
-  delete: (id: string) =>
-    api.delete<void>(`/compliance/exceptions/${id}`),
-
-  // Approve exception
-  approve: (id: string, notes?: string) =>
-    api.post<ComplianceException>(`/compliance/exceptions/${id}/approve`, { notes }),
-
-  // Deny exception
-  deny: (id: string, reason: string) =>
-    api.post<ComplianceException>(`/compliance/exceptions/${id}/deny`, { reason }),
-
-  // Revoke exception
-  revoke: (id: string, reason: string) =>
-    api.post<ComplianceException>(`/compliance/exceptions/${id}/revoke`, { reason }),
-
-  // Extend exception expiration
-  extend: (id: string, expiresAt: string, reason: string) =>
-    api.post<ComplianceException>(`/compliance/exceptions/${id}/extend`, {
-      expires_at: expiresAt,
-      reason,
-    }),
-
-  // Get pending exceptions
-  getPending: (params?: Pick<ExceptionListParams, 'limit' | 'offset'>) =>
-    api.get<BasePaginatedResponse<ComplianceException>>('/compliance/exceptions/pending', params),
-
-  // Get expiring exceptions
-  getExpiring: (days: number = 30, params?: Pick<ExceptionListParams, 'limit' | 'offset'>) =>
-    api.get<BasePaginatedResponse<ComplianceException>>(`/compliance/exceptions/expiring`, { days, ...params }),
-
-  // Upload exception document
-  uploadDocument: (exceptionId: string, file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
-    const token = localStorage.getItem('access_token');
-
-    return fetch(`${API_BASE}/compliance/exceptions/${exceptionId}/documents`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-      body: formData,
-    }).then((res) => res.json());
-  },
-
-  // Delete exception document
-  deleteDocument: (exceptionId: string, documentId: string) =>
-    api.delete<void>(`/compliance/exceptions/${exceptionId}/documents/${documentId}`),
-};
-
-// Type exports for convenience
-export type {
-  Report,
-  ReportSnapshot,
-  ReportJob,
-  ReportSchedule,
-  ComplianceException,
-  FrameworkMetadata,
-  ReportDashboardData,
-  ReportListParams,
-  ReportScheduleListParams,
-  ExceptionListParams,
-  CreateReportData,
-  UpdateReportData,
-  CreateReportScheduleData,
-  UpdateReportScheduleData,
-  CreateExceptionData,
-  UpdateExceptionData,
-  GenerateReportRequest,
-  GenerateReportResponse,
-  ExportReportRequest,
-  ExportReportResponse,
-=======
   // ========== Report Snapshots (Generated Reports) ==========
 
   // List report snapshots with filters
@@ -338,6 +53,7 @@ export type {
       snapshot_id: string;
       status: ReportStatus;
       estimated_completion_at?: string;
+      job_id: string;
     }>('/reports/generate', data),
 
   // ========== Compliance Report Definitions ==========
@@ -350,10 +66,34 @@ export type {
   get: (id: string) => api.get<BaseComplianceReport>(`/reports/${id}`),
 
   // Create report definition
-  create: (data: CreateReportData) => api.post<BaseComplianceReport>('/reports', data),
+  create: (data: {
+    name: string;
+    type: ReportType;
+    framework?: ComplianceFramework;
+    description?: string;
+    schedule?: ReportSchedule;
+    config: {
+      period_start: string;
+      period_end: string;
+      include_sections: string[];
+      filters?: Record<string, unknown>;
+    };
+  }) => api.post<BaseComplianceReport>('/reports', data),
 
   // Update report definition
-  update: (id: string, data: Partial<CreateReportData>) =>
+  update: (id: string, data: Partial<{
+    name: string;
+    type: ReportType;
+    framework?: ComplianceFramework;
+    description?: string;
+    schedule?: ReportSchedule;
+    config: {
+      period_start: string;
+      period_end: string;
+      include_sections: string[];
+      filters?: Record<string, unknown>;
+    };
+  }>) =>
     api.patch<BaseComplianceReport>(`/reports/${id}`, data),
 
   // Delete report definition
@@ -446,7 +186,15 @@ export type {
       controls: { name: string; status: 'compliant' | 'non_compliant' | 'partial'; score: number }[];
       last_updated: string;
     }>('/reports/compliance-status', { standard }),
->>>>>>> team/complete-todo-items-in-internalpamanalyt-1772007192
+
+  // Get dashboard data
+  getDashboard: () =>
+    api.get<{
+      total_reports: number;
+      scheduled_reports: number;
+      pending_exceptions: number;
+      generation_queue: Array<{ id: string; name: string; status: string }>;
+    }>('/reports/dashboard'),
 };
 
 // Export types

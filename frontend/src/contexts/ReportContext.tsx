@@ -121,7 +121,7 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
       framework?: string;
     }) => reportsApi.generate(data),
     onSuccess: (response) => {
-      toast.success(`Report generation started (ID: ${response.data.snapshot_id})`);
+      toast.success(`Report generation started (ID: ${response.snapshot_id})`);
       queryClient.invalidateQueries({ queryKey: ['reportSnapshots'] });
     },
     onError: (error: Error) => {
@@ -145,10 +145,10 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
   });
 
   // Memoized values
-  const snapshots = snapshotsData?.data.data || [];
-  const totalSnapshots = snapshotsData?.data.pagination?.total || 0;
-  const complianceReports = complianceData?.data.data || [];
-  const templates = templatesData?.data || [];
+  const snapshots = snapshotsData?.data || [];
+  const totalSnapshots = snapshotsData?.pagination?.total || 0;
+  const complianceReports = complianceData?.data || [];
+  const templates = templatesData || [];
 
   // Actions
   const handleSetFilters = useCallback((newFilters: ReportListParams) => {
@@ -165,7 +165,7 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
     framework?: string;
   }) => {
     const result = await generateMutation.mutateAsync(data);
-    return result?.data;
+    return result;
   }, [generateMutation]);
 
   const handleDeleteSnapshot = useCallback(async (id: string) => {
@@ -175,8 +175,8 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
   const handleDownloadSnapshot = useCallback(async (id: string) => {
     try {
       const response = await reportsApi.downloadSnapshot(id);
-      if (response.data.download_url) {
-        window.open(response.data.download_url, '_blank');
+      if (response.download_url) {
+        window.open(response.download_url, '_blank');
         toast.success('Report download started');
       }
     } catch (error) {
