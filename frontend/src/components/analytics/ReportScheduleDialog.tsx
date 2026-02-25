@@ -94,7 +94,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
       case 'daily':
         return `Runs every day at ${timeStr}${recipientStr}`;
       case 'weekly':
-        return `Runs every ${daysOfWeek.find((d) => d.value === dayOfWeek)?.label} at ${timeStr}${recipientStr}`;
+        return `Runs every ${daysOfWeek.find((d) => d.value === dayOfWeek.toString())?.label} at ${timeStr}${recipientStr}`;
       case 'monthly':
         return `Runs on the ${dayOfMonth}${getOrdinalSuffix(dayOfMonth)} of each month at ${timeStr}${recipientStr}`;
       case 'quarterly':

@@ -212,7 +212,7 @@ export const ConditionBuilder: React.FC<ConditionBuilderProps> = ({
                       </Button>
                       <Toggle
                         checked={condition.negated}
-                        onChange={(e) => updateCondition(index, { negated: e.target.checked })}
+                        onChange={(checked: boolean) => updateCondition(index, { negated: checked })}
                         className="mr-2"
                       />
                       <Button

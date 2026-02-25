@@ -311,9 +311,17 @@ const AppRoutes: React.FC = () => {
           }
         />
 
-        {/* Reports */}
+        {/* Reports - support both /reports and /analytics/reports routes */}
         <Route
           path="/reports"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
+              <ReportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics/reports"
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportsPage />
@@ -329,7 +337,23 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
+          path="/analytics/reports/generate"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
+              <ReportGeneratorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/reports/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
+              <ReportDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics/reports/:id"
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportDetailPage />

@@ -204,6 +204,12 @@ export const ReportsPage: React.FC = () => {
     }
   };
 
+  const activeFilterCount =
+    (filters.type ? 1 : 0) +
+    (filters.status ? 1 : 0) +
+    (filters.format ? 1 : 0) +
+    (filters.search ? 1 : 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -225,10 +231,8 @@ export const ReportsPage: React.FC = () => {
           </Button>
           <Button
             variant="primary"
-            onClick={() => navigate('/reports/generate')}
-            className="flex items-center gap-2"
+            onClick={() => navigate('/analytics/reports/generate')}
           >
-            <Plus className="h-4 w-4" />
             Generate Report
           </Button>
         </div>
@@ -247,7 +251,7 @@ export const ReportsPage: React.FC = () => {
             'cursor-pointer transition-colors hover:bg-gray-800/50',
             !filters.status && 'border-l-2 border-l-success-500'
           )}
-          onClick={() => handleStatusChange({ target: { value: 'completed' } } as any)}
+          onClick={() => setFilters({ ...filters, status: 'completed' as ReportStatus, offset: 0 })}
         >
           <div className="card-body py-3 text-center">
             <p className="text-2xl font-bold text-success-400">{statusCounts.completed || 0}</p>
@@ -259,7 +263,7 @@ export const ReportsPage: React.FC = () => {
             'cursor-pointer transition-colors hover:bg-gray-800/50',
             filters.status === 'generating' && 'border-l-2 border-l-warning-500'
           )}
-          onClick={() => handleStatusChange({ target: { value: 'generating' } } as any)}
+          onClick={() => setFilters({ ...filters, status: 'generating' as ReportStatus, offset: 0 })}
         >
           <div className="card-body py-3 text-center">
             <p className="text-2xl font-bold text-warning-400">
@@ -273,7 +277,7 @@ export const ReportsPage: React.FC = () => {
             'cursor-pointer transition-colors hover:bg-gray-800/50',
             filters.status === 'failed' && 'border-l-2 border-l-danger-500'
           )}
-          onClick={() => handleStatusChange({ target: { value: 'failed' } } as any)}
+          onClick={() => setFilters({ ...filters, status: 'failed' as ReportStatus, offset: 0 })}
         >
           <div className="card-body py-3 text-center">
             <p className="text-2xl font-bold text-danger-400">{statusCounts.failed || 0}</p>
@@ -285,7 +289,7 @@ export const ReportsPage: React.FC = () => {
             'cursor-pointer transition-colors hover:bg-gray-800/50',
             filters.status === 'expired' && 'border-l-2 border-l-gray-500'
           )}
-          onClick={() => handleStatusChange({ target: { value: 'expired' } } as any)}
+          onClick={() => setFilters({ ...filters, status: 'expired' as ReportStatus, offset: 0 })}
         >
           <div className="card-body py-3 text-center">
             <p className="text-2xl font-bold text-gray-400">{statusCounts.expired || 0}</p>
@@ -556,6 +560,19 @@ export const ReportsPage: React.FC = () => {
           )}
         </div>
       )}
+<<<<<<< HEAD
+=======
+
+      {/* Report Viewer Modal */}
+      {selectedSnapshot && (
+        <ReportViewer
+          report={currentSnapshot}
+          isLoading={isLoadingDetail}
+          onClose={() => setSelectedIds(new Set())}
+          onDownload={(r) => downloadSnapshot(r.id)}
+        />
+      )}
+>>>>>>> team/complete-todo-items-for-anomaly-detectio-1772017917
     </div>
   );
 };

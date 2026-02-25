@@ -1,7 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 
-type Variant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+type Variant = 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'primary';
 
 export interface BadgeProps {
   children: React.ReactNode;
@@ -24,6 +24,7 @@ export const Badge: React.FC<BadgeProps> = ({
     danger: 'badge-danger',
     info: 'badge-info',
     neutral: 'badge-neutral',
+    primary: 'bg-primary-500/20 text-primary-400 border border-primary-500/30',
   };
 
   const sizeStyles = {

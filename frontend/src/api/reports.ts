@@ -5,93 +5,38 @@
 
 import { api } from './client';
 import type {
-  Report,
+  PaginatedResponse,
+  ComplianceFramework,
+} from '@/types';
+import type {
   ReportSnapshot,
-  ReportJob,
-  ReportSchedule,
-  ComplianceException,
-  FrameworkMetadata,
-  ReportDashboardData,
+  ReportType,
+  ReportFormat,
+  ReportStatus,
   ReportListParams,
-  ReportScheduleListParams,
-  ExceptionListParams,
-  CreateReportData,
-  UpdateReportData,
-  CreateReportScheduleData,
-  UpdateReportScheduleData,
-  CreateExceptionData,
-  UpdateExceptionData,
   GenerateReportRequest,
-  GenerateReportResponse,
-  ExportReportRequest,
-  ExportReportResponse,
   ReportTemplate,
   ReportGenerationProgress,
   ScheduledReportExecution,
+  Report,
+  ExportReportRequest,
+  ComplianceException,
+  ExceptionListParams,
+  ExceptionStatus,
+  CreateExceptionData,
+  ComplianceReport,
+  ReportJob,
+  ReportSchedule,
+  FrameworkMetadata,
+  ReportDashboardData,
+  ReportScheduleListParams,
+  UpdateExceptionData,
+  GenerateReportResponse,
+  ExportReportResponse,
 } from '@/types/reports';
-import type { PaginatedResponse } from '@/types';
 
 // Reports API
 export const reportsApi = {
-  // List reports with filtering
-  list: (params?: ReportListParams) =>
-    api.get<PaginatedResponse<Report>>('/reports', params),
-
-  // Get report by ID
-  get: (id: string) =>
-    api.get<Report>(`/reports/${id}`),
-
-  // Create a new report
-  create: (data: CreateReportData) =>
-    api.post<Report>('/reports', data),
-
-  // Update report metadata
-  update: (id: string, data: UpdateReportData) =>
-    api.patch<Report>(`/reports/${id}`, data),
-
-  // Delete report (soft delete)
-  delete: (id: string) =>
-    api.delete<void>(`/reports/${id}`),
-
-  // Generate report on-demand
-  generate: (data: GenerateReportRequest) =>
-    api.post<GenerateReportResponse>('/reports/generate', data),
-
-  // Get generation job status
-  getJobStatus: (jobId: string) =>
-    api.get<ReportJob>(`/reports/jobs/${jobId}`),
-
-  // List jobs for a report
-  listJobs: (reportId: string, params?: { limit?: number; offset?: number }) =>
-    api.get<PaginatedResponse<ReportJob>>(`/reports/${reportId}/jobs`, params),
-
-  // Cancel running job
-  cancelJob: (jobId: string) =>
-    api.post<{ cancelled: boolean }>(`/reports/jobs/${jobId}/cancel`, {}),
-
-  // Export report
-  export: (id: string, request: ExportReportRequest) =>
-    api.post<ExportReportResponse>(`/reports/${id}/export`, request),
-
-  // Download report file
-  download: (id: string) => {
-    // Return the URL for direct download
-    const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
-    return `${API_BASE}/reports/${id}/download`;
-  },
-
-  // Get dashboard data
-  getDashboard: () =>
-    api.get<ReportDashboardData>('/reports/dashboard'),
-
-  // Get framework metadata
-  getFrameworkMetadata: (framework: string) =>
-    api.get<FrameworkMetadata>(`/reports/frameworks/${framework}`),
-
-  // List all frameworks
-  listFrameworks: () =>
-    api.get<FrameworkMetadata[]>('/reports/frameworks'),
-
   // ========== Report Snapshots (Generated Reports) ==========
 
   // List report snapshots with filters
@@ -114,17 +59,111 @@ export const reportsApi = {
   getSnapshotProgress: (id: string) =>
     api.get<ReportGenerationProgress>(`/reports/snapshots/${id}/progress`),
 
+  // Generate a new report (ad-hoc or from definition)
+  generate: (data: GenerateReportRequest) =>
+    api.post<{
+      snapshot_id: string;
+      job_id: string;
+      status: ReportStatus;
+      estimated_completion_at?: string;
+    }>('/reports/generate', data),
+
+  // ========== Compliance Report Definitions ==========
+
+  // List compliance report definitions
+  list: (params?: { framework?: ComplianceFramework; status?: ReportStatus }) =>
+    api.get<PaginatedResponse<ComplianceReport>>('/reports', params),
+
+  // Get report by ID
+  get: (id: string) => api.get<ComplianceReport>(`/reports/${id}`),
+
+  // Create report definition
+  create: (data: {
+    name: string;
+    type: ReportType;
+    framework?: ComplianceFramework;
+    description?: string;
+    schedule?: ReportSchedule;
+    config: {
+      period_start: string;
+      period_end: string;
+      include_sections: string[];
+      filters?: Record<string, unknown>;
+    };
+  }) => api.post<ComplianceReport>('/reports', data),
+
+  // Update report definition
+  update: (id: string, data: Partial<{
+    name: string;
+    type: ReportType;
+    framework?: ComplianceFramework;
+    description?: string;
+    schedule?: ReportSchedule;
+    config: {
+      period_start: string;
+      period_end: string;
+      include_sections: string[];
+      filters?: Record<string, unknown>;
+    };
+  }>) =>
+    api.patch<ComplianceReport>(`/reports/${id}`, data),
+
+  // Delete report definition
+  delete: (id: string) => api.delete<void>(`/reports/${id}`),
+
   // Run report now
   run: (id: string) => api.post<{ snapshot_id: string; status: string }>(`/reports/${id}/run`, {}),
 
   // Generate report with format
-  generateReport: (id: string, format: string) =>
+  generateReport: (id: string, format: ReportFormat) =>
     api.post<{ download_url: string; expires_at: string }>(`/reports/${id}/generate`, { format }),
+
+  // Export a report (returns download URL)
+  export: (id: string, request: ExportReportRequest) =>
+    api.post<{ download_url: string; expires_at: string }>(`/reports/${id}/export`, request),
+
+  // Get direct download URL for a report
+  download: (id: string) => {
+    const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
+    return `${API_BASE}/reports/${id}/download`;
+  },
+
+  // ========== Jobs ==========
+
+  // Get generation job status
+  getJobStatus: (jobId: string) =>
+    api.get<ReportJob>(`/reports/jobs/${jobId}`),
+
+  // List jobs for a report
+  listJobs: (reportId: string, params?: { limit?: number; offset?: number }) =>
+    api.get<PaginatedResponse<ReportJob>>(`/reports/${reportId}/jobs`, params),
+
+  // Cancel running job
+  cancelJob: (jobId: string) =>
+    api.post<{ cancelled: boolean }>(`/reports/jobs/${jobId}/cancel`, {}),
+
+  // ========== Scheduling ==========
+
+  // Schedule a report
+  schedule: (reportId: string, schedule: ReportSchedule) =>
+    api.post<{ schedule_id: string; next_run_at: string }>(`/reports/${reportId}/schedule`, schedule),
+
+  // Update report schedule
+  updateSchedule: (reportId: string, schedule: ReportSchedule) =>
+    api.patch<{ schedule_id: string; next_run_at: string }>(`/reports/${reportId}/schedule`, schedule),
+
+  // Get scheduled executions
+  getScheduledExecutions: (reportId: string, params?: { status?: ReportStatus; limit?: number; offset?: number }) =>
+    api.get<PaginatedResponse<ScheduledReportExecution>>(`/reports/${reportId}/executions`, params),
+
+  // Cancel scheduled execution
+  cancelExecution: (executionId: string) =>
+    api.post<{ message: string }>(`/reports/executions/${executionId}/cancel`, {}),
 
   // ========== Templates ==========
 
   // Get report templates
-  listTemplates: (params?: { type?: string; framework?: string }) =>
+  listTemplates: (params?: { type?: ReportType; framework?: ComplianceFramework }) =>
     api.get<ReportTemplate[]>('/reports/templates', params),
 
   // Get specific template
@@ -136,7 +175,7 @@ export const reportsApi = {
     period_start: string;
     period_end: string;
     filters?: Record<string, unknown>;
-    format?: string;
+    format?: ReportFormat;
   }) =>
     api.post<{ snapshot_id: string; status: string }>(`/reports/templates/${templateId}/generate`, data),
 
@@ -144,22 +183,22 @@ export const reportsApi = {
 
   // Get available report types
   getTypes: () => api.get<Array<{
-    type: string;
+    type: ReportType;
     name: string;
     description: string;
-    formats: string[];
+    formats: ReportFormat[];
   }>>('/reports/types'),
 
   // Get available frameworks
   getFrameworks: () => api.get<Array<{
-    framework: string;
+    framework: ComplianceFramework;
     name: string;
     description: string;
   }>>('/reports/frameworks'),
 
   // Export raw data without full report generation
   exportData: (data: {
-    type: string;
+    type: ReportType;
     format: 'csv' | 'json' | 'xlsx';
     period_start: string;
     period_end: string;
@@ -175,6 +214,23 @@ export const reportsApi = {
       estimated_rows?: number;
       estimated_duration_seconds?: number;
     }>('/reports/validate', data),
+
+  // Get dashboard data
+  getDashboard: () =>
+    api.get<{
+      total_reports: number;
+      scheduled_reports: number;
+      pending_exceptions: number;
+      generation_queue: Array<{ id: string; name: string; status: string }>;
+    }>('/reports/dashboard'),
+
+  // Get framework metadata
+  getFrameworkMetadata: (framework: string) =>
+    api.get<FrameworkMetadata>(`/reports/frameworks/${framework}`),
+
+  // List all frameworks
+  listFrameworks: () =>
+    api.get<FrameworkMetadata[]>('/reports/frameworks'),
 
   // Get compliance status summary
   getComplianceStatus: (standard?: string) =>
@@ -196,11 +252,43 @@ export const reportSchedulesApi = {
     api.get<ReportSchedule>(`/reports/schedules/${id}`),
 
   // Create schedule
-  create: (data: CreateReportScheduleData) =>
+  create: (data: {
+    name: string;
+    description?: string;
+    report_id?: string;
+    framework: ComplianceFramework;
+    frequency: string;
+    cron_expression?: string;
+    timezone?: string;
+    is_active?: boolean;
+    recipients: string[];
+    distribution_config: Record<string, unknown>;
+    report_config: {
+      period_start: string;
+      period_end: string;
+      include_sections: string[];
+      filters?: Record<string, unknown>;
+    };
+  }) =>
     api.post<ReportSchedule>('/reports/schedules', data),
 
   // Update schedule
-  update: (id: string, data: UpdateReportScheduleData) =>
+  update: (id: string, data: Partial<{
+    name?: string;
+    description?: string;
+    frequency?: string;
+    cron_expression?: string;
+    timezone?: string;
+    is_active?: boolean;
+    recipients?: string[];
+    distribution_config?: Record<string, unknown>;
+    report_config?: {
+      period_start: string;
+      period_end: string;
+      include_sections: string[];
+      filters?: Record<string, unknown>;
+    };
+  }>) =>
     api.patch<ReportSchedule>(`/reports/schedules/${id}`, data),
 
   // Delete schedule
@@ -226,22 +314,6 @@ export const reportSchedulesApi = {
   // Preview next run times
   previewNextRuns: (id: string, count: number = 5) =>
     api.get<{ next_runs: string[] }>(`/reports/schedules/${id}/preview`, { count }),
-
-  // Get scheduled executions
-  getScheduledExecutions: (reportId: string, params?: { status?: string; limit?: number; offset?: number }) =>
-    api.get<PaginatedResponse<ScheduledReportExecution>>(`/reports/${reportId}/executions`, params),
-
-  // Cancel scheduled execution
-  cancelExecution: (executionId: string) =>
-    api.post<{ message: string }>(`/reports/executions/${executionId}/cancel`, {}),
-
-  // Schedule a report
-  schedule: (reportId: string, schedule: ReportSchedule) =>
-    api.post<{ schedule_id: string; next_run_at: string }>(`/reports/${reportId}/schedule`, schedule),
-
-  // Update report schedule
-  updateSchedule: (reportId: string, schedule: ReportSchedule) =>
-    api.patch<{ schedule_id: string; next_run_at: string }>(`/reports/${reportId}/schedule`, schedule),
 };
 
 // Report Snapshots API (legacy methods for backward compatibility)
@@ -348,29 +420,30 @@ export const complianceExceptionsApi = {
     api.delete<void>(`/compliance/exceptions/${exceptionId}/documents/${documentId}`),
 };
 
-// Type exports for convenience
+// Export types
 export type {
-  Report,
   ReportSnapshot,
-  ReportJob,
-  ReportSchedule,
-  ComplianceException,
-  FrameworkMetadata,
-  ReportDashboardData,
+  ReportType,
+  ReportFormat,
+  ReportStatus,
   ReportListParams,
-  ReportScheduleListParams,
-  ExceptionListParams,
-  CreateReportData,
-  UpdateReportData,
-  CreateReportScheduleData,
-  UpdateReportScheduleData,
-  CreateExceptionData,
-  UpdateExceptionData,
   GenerateReportRequest,
-  GenerateReportResponse,
-  ExportReportRequest,
-  ExportReportResponse,
   ReportTemplate,
   ReportGenerationProgress,
   ScheduledReportExecution,
+  Report,
+  ExportReportRequest,
+  ComplianceException,
+  ExceptionListParams,
+  ExceptionStatus,
+  CreateExceptionData,
+  ReportJob,
+  ReportSchedule,
+  FrameworkMetadata,
+  ReportDashboardData,
+  ReportScheduleListParams,
+  UpdateExceptionData,
+  GenerateReportResponse,
+  ExportReportResponse,
+  ComplianceReport,
 };

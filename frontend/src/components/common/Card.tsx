@@ -10,10 +10,7 @@ export interface CardProps {
 
 export const Card: React.FC<CardProps> = ({ children, className, noPadding, onClick }) => {
   return (
-    <div
-      className={clsx('card', className, onClick && 'cursor-pointer')}
-      onClick={onClick}
-    >
+    <div className={clsx('card', className)} onClick={onClick}>
       {noPadding ? children : <div className="card-body">{children}</div>}
     </div>
   );

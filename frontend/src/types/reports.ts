@@ -3,11 +3,10 @@
  * Supports compliance reports, analytics reports, and custom report generation
  */
 
-import type { User } from './index';
-import type { ComplianceFramework } from './index';
+import type { User, PaginatedResponse } from './index';
 
-// Re-export ComplianceFramework for convenience
-export type { ComplianceFramework };
+// Re-export from main types
+export type { ComplianceFramework } from './index';
 
 /**
  * Report type enumeration
@@ -60,33 +59,6 @@ export type ExceptionStatus = 'pending' | 'approved' | 'denied' | 'expired' | 'r
 export type DistributionType = 'email' | 'webhook' | 's3' | 'sharepoint';
 
 /**
- * Main Report Entity
- */
-export interface Report {
-  id: string;
-  name: string;
-  description?: string;
-  framework: ComplianceFramework;
-  status: ReportStatus;
-  period_start: string;
-  period_end: string;
-  generated_at?: string;
-  expires_at?: string;
-  created_by: string;
-  created_by_user?: UserSummary;
-  tenant_id: string;
-  report_data: ReportData;
-  report_metadata: ReportMetadata;
-  snapshot_id?: string;
-  file_url?: string;
-  file_size_bytes?: number;
-  download_count: number;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-}
-
-/**
  * Report snapshot - represents a generated report instance
  */
 export interface ReportSnapshot {
@@ -94,7 +66,7 @@ export interface ReportSnapshot {
   report_id: string;
   report_name?: string;
   type: ReportType;
-  framework?: ComplianceFramework;
+  framework?: string;
   status: ReportStatus;
   format: ReportFormat;
   file_url?: string;
@@ -153,7 +125,6 @@ export interface ReportFilter {
   risk_levels?: string[];
   statuses?: string[];
   environments?: string[];
-  session_types?: string[];
   tags?: string[];
   custom_filters?: Record<string, unknown>;
 }
@@ -176,12 +147,12 @@ export interface FormatOptions {
 export interface ReportSchedule {
   frequency: ReportScheduleFrequency;
   cron_expression?: string;
-  day_of_week?: number; // 0-6 (Sunday-Saturday)
-  day_of_month?: number; // 1-31
-  time?: string; // HH:MM format
+  day_of_week?: number;
+  day_of_month?: number;
+  time?: string;
   timezone?: string;
   enabled: boolean;
-  recipients?: string[]; // Email addresses
+  recipients?: string[];
   next_run_at?: string;
 }
 
@@ -189,9 +160,9 @@ export interface ReportSchedule {
  * Report generation request
  */
 export interface GenerateReportRequest {
-  report_id?: string; // Optional if using ad-hoc generation
+  report_id?: string;
   type: ReportType;
-  framework?: ComplianceFramework;
+  framework?: string;
   format: ReportFormat;
   period_start: string;
   period_end: string;
@@ -206,7 +177,7 @@ export interface GenerateReportRequest {
  */
 export interface ReportListParams {
   type?: ReportType;
-  framework?: ComplianceFramework;
+  framework?: string;
   status?: ReportStatus;
   format?: ReportFormat;
   generated_by?: string;
@@ -226,7 +197,7 @@ export interface ReportTemplate {
   id: string;
   name: string;
   type: ReportType;
-  framework?: ComplianceFramework;
+  framework?: string;
   description?: string;
   thumbnail_url?: string;
   config: ReportConfig;
@@ -250,23 +221,12 @@ export interface ReportTemplateSection {
 }
 
 /**
- * Report section data for rendering
- */
-export interface ReportSection {
-  id: string;
-  title: string;
-  type: 'table' | 'chart' | 'summary' | 'text' | 'heatmap';
-  content: unknown;
-  metadata?: Record<string, unknown>;
-}
-
-/**
  * Report generation progress
  */
 export interface ReportGenerationProgress {
   report_snapshot_id: string;
   status: ReportStatus;
-  progress: number; // 0-100
+  progress: number;
   current_step: string;
   started_at: string;
   estimated_completion_at?: string;
@@ -293,7 +253,7 @@ export interface ReportJob {
   id: string;
   report_id?: string;
   report_name?: string;
-  framework: ComplianceFramework;
+  framework?: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress: number;
   started_at?: string;
@@ -313,7 +273,7 @@ export interface ReportScheduleEntity {
   id: string;
   name: string;
   report_id?: string;
-  framework: ComplianceFramework;
+  framework?: string;
   description?: string;
   frequency: ReportScheduleFrequency;
   cron_expression?: string;
@@ -322,10 +282,10 @@ export interface ReportScheduleEntity {
   last_run_at?: string;
   is_active: boolean;
   recipients: string[];
-  distribution_config: DistributionConfig;
+  distribution_config?: DistributionConfig;
   report_config: ReportConfig;
   created_by: string;
-  created_by_user?: UserSummary;
+  created_by_user?: { id: string; email: string; display_name?: string };
   tenant_id: string;
   created_at: string;
   updated_at: string;
@@ -341,14 +301,14 @@ export interface ComplianceException {
   control_id: string;
   control_name: string;
   control_description?: string;
-  framework: ComplianceFramework;
+  framework: string;
   reason: string;
   business_justification: string;
   mitigation_plan?: string;
   requested_by: string;
-  requested_by_user?: UserSummary;
+  requested_by_user?: { id: string; email: string; display_name?: string };
   approved_by?: string;
-  approved_by_user?: UserSummary;
+  approved_by_user?: { id: string; email: string; display_name?: string };
   requested_at: string;
   reviewed_at?: string;
   expires_at?: string;
@@ -392,161 +352,13 @@ export interface DistributionMethod {
 }
 
 /**
- * Email Distribution Config
- */
-export interface EmailDistributionConfig {
-  to: string[];
-  cc?: string[];
-  bcc?: string[];
-  subject?: string;
-  include_attachments: boolean;
-  formats: ReportFormat[];
-}
-
-/**
- * Webhook Distribution Config
- */
-export interface WebhookDistributionConfig {
-  url: string;
-  headers?: Record<string, string>;
-  retry_count: number;
-  timeout_seconds: number;
-  verify_ssl: boolean;
-}
-
-/**
- * S3 Distribution Config
- */
-export interface S3DistributionConfig {
-  bucket: string;
-  prefix: string;
-  region: string;
-  formats: ReportFormat[];
-}
-
-/**
- * Report Data (stored in JSONB)
- */
-export interface ReportData {
-  framework: ComplianceFramework;
-  period: {
-    start: string;
-    end: string;
-  };
-  summary: ReportSummary;
-  controls: ControlResult[];
-  findings: ReportFinding[];
-  metrics: ReportMetrics;
-  recommendations?: string[];
-}
-
-/**
- * Report Summary
- */
-export interface ReportSummary {
-  overall_score: number;
-  compliant_controls: number;
-  non_compliant_controls: number;
-  partial_controls: number;
-  not_applicable_controls: number;
-  total_findings: number;
-  critical_findings: number;
-  high_findings: number;
-  medium_findings: number;
-  low_findings: number;
-}
-
-/**
- * Control Result
- */
-export interface ControlResult {
-  id: string;
-  name: string;
-  description?: string;
-  category?: string;
-  status: 'compliant' | 'non_compliant' | 'partial' | 'not_applicable';
-  score: number;
-  evidence_count: number;
-  findings: string[];
-  last_assessed: string;
-}
-
-/**
- * Report Finding
- */
-export interface ReportFinding {
-  id: string;
-  control_id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  title: string;
-  description: string;
-  affected_resources?: string[];
-  recommendation?: string;
-  status: 'open' | 'in_progress' | 'resolved' | 'mitigated';
-  discovered_at: string;
-}
-
-/**
- * Report Metrics
- */
-export interface ReportMetrics {
-  total_sessions: number;
-  total_users: number;
-  privileged_sessions: number;
-  failed_authentications: number;
-  high_risk_commands: number;
-  anomalies_detected: number;
-  exceptions_active: number;
-}
-
-/**
- * Report Metadata
- */
-export interface ReportMetadata {
-  version: string;
-  generated_by: string;
-  generated_at: string;
-  tenant_id: string;
-  data_range: {
-    start: string;
-    end: string;
-  };
-  filters_used?: ReportFilter;
-  processing_time_ms: number;
-  row_count?: number;
-}
-
-/**
- * User Summary (lightweight user reference)
- */
-export interface UserSummary {
-  id: string;
-  email: string;
-  display_name?: string;
-  first_name?: string;
-  last_name?: string;
-}
-
-/**
- * Report Schedule List Params
- */
-export interface ReportScheduleListParams {
-  limit?: number;
-  offset?: number;
-  is_active?: boolean;
-  framework?: ComplianceFramework;
-  frequency?: ReportScheduleFrequency;
-  search?: string;
-}
-
-/**
  * Exception List Params
  */
 export interface ExceptionListParams {
   limit?: number;
   offset?: number;
   status?: ExceptionStatus;
-  framework?: ComplianceFramework;
+  framework?: string;
   control_id?: string;
   search?: string;
   expires_after?: string;
@@ -554,97 +366,38 @@ export interface ExceptionListParams {
 }
 
 /**
- * Create Report Data
+ * Base compliance report definition
  */
-export interface CreateReportData {
+export interface ComplianceReport {
+  id: string;
   name: string;
+  type: ReportType;
+  framework?: string;
   description?: string;
-  framework: ComplianceFramework;
-  period_start: string;
-  period_end: string;
-  config: ReportConfig;
-  schedule_id?: string;
-}
-
-/**
- * Update Report Data
- */
-export interface UpdateReportData {
-  name?: string;
-  description?: string;
-  expires_at?: string;
-  report_data?: Partial<ReportData>;
-}
-
-/**
- * Create Report Schedule Data
- */
-export interface CreateReportScheduleData {
-  name: string;
-  description?: string;
-  report_id?: string;
-  framework: ComplianceFramework;
-  frequency: ReportScheduleFrequency;
-  cron_expression?: string;
-  timezone?: string;
-  is_active?: boolean;
-  recipients: string[];
-  distribution_config: DistributionConfig;
-  report_config: ReportConfig;
-}
-
-/**
- * Update Report Schedule Data
- */
-export interface UpdateReportScheduleData {
-  name?: string;
-  description?: string;
-  frequency?: ReportScheduleFrequency;
-  cron_expression?: string;
-  timezone?: string;
-  is_active?: boolean;
-  recipients?: string[];
-  distribution_config?: DistributionConfig;
-  report_config?: ReportConfig;
-}
-
-/**
- * Create Exception Data
- */
-export interface CreateExceptionData {
-  control_id: string;
-  control_name: string;
-  framework: ComplianceFramework;
-  reason: string;
-  business_justification: string;
-  mitigation_plan?: string;
-  expires_at?: string;
-  documents?: File[];
-}
-
-/**
- * Update Exception Data
- */
-export interface UpdateExceptionData {
-  status?: ExceptionStatus;
-  denial_reason?: string;
-  review_notes?: string;
-  expires_at?: string;
-  mitigation_plan?: string;
-}
-
-/**
- * Generate Report Response
- */
-export interface GenerateReportResponse {
-  job_id: string;
-  report_id?: string;
+  schedule?: ReportSchedule;
+  last_run_at?: string;
+  next_run_at?: string;
   status: ReportStatus;
-  estimated_completion?: string;
+  config: ReportConfig;
+  created_by: string;
+  created_by_user?: User;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
- * Export Report Request
+ * Report type for distribution (common properties)
+ */
+export interface Report {
+  id: string;
+  name: string;
+  framework?: string;
+  created_at: string;
+}
+
+/**
+ * Export report request
  */
 export interface ExportReportRequest {
   format: ReportFormat;
@@ -653,19 +406,24 @@ export interface ExportReportRequest {
 }
 
 /**
- * Export Report Response
+ * Create exception request data
  */
-export interface ExportReportResponse {
-  download_url: string;
-  expires_at: string;
-  file_size_bytes?: number;
+export interface CreateExceptionData {
+  control_id: string;
+  control_name: string;
+  framework: string;
+  reason: string;
+  business_justification: string;
+  mitigation_plan?: string;
+  expires_at?: string;
+  documents?: File[];
 }
 
 /**
  * Framework Metadata
  */
 export interface FrameworkMetadata {
-  type: ComplianceFramework;
+  type: string;
   name: string;
   description: string;
   version?: string;
@@ -699,57 +457,7 @@ export interface FrameworkCategory {
  */
 export interface ReportDashboardData {
   total_reports: number;
-  recent_reports: Report[];
   scheduled_reports: number;
-  active_schedules: ReportScheduleEntity[];
   pending_exceptions: number;
-  expiring_exceptions: ComplianceException[];
-  framework_breakdown: FrameworkBreakdown;
-  generation_queue: ReportJob[];
-}
-
-/**
- * Framework Breakdown
- */
-export interface FrameworkBreakdown {
-  [framework: string]: {
-    total: number;
-    compliant: number;
-    non_compliant: number;
-    avg_score: number;
-  };
-}
-
-/**
- * Report Summary Card Data
- */
-export interface ReportSummaryCard {
-  id: string;
-  name: string;
-  framework: ComplianceFramework;
-  status: ReportStatus;
-  score: number;
-  period: string;
-  created_at: string;
-}
-
-/**
- * Base Compliance Report Definition
- */
-export interface ComplianceReport {
-  id: string;
-  name: string;
-  type: ReportType;
-  framework?: ComplianceFramework;
-  description?: string;
-  schedule?: ReportSchedule;
-  last_run_at?: string;
-  next_run_at?: string;
-  status: ReportStatus;
-  config: ReportConfig;
-  created_by: string;
-  created_by_user?: User;
-  tenant_id: string;
-  created_at: string;
-  updated_at: string;
+  generation_queue: Array<{ id: string; name: string; status: string }>;
 }

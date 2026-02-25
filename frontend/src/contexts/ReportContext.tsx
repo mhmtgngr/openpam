@@ -123,7 +123,7 @@ export const ReportProvider: React.FC<ReportProviderProps> = ({ children, autoRe
       framework?: ComplianceFramework;
     }) => reportsApi.generate(data),
     onSuccess: (response) => {
-      toast.success(`Report generation started (ID: ${response.job_id})`);
+      toast.success(`Report generation started (ID: ${response.snapshot_id || response.job_id})`);
       queryClient.invalidateQueries({ queryKey: ['reportSnapshots'] });
     },
     onError: (error: Error) => {

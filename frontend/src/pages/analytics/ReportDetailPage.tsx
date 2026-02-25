@@ -18,7 +18,6 @@ import {
   User,
   Clock,
   HardDrive,
-  Settings,
   AlertCircle,
   CheckCircle,
 } from 'lucide-react';
@@ -51,7 +50,8 @@ export const ReportDetailPage: React.FC = () => {
     enabled: !!id,
     refetchInterval: (data) => {
       // Auto-refresh if report is still generating
-      return (data as any)?.status === 'generating' || (data as any)?.status === 'pending' ? 5000 : false;
+      const snapshot = data as unknown as ReportSnapshot | undefined;
+      return snapshot?.status === 'generating' || snapshot?.status === 'pending' ? 5000 : false;
     },
   });
 
@@ -69,9 +69,8 @@ export const ReportDetailPage: React.FC = () => {
 
     try {
       const response = await reportsApi.downloadSnapshot(snapshot.id);
-      const downloadUrl = (response as any).download_url || (response as any).data?.download_url;
-      if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
+      if (response.download_url) {
+        window.open(response.download_url, '_blank');
         toast.success('Download started');
       }
     } catch (error) {
@@ -125,9 +124,10 @@ export const ReportDetailPage: React.FC = () => {
       failed: { variant: 'danger', icon: AlertCircle, label: 'Failed' },
       expired: { variant: 'neutral', icon: Clock, label: 'Expired' },
       scheduled: { variant: 'neutral', icon: Calendar, label: 'Scheduled' },
+      cancelled: { variant: 'neutral', icon: Clock, label: 'Cancelled' },
     };
 
-    const config = statusConfig[snapshot.status];
+    const config = statusConfig[snapshot.status] || statusConfig.pending;
     const Icon = config.icon;
 
     return (
@@ -152,7 +152,7 @@ export const ReportDetailPage: React.FC = () => {
         <div className="text-center">
           <FileText className="mx-auto h-12 w-12 text-gray-600" />
           <h3 className="mt-4 text-lg font-medium text-white">Report not found</h3>
-          <Button variant="primary" className="mt-4" onClick={() => navigate('/reports')}>
+          <Button variant="primary" className="mt-4" onClick={() => navigate('/analytics/reports')}>
             Go to Reports
           </Button>
         </div>
@@ -172,10 +172,9 @@ export const ReportDetailPage: React.FC = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/reports')}
-          className="flex items-center gap-2"
+          onClick={() => navigate('/analytics/reports')}
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Reports
         </Button>
       </div>
@@ -214,9 +213,8 @@ export const ReportDetailPage: React.FC = () => {
                 variant="secondary"
                 size="sm"
                 onClick={() => refetch()}
-                className="flex items-center gap-2"
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
               {isCompleted && snapshot.file_url && (
@@ -225,27 +223,24 @@ export const ReportDetailPage: React.FC = () => {
                     variant="secondary"
                     size="sm"
                     onClick={handleShare}
-                    className="flex items-center gap-2"
                   >
-                    <Share2 className="h-4 w-4" />
+                    <Share2 className="mr-2 h-4 w-4" />
                     Share
                   </Button>
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={() => setShowViewer(true)}
-                    className="flex items-center gap-2"
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="mr-2 h-4 w-4" />
                     View
                   </Button>
                   <Button
                     variant="primary"
                     size="sm"
                     onClick={handleDownload}
-                    className="flex items-center gap-2"
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="mr-2 h-4 w-4" />
                     Download
                   </Button>
                 </>
