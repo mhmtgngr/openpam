@@ -130,7 +130,7 @@ const OverviewTab: React.FC = () => {
         />
         <QuickStat
           title="Open Anomalies"
-          value={(anomalySummary?.by_severity.critical || 0) + (anomalySummary?.by_severity.high || 0)}
+          value={(anomalySummary?.by_severity?.critical || 0) + (anomalySummary?.by_severity?.high || 0)}
           icon={AlertTriangle}
           variant="warning"
         />

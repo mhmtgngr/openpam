@@ -1,0 +1,108 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]: OpenPAM
+        - button [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+      - navigation [ref=e14]:
+        - link "Dashboard" [ref=e15] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e16]
+          - generic [ref=e21]: Dashboard
+        - link "Users" [ref=e22] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e23]
+          - generic [ref=e28]: Users
+        - link "Roles" [ref=e29] [cursor=pointer]:
+          - /url: /roles
+          - img [ref=e30]
+          - generic [ref=e32]: Roles
+        - link "Targets" [ref=e33] [cursor=pointer]:
+          - /url: /targets
+          - img [ref=e34]
+          - generic [ref=e37]: Targets
+        - link "Credentials" [ref=e38] [cursor=pointer]:
+          - /url: /credentials
+          - img [ref=e39]
+          - generic [ref=e43]: Credentials
+        - link "My Requests" [ref=e44] [cursor=pointer]:
+          - /url: /requests/my
+          - img [ref=e45]
+          - generic [ref=e50]: My Requests
+        - link "Approvals" [ref=e51] [cursor=pointer]:
+          - /url: /approvals
+          - img [ref=e52]
+          - generic [ref=e55]: Approvals
+        - link "Sessions" [ref=e56] [cursor=pointer]:
+          - /url: /sessions
+          - img [ref=e57]
+          - generic [ref=e59]: Sessions
+        - link "Analytics" [ref=e60] [cursor=pointer]:
+          - /url: /analytics
+          - img [ref=e61]
+          - generic [ref=e63]: Analytics
+        - link "Audit Logs" [ref=e64] [cursor=pointer]:
+          - /url: /audit
+          - img [ref=e65]
+          - generic [ref=e68]: Audit Logs
+        - link "Settings" [ref=e69] [cursor=pointer]:
+          - /url: /settings
+          - img [ref=e70]
+          - generic [ref=e73]: Settings
+      - generic [ref=e75]:
+        - generic [ref=e76]: TU
+        - generic [ref=e77]:
+          - paragraph [ref=e78]: Test User
+          - paragraph [ref=e79]: test@example.com
+    - generic [ref=e80]:
+      - banner [ref=e81]:
+        - generic [ref=e83]:
+          - img [ref=e84]
+          - textbox "Search targets, credentials, users..." [ref=e87]
+        - generic [ref=e88]:
+          - button "Refresh data" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+          - button [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+          - button "TU test@example.com" [ref=e101] [cursor=pointer]:
+            - generic [ref=e102]: TU
+            - generic [ref=e103]: test@example.com
+            - img [ref=e104]
+      - main [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - heading "Analytics" [level=1] [ref=e109]
+            - paragraph [ref=e110]: Comprehensive analytics and compliance monitoring
+          - navigation [ref=e112]:
+            - button "Overview" [ref=e113] [cursor=pointer]:
+              - img [ref=e114]
+              - text: Overview
+            - button "Session Metrics" [ref=e119] [cursor=pointer]:
+              - img [ref=e120]
+              - text: Session Metrics
+            - button "User Activity" [ref=e122] [cursor=pointer]:
+              - img [ref=e123]
+              - text: User Activity
+            - button "Command Analysis" [ref=e128] [cursor=pointer]:
+              - img [ref=e129]
+              - text: Command Analysis
+            - button "Compliance" [ref=e131] [cursor=pointer]:
+              - img [ref=e132]
+              - text: Compliance
+            - button "Anomalies" [ref=e135] [cursor=pointer]:
+              - img [ref=e136]
+              - text: Anomalies
+          - generic [ref=e140]:
+            - img [ref=e141]
+            - paragraph [ref=e143]: Loading overview...
+  - generic:
+    - status [ref=e149]: An error occurred
+    - status [ref=e155]: An error occurred
+    - status [ref=e161]: Failed to fetch trends
+```

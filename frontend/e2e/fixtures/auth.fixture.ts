@@ -3,6 +3,7 @@ import { mockAuthRoutes } from '../handlers/auth';
 import { mockDashboardRoutes } from '../handlers/dashboard';
 import { mockUserRoutes } from '../handlers/users';
 import { mockRequestRoutes } from '../handlers/requests';
+import { mockAnalyticsRoutes, mockComplianceRoutes } from '../handlers/analytics';
 
 // Setup API mocking - must be done before any navigation
 const setupMocks = (page: Page) => {
@@ -105,36 +106,10 @@ const setupMocks = (page: Page) => {
   });
 
   // Analytics routes
-  page.route('**/api/v1/analytics/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        metrics: { total_sessions: 0, total_users: 0, avg_duration: 0 },
-        trends: { sessions: { current: 0, previous: 0 }, users: { current: 0, previous: 0 } },
-        realtime: { active_sessions: 0, active_users: 0, sessions_last_hour: 0, avg_active_duration: 0 },
-        data: [],
-        pagination: { total: 0, offset: 0, limit: 20 }
-      }),
-    });
-  });
+  page.route('**/api/v1/analytics/**', mockAnalyticsRoutes);
 
   // Compliance routes
-  page.route('**/api/v1/compliance/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        overall_score: 100,
-        control_count: 0,
-        compliant_count: 0,
-        non_compliant_count: 0,
-        last_assessed: new Date().toISOString(),
-        data: [],
-        pagination: { total: 0, offset: 0, limit: 20 }
-      }),
-    });
-  });
+  page.route('**/api/v1/compliance/**', mockComplianceRoutes);
 
   // Reports routes
   page.route('**/api/v1/reports/**', async (route) => {
