@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewPolicyCache(t *testing.T) {
@@ -129,8 +128,8 @@ func TestPolicyCache_GetSetEvalResult(t *testing.T) {
 		pc := NewPolicyCache(nil, logger)
 
 		result := &EvaluationResponse{
-			Allowed: true,
-			Reason:  "Test evaluation",
+			Effect:      EvaluationResultAllow,
+			EvaluatedAt: time.Now(),
 		}
 
 		err := pc.SetEvalResult(ctx, "test-key", result, 30*time.Second)
@@ -236,49 +235,6 @@ func TestPolicyCache_KeyGeneration(t *testing.T) {
 
 		assert.Contains(t, key, "policy:eval:")
 		assert.Contains(t, key, cacheKey)
-	})
-}
-
-func TestGenerateEvalCacheKey(t *testing.T) {
-	t.Run("generates consistent cache key for request", func(t *testing.T) {
-		req := EvaluationRequest{
-			TenantID:     uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-			UserID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440001"),
-			Action:       "checkout",
-			ResourceType: "credential",
-			ResourceID:   uuid.MustParse("550e8400-e29b-41d4-a716-446655440002"),
-		}
-
-		key := GenerateEvalCacheKey(req)
-
-		assert.Contains(t, key, req.TenantID.String())
-		assert.Contains(t, key, req.UserID.String())
-		assert.Contains(t, key, req.Action)
-		assert.Contains(t, key, req.ResourceType)
-		assert.Contains(t, key, req.ResourceID.String())
-	})
-
-	t.Run("generates different keys for different requests", func(t *testing.T) {
-		req1 := EvaluationRequest{
-			TenantID:     uuid.New(),
-			UserID:       uuid.New(),
-			Action:       "checkout",
-			ResourceType: "credential",
-			ResourceID:   uuid.New(),
-		}
-
-		req2 := EvaluationRequest{
-			TenantID:     req1.TenantID,
-			UserID:       req1.UserID,
-			Action:       "checkin", // Different action
-			ResourceType: req1.ResourceType,
-			ResourceID:   req1.ResourceID,
-		}
-
-		key1 := GenerateEvalCacheKey(req1)
-		key2 := GenerateEvalCacheKey(req2)
-
-		assert.NotEqual(t, key1, key2)
 	})
 }
 
