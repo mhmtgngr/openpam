@@ -54,6 +54,7 @@ func DefaultAuditConfig() AuditConfig {
 }
 
 // AuditMiddleware creates comprehensive audit logging middleware
+// If auditSvc is nil, only logging to zerolog will be performed
 func AuditMiddleware(auditSvc *audit.Service, logger zerolog.Logger, cfg AuditConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -157,17 +158,19 @@ func AuditMiddleware(auditSvc *audit.Service, logger zerolog.Logger, cfg AuditCo
 		}
 
 		// Log audit event asynchronously
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
+		if auditSvc != nil {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
 
-			if err := auditSvc.Log(ctx, event); err != nil {
-				logger.Error().
-					Str("request_id", requestID).
-					Err(err).
-					Msg("Failed to write audit log")
-			}
-		}()
+				if err := auditSvc.Log(ctx, event); err != nil {
+					logger.Error().
+						Str("request_id", requestID).
+						Err(err).
+						Msg("Failed to write audit log")
+				}
+			}()
+		}
 
 		// Also log to structured logger for immediate visibility
 		logEvent := logger.Info().

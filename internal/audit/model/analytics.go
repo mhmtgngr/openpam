@@ -107,6 +107,13 @@ type AnomalyDetection struct {
 	ResolvedBy      *uuid.UUID `db:"resolved_by" json:"resolved_by,omitempty"`
 	AutoTriggered   bool       `db:"auto_triggered" json:"auto_triggered"`
 	AutoActionTaken *string    `db:"auto_action_taken" json:"auto_action_taken,omitempty"`
+	// Deduplication fields
+	CorrelationID     *uuid.UUID `db:"correlation_id" json:"correlation_id,omitempty"`
+	CorrelationKey    *string    `db:"correlation_key" json:"correlation_key,omitempty"`
+	DuplicateCount    int        `db:"duplicate_count" json:"duplicate_count"`
+	IsDuplicate       bool       `db:"is_duplicate" json:"is_duplicate"`
+	FirstDetectionID  *uuid.UUID `db:"first_detection_id" json:"first_detection_id,omitempty"`
+	MergedIntoID      *uuid.UUID `db:"merged_into_id" json:"merged_into_id,omitempty"`
 	Metadata        []byte     `db:"metadata" json:"metadata,omitempty"`
 	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
@@ -298,13 +305,17 @@ type ComplianceExceptionFilter struct {
 
 // AnomalyFilter filters anomaly queries
 type AnomalyFilter struct {
-	TenantID    *uuid.UUID
-	UserID      *uuid.UUID
-	AnomalyType *string
-	Severity    *string
-	Status      *string
-	DateFrom    *time.Time
-	DateTo      *time.Time
+	TenantID     *uuid.UUID
+	UserID       *uuid.UUID
+	AnomalyType  *string
+	Severity     *string
+	Status       *string
+	IsDuplicate  *bool
+	DateFrom     *time.Time
+	DateTo       *time.Time
+	AssignedTo   *uuid.UUID
+	CorrelationID *uuid.UUID
+	Search       string
 }
 
 // CommandBlacklistFilter filters command blacklist queries

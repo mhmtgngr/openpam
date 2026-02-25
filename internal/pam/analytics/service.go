@@ -36,9 +36,10 @@ import (
 // - Command blacklist enforcement
 // - SSH key analytics
 type Service struct {
-	repo   *Repository
-	cache  *cache.Cache
-	logger zerolog.Logger
+	repo            *Repository
+	anomalyRepo     *AnomalyRepository
+	cache           *cache.Cache
+	logger          zerolog.Logger
 
 	// Worker status
 	aggregationWorkerRunning bool
@@ -47,11 +48,12 @@ type Service struct {
 }
 
 // NewService creates a new analytics service
-func NewService(repo *Repository, cache *cache.Cache, logger zerolog.Logger) *Service {
+func NewService(repo *Repository, anomalyRepo *AnomalyRepository, cache *cache.Cache, logger zerolog.Logger) *Service {
 	return &Service{
-		repo:   repo,
-		cache:  cache,
-		logger: logger,
+		repo:        repo,
+		anomalyRepo: anomalyRepo,
+		cache:       cache,
+		logger:      logger,
 	}
 }
 
@@ -468,25 +470,29 @@ func (s *Service) ListComplianceExceptions(ctx context.Context, tenantID uuid.UU
 
 // Anomaly Detection Methods
 
-// DetectAnomalies runs anomaly detection for a tenant
+// DetectAnomalies runs anomaly detection for a tenant and persists detected anomalies
 func (s *Service) DetectAnomalies(ctx context.Context, tenantID uuid.UUID) ([]AnomalyResponse, error) {
-	var anomalies []AnomalyResponse
+	var anomalyDetections []Anomaly
 
 	// Check for off-hours access anomalies
 	offHoursUsers, err := s.repo.ListUserActivity(ctx, tenantID, PeriodDay, time.Now().Add(-7*24*time.Hour), time.Now(), 100, 0)
 	if err == nil {
 		for _, activity := range offHoursUsers {
 			if activity.OffHoursAccess && activity.SessionsCreated > 10 {
-				anomalies = append(anomalies, AnomalyResponse{
-					ID:          uuid.New(),
-					TenantID:    tenantID,
-					UserID:      &activity.UserID,
-					AnomalyType: "off_hours_access",
-					Severity:    "medium",
-					Description: stringPtr(fmt.Sprintf("User has %d off-hours sessions in the past week", activity.SessionsCreated)),
-					DetectedAt:  time.Now(),
-					Status:      "open",
-				})
+				anomaly := Anomaly{
+					TenantID:        tenantID,
+					UserID:          &activity.UserID,
+					AnomalyType:     AnomalyTypeTemporal,
+					Severity:         SeverityMedium,
+					ConfidenceScore: 75.0,
+					RiskScore:        60.0,
+					Title:           "Excessive Off-Hours Access",
+					Description:     stringPtr(fmt.Sprintf("User has %d off-hours sessions in the past week", activity.SessionsCreated)),
+					DetectionMethod: "behavioral_analysis",
+					AutoTriggered:   true,
+					Status:          AnomalyStatusOpen,
+				}
+				anomalyDetections = append(anomalyDetections, anomaly)
 			}
 		}
 	}
@@ -495,20 +501,38 @@ func (s *Service) DetectAnomalies(ctx context.Context, tenantID uuid.UUID) ([]An
 	highRiskActivities, err := s.repo.GetAnomalousUsers(ctx, tenantID, PeriodDay, time.Now().Truncate(24*time.Hour), 20)
 	if err == nil {
 		for _, activity := range highRiskActivities {
-			anomalies = append(anomalies, AnomalyResponse{
-				ID:          uuid.New(),
-				TenantID:    tenantID,
-				UserID:      &activity.UserID,
-				AnomalyType: "high_risk_score",
-				Severity:    getSeverityFromScore(activity.AnomalyScore),
-				Description: stringPtr(fmt.Sprintf("User anomaly score: %.2f", getAnomalyScoreValue(activity.AnomalyScore))),
-				DetectedAt:  time.Now(),
-				Status:      "open",
-			})
+			score := getAnomalyScoreValue(activity.AnomalyScore)
+			anomaly := Anomaly{
+				TenantID:        tenantID,
+				UserID:          &activity.UserID,
+				AnomalyType:     AnomalyTypeBehavioral,
+				Severity:         Severity(getSeverityFromScore(activity.AnomalyScore)),
+				ConfidenceScore: 80.0,
+				RiskScore:        score,
+				Title:           "High Risk Score Detected",
+				Description:     stringPtr(fmt.Sprintf("User anomaly score: %.2f exceeds threshold", score)),
+				DetectionMethod: "risk_scoring",
+				AutoTriggered:   true,
+				Status:          AnomalyStatusOpen,
+			}
+			anomalyDetections = append(anomalyDetections, anomaly)
 		}
 	}
 
-	return anomalies, nil
+	// Persist detected anomalies in batch
+	if len(anomalyDetections) > 0 {
+		if err := s.anomalyRepo.BatchCreate(ctx, anomalyDetections); err != nil {
+			s.logger.Error().Err(err).Msg("Failed to persist detected anomalies")
+		}
+	}
+
+	// Convert to response format
+	responses := make([]AnomalyResponse, len(anomalyDetections))
+	for i, a := range anomalyDetections {
+		responses[i] = s.anomalyToResponse(&a)
+	}
+
+	return responses, nil
 }
 
 type AnomalyResponse struct {
@@ -524,19 +548,59 @@ type AnomalyResponse struct {
 
 // ListAnomalies lists anomalies with optional filters
 func (s *Service) ListAnomalies(ctx context.Context, tenantID uuid.UUID, status string, limit, offset int) ([]AnomalyResponse, error) {
-	// TODO: Implement anomaly persistence and filtering
-	return []AnomalyResponse{}, nil
+	filter := AnomalyFilter{
+		TenantID: &tenantID,
+	}
+
+	if status != "" {
+		anomalyStatus := AnomalyStatus(status)
+		filter.Status = &anomalyStatus
+	}
+
+	anomalies, _, err := s.anomalyRepo.List(ctx, tenantID, filter, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("service.ListAnomalies: %w", err)
+	}
+
+	responses := make([]AnomalyResponse, len(anomalies))
+	for i, a := range anomalies {
+		responses[i] = s.anomalyToResponse(&a)
+	}
+
+	return responses, nil
 }
 
 // GetAnomaly retrieves a specific anomaly
 func (s *Service) GetAnomaly(ctx context.Context, id uuid.UUID) (*AnomalyResponse, error) {
-	// TODO: Implement anomaly retrieval
-	return nil, fmt.Errorf("not implemented")
+	anomaly, err := s.anomalyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("service.GetAnomaly: %w", err)
+	}
+
+	response := s.anomalyToResponse(anomaly)
+	return &response, nil
 }
 
 // UpdateAnomalyStatus updates the status of an anomaly
 func (s *Service) UpdateAnomalyStatus(ctx context.Context, id uuid.UUID, status string, userID, assignTo *uuid.UUID, notes string) error {
-	// TODO: Implement anomaly status update
+	anomalyStatus := AnomalyStatus(status)
+	var notesPtr *string
+	if notes != "" {
+		notesPtr = &notes
+	}
+
+	err := s.anomalyRepo.UpdateStatus(ctx, id, anomalyStatus, userID, assignTo, notesPtr)
+	if err != nil {
+		return fmt.Errorf("service.UpdateAnomalyStatus: %w", err)
+	}
+
+	// Invalidate cache for this tenant's anomalies
+	var tenantID uuid.UUID
+	if anomaly, err := s.anomalyRepo.GetByID(ctx, id); err == nil {
+		tenantID = anomaly.TenantID
+		_ = s.cache.Delete(ctx, fmt.Sprintf("analytics:anomalies:%s", tenantID))
+	}
+
 	return nil
 }
 
@@ -545,9 +609,9 @@ func (s *Service) RunAnomalyDetection(ctx context.Context, tenantID uuid.UUID) (
 	return s.DetectAnomalies(ctx, tenantID)
 }
 
-// EvaluateUserForAnomalies evaluates a specific user for anomalies
+// EvaluateUserForAnomalies evaluates a specific user for anomalies and persists findings
 func (s *Service) EvaluateUserForAnomalies(ctx context.Context, tenantID, userID uuid.UUID) ([]AnomalyResponse, error) {
-	var anomalies []AnomalyResponse
+	var anomalyDetections []Anomaly
 
 	// Get user activity for the past 30 days
 	endDate := time.Now()
@@ -562,48 +626,73 @@ func (s *Service) EvaluateUserForAnomalies(ctx context.Context, tenantID, userID
 	for _, activity := range activities {
 		// Check for unusual off-hours access
 		if activity.OffHoursAccess && activity.SessionsCreated > 5 {
-			anomalies = append(anomalies, AnomalyResponse{
-				ID:          uuid.New(),
-				TenantID:    tenantID,
-				UserID:      &userID,
-				AnomalyType: "excessive_off_hours_access",
-				Severity:    "medium",
-				Description: stringPtr(fmt.Sprintf("%d off-hours sessions on %s", activity.SessionsCreated, activity.PeriodStart.Format("2006-01-02"))),
-				DetectedAt:  time.Now(),
-				Status:      "open",
-			})
+			anomaly := Anomaly{
+				TenantID:        tenantID,
+				UserID:          &userID,
+				AnomalyType:     AnomalyTypeTemporal,
+				Severity:         SeverityMedium,
+				ConfidenceScore: 70.0,
+				RiskScore:        55.0,
+				Title:           "Excessive Off-Hours Access",
+				Description:     stringPtr(fmt.Sprintf("%d off-hours sessions on %s", activity.SessionsCreated, activity.PeriodStart.Format("2006-01-02"))),
+				DetectionMethod: "temporal_analysis",
+				AutoTriggered:   true,
+				Status:          AnomalyStatusOpen,
+			}
+			anomalyDetections = append(anomalyDetections, anomaly)
 		}
 
 		// Check for high policy violation count
 		if activity.PolicyViolations > 5 {
-			anomalies = append(anomalies, AnomalyResponse{
-				ID:          uuid.New(),
-				TenantID:    tenantID,
-				UserID:      &userID,
-				AnomalyType: "excessive_policy_violations",
-				Severity:    "high",
-				Description: stringPtr(fmt.Sprintf("%d policy violations on %s", activity.PolicyViolations, activity.PeriodStart.Format("2006-01-02"))),
-				DetectedAt:  time.Now(),
-				Status:      "open",
-			})
+			anomaly := Anomaly{
+				TenantID:        tenantID,
+				UserID:          &userID,
+				AnomalyType:     AnomalyTypePattern,
+				Severity:         SeverityHigh,
+				ConfidenceScore: 85.0,
+				RiskScore:        75.0,
+				Title:           "Excessive Policy Violations",
+				Description:     stringPtr(fmt.Sprintf("%d policy violations on %s", activity.PolicyViolations, activity.PeriodStart.Format("2006-01-02"))),
+				DetectionMethod: "pattern_analysis",
+				AutoTriggered:   true,
+				Status:          AnomalyStatusOpen,
+			}
+			anomalyDetections = append(anomalyDetections, anomaly)
 		}
 
 		// Check for failed authentication attempts
 		if activity.FailedAuthAttempts > 10 {
-			anomalies = append(anomalies, AnomalyResponse{
-				ID:          uuid.New(),
-				TenantID:    tenantID,
-				UserID:      &userID,
-				AnomalyType: "excessive_failed_auth",
-				Severity:    "high",
-				Description: stringPtr(fmt.Sprintf("%d failed authentication attempts on %s", activity.FailedAuthAttempts, activity.PeriodStart.Format("2006-01-02"))),
-				DetectedAt:  time.Now(),
-				Status:      "open",
-			})
+			anomaly := Anomaly{
+				TenantID:        tenantID,
+				UserID:          &userID,
+				AnomalyType:     AnomalyTypeBehavioral,
+				Severity:         SeverityHigh,
+				ConfidenceScore: 90.0,
+				RiskScore:        80.0,
+				Title:           "Excessive Failed Authentication",
+				Description:     stringPtr(fmt.Sprintf("%d failed authentication attempts on %s", activity.FailedAuthAttempts, activity.PeriodStart.Format("2006-01-02"))),
+				DetectionMethod: "behavioral_analysis",
+				AutoTriggered:   true,
+				Status:          AnomalyStatusOpen,
+			}
+			anomalyDetections = append(anomalyDetections, anomaly)
 		}
 	}
 
-	return anomalies, nil
+	// Persist detected anomalies
+	if len(anomalyDetections) > 0 {
+		if err := s.anomalyRepo.BatchCreate(ctx, anomalyDetections); err != nil {
+			s.logger.Error().Err(err).Msg("Failed to persist user anomaly evaluations")
+		}
+	}
+
+	// Convert to response format
+	responses := make([]AnomalyResponse, len(anomalyDetections))
+	for i, a := range anomalyDetections {
+		responses[i] = s.anomalyToResponse(&a)
+	}
+
+	return responses, nil
 }
 
 // Risk Score Methods
@@ -1548,4 +1637,18 @@ func getAnomalyScoreValue(score *float64) float64 {
 		return 0
 	}
 	return *score
+}
+
+// anomalyToResponse converts an Anomaly to AnomalyResponse
+func (s *Service) anomalyToResponse(anomaly *Anomaly) AnomalyResponse {
+	return AnomalyResponse{
+		ID:          anomaly.ID,
+		TenantID:    anomaly.TenantID,
+		UserID:      anomaly.UserID,
+		AnomalyType: string(anomaly.AnomalyType),
+		Severity:    string(anomaly.Severity),
+		Description: anomaly.Description,
+		DetectedAt:  anomaly.DetectedAt,
+		Status:      string(anomaly.Status),
+	}
 }

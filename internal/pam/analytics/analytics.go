@@ -26,7 +26,8 @@ import (
 // InitService initializes the analytics service with all its dependencies
 func InitService(db *sqlx.DB, cache *cache.Cache, logger zerolog.Logger) (*Service, *AggregationWorker, *AlertEvaluator, *ReportScheduler) {
 	repo := NewRepository(db, logger)
-	service := NewService(repo, cache, logger)
+	anomalyRepo := NewAnomalyRepository(db, logger)
+	service := NewService(repo, anomalyRepo, cache, logger)
 
 	// Initialize background workers
 	aggregationWorker := NewAggregationWorker(repo, cache, logger)

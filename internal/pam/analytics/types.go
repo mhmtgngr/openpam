@@ -698,3 +698,141 @@ type WidgetDataResponse struct {
 	GeneratedAt time.Time         `json:"generated_at"`
 	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
+
+// =============================================================================
+// Anomaly Detection Types
+// =============================================================================
+
+// AnomalyStatus represents the status of an anomaly
+type AnomalyStatus string
+
+const (
+	AnomalyStatusOpen          AnomalyStatus = "open"
+	AnomalyStatusInvestigating AnomalyStatus = "investigating"
+	AnomalyStatusResolved      AnomalyStatus = "resolved"
+	AnomalyStatusFalsePositive AnomalyStatus = "false_positive"
+	AnomalyStatusIgnored       AnomalyStatus = "ignored"
+)
+
+// AnomalyType represents the type of anomaly detected
+type AnomalyType string
+
+const (
+	AnomalyTypeBehavioral AnomalyType = "behavioral"
+	AnomalyTypeTemporal   AnomalyType = "temporal"
+	AnomalyTypeSpatial    AnomalyType = "spatial"
+	AnomalyTypePattern    AnomalyType = "pattern"
+	AnomalyTypeVolumetric AnomalyType = "volumetric"
+	AnomalyTypeRansomware AnomalyType = "ransomware"
+)
+
+// Anomaly represents a detected security anomaly with full persistence support
+type Anomaly struct {
+	ID              uuid.UUID      `db:"id" json:"id"`
+	TenantID        uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	AnomalyType     AnomalyType    `db:"anomaly_type" json:"anomaly_type"`
+	UserID          *uuid.UUID     `db:"user_id" json:"user_id,omitempty"`
+	SessionID       *uuid.UUID     `db:"session_id" json:"session_id,omitempty"`
+	TargetHost      *string        `db:"target_host" json:"target_host,omitempty"`
+	Severity        Severity       `db:"severity" json:"severity"`
+	ConfidenceScore float64        `db:"confidence_score" json:"confidence_score"`
+	RiskScore       float64        `db:"risk_score" json:"risk_score"`
+	Title           string         `db:"title" json:"title"`
+	Description     *string        `db:"description" json:"description,omitempty"`
+	Indicators      json.RawMessage `db:"indicators" json:"indicators,omitempty"`
+
+	// Detection metadata
+	DetectionMethod string     `db:"detection_method" json:"detection_method"`
+	DetectedAt      time.Time  `db:"detected_at" json:"detected_at"`
+	ModelVersion    *string    `db:"model_version" json:"model_version,omitempty"`
+
+	// Status and resolution
+	Status          AnomalyStatus `db:"status" json:"status"`
+	AssignedTo      *uuid.UUID    `db:"assigned_to" json:"assigned_to,omitempty"`
+	ResolutionNotes *string       `db:"resolution_notes" json:"resolution_notes,omitempty"`
+	ResolvedAt      *time.Time    `db:"resolved_at" json:"resolved_at,omitempty"`
+	ResolvedBy      *uuid.UUID    `db:"resolved_by" json:"resolved_by,omitempty"`
+
+	// Automated response
+	AutoTriggered   bool    `db:"auto_triggered" json:"auto_triggered"`
+	AutoActionTaken *string `db:"auto_action_taken" json:"auto_action_taken,omitempty"`
+
+	// Deduplication fields
+	CorrelationID     *uuid.UUID `db:"correlation_id" json:"correlation_id,omitempty"`
+	CorrelationKey    *string    `db:"correlation_key" json:"correlation_key,omitempty"`
+	DuplicateCount    int        `db:"duplicate_count" json:"duplicate_count"`
+	IsDuplicate       bool       `db:"is_duplicate" json:"is_duplicate"`
+	FirstDetectionID  *uuid.UUID `db:"first_detection_id" json:"first_detection_id,omitempty"`
+	MergedIntoID      *uuid.UUID `db:"merged_into_id" json:"merged_into_id,omitempty"`
+
+	Metadata    json.RawMessage `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+}
+
+// AnomalyFilter represents filter options for anomaly queries
+type AnomalyFilter struct {
+	TenantID     *uuid.UUID    `json:"tenant_id"`
+	UserID       *uuid.UUID    `json:"user_id,omitempty"`
+	AnomalyType  *AnomalyType  `json:"anomaly_type,omitempty"`
+	Severity     *Severity     `json:"severity,omitempty"`
+	Status       *AnomalyStatus `json:"status,omitempty"`
+	IsDuplicate  *bool         `json:"is_duplicate,omitempty"`
+	DateFrom     *time.Time    `json:"date_from,omitempty"`
+	DateTo       *time.Time    `json:"date_to,omitempty"`
+	AssignedTo   *uuid.UUID    `json:"assigned_to,omitempty"`
+	CorrelationID *uuid.UUID   `json:"correlation_id,omitempty"`
+	Search       string        `json:"search,omitempty"`
+}
+
+// AnomalyStats represents statistics about anomalies
+type AnomalyStats struct {
+	Total              int     `json:"total"`
+	OpenCount          int     `json:"open_count"`
+	InvestigatingCount int     `json:"investigating_count"`
+	ResolvedCount      int     `json:"resolved_count"`
+	CriticalCount      int     `json:"critical_count"`
+	HighCount          int     `json:"high_count"`
+	MediumCount        int     `json:"medium_count"`
+	LowCount           int     `json:"low_count"`
+	TodayCount         int     `json:"today_count"`
+	WeekCount          int     `json:"week_count"`
+	UniqueCorrelations int     `json:"unique_correlations"`
+	TotalDuplicates    int     `json:"total_duplicates"`
+	AvgRiskScore       float64 `json:"avg_risk_score"`
+}
+
+// CreateAnomalyRequest represents a request to create an anomaly
+type CreateAnomalyRequest struct {
+	TenantID        uuid.UUID              `json:"tenant_id" binding:"required"`
+	AnomalyType     AnomalyType            `json:"anomaly_type" binding:"required"`
+	UserID          *uuid.UUID             `json:"user_id"`
+	SessionID       *uuid.UUID             `json:"session_id"`
+	TargetHost      *string                `json:"target_host"`
+	Title           string                 `json:"title" binding:"required"`
+	Description     *string                `json:"description"`
+	Indicators      map[string]interface{} `json:"indicators"`
+	Severity        Severity               `json:"severity" binding:"required,oneof=low medium high critical"`
+	ConfidenceScore float64                `json:"confidence_score" binding:"required,min=0,max=100"`
+	RiskScore       float64                `json:"risk_score" binding:"required,min=0,max=100"`
+	DetectionMethod string                 `json:"detection_method" binding:"required"`
+	ModelVersion    *string                `json:"model_version"`
+	AutoTriggered   bool                   `json:"auto_triggered"`
+	AutoActionTaken *string                `json:"auto_action_taken"`
+	Metadata        map[string]interface{} `json:"metadata"`
+}
+
+// UpdateAnomalyStatusRequest represents a request to update anomaly status
+type UpdateAnomalyStatusRequest struct {
+	Status           *AnomalyStatus `json:"status" binding:"omitempty,oneof=open investigating resolved false_positive ignored"`
+	AssignedTo       *uuid.UUID     `json:"assigned_to"`
+	ResolutionNotes  *string        `json:"resolution_notes"`
+}
+
+// AnomalyBulkUpdateRequest represents a request to bulk update anomalies
+type AnomalyBulkUpdateRequest struct {
+	AnomalyIDs      []uuid.UUID    `json:"anomaly_ids" binding:"required"`
+	Status          *AnomalyStatus `json:"status"`
+	AssignedTo      *uuid.UUID     `json:"assigned_to"`
+	ResolutionNotes *string        `json:"resolution_notes"`
+}

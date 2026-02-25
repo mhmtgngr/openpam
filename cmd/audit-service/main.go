@@ -13,9 +13,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/openpam/openpam/internal/audit"
+	analyticsmiddleware "github.com/openpam/openpam/internal/audit/middleware"
+	"github.com/openpam/openpam/internal/audit/model"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/database"
 	"github.com/openpam/openpam/internal/middleware"
+	pamanalytics "github.com/openpam/openpam/internal/pam/analytics"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -61,8 +64,16 @@ func main() {
 	auditRepo := audit.NewRepository(db.DB, redisCache, logger)
 	auditSvc := audit.NewService(auditRepo, logger)
 
+	// Initialize analytics service (audit analytics for anomaly persistence)
+	analyticsSvc := audit.NewAnalyticsService(db.DB, redisCache, logger)
+
+	// Initialize PAM analytics service
+	pamAnalyticsRepo := pamanalytics.NewRepository(db.DB, logger)
+	pamAnomalyRepo := pamanalytics.NewAnomalyRepository(db.DB, logger)
+	pamAnalyticsSvc := pamanalytics.NewService(pamAnalyticsRepo, pamAnomalyRepo, redisCache, logger)
+
 	// Setup router
-	router := setupRouter(config, db, redisCache, auditSvc, logger)
+	router := setupRouter(config, db, redisCache, auditSvc, analyticsSvc, pamAnalyticsSvc, logger)
 
 	// Start server
 	srv := &http.Server{
@@ -164,6 +175,8 @@ func setupRouter(
 	db *database.DB,
 	cache *cache.Cache,
 	auditSvc *audit.Service,
+	analyticsSvc *audit.AnalyticsService,
+	pamAnalyticsSvc *pamanalytics.Service,
 	logger zerolog.Logger,
 ) *gin.Engine {
 	if config.LogLevel == "debug" {
@@ -238,6 +251,44 @@ func setupRouter(
 
 			// Integrity
 			protected.GET("/audit/integrity/verify", handleVerifyIntegrity(auditSvc, logger))
+
+			// Analytics routes (with tenant and correlation middleware)
+			analytics := protected.Group("/analytics")
+			analytics.Use(analyticsmiddleware.RequireTenantID())
+			analytics.Use(analyticsmiddleware.CorrelationID())
+			{
+				// Dashboard
+				analytics.GET("/dashboard", handleAnalyticsDashboard(analyticsSvc, logger))
+				analytics.GET("/summary", handleAnalyticsSummary(analyticsSvc, logger))
+
+				// Anomalies
+				analytics.GET("/anomalies", handleListAnomalies(analyticsSvc, logger))
+				analytics.GET("/anomalies/:id", handleGetAnomaly(analyticsSvc, logger))
+				analytics.PUT("/anomalies/:id", handleUpdateAnomaly(analyticsSvc, logger))
+				analytics.DELETE("/anomalies/:id", handleDeleteAnomaly(analyticsSvc, logger))
+				analytics.GET("/anomalies/stats", handleGetAnomalyStats(analyticsSvc, logger))
+				analytics.POST("/anomalies/detect", handleRunAnomalyDetection(pamAnalyticsSvc, logger))
+
+				// Anomaly bulk operations
+				analytics.PUT("/anomalies/bulk", handleBulkUpdateAnomalies(analyticsSvc, logger))
+
+				// SSH Key Analytics
+				analytics.GET("/ssh-keys/:id/analytics", handleGetSSHKeyAnalytics(analyticsSvc, logger))
+				analytics.GET("/ssh-keys/analytics", handleListSSHKeyAnalytics(analyticsSvc, logger))
+				analytics.GET("/ssh-keys/:id/summary", handleGetSSHKeyUsageSummary(analyticsSvc, logger))
+				analytics.GET("/ssh-keys/most-used", handleGetMostUsedSSHKeys(analyticsSvc, logger))
+				analytics.GET("/ssh-keys/anomalous", handleGetAnomalousSSHKeys(analyticsSvc, logger))
+
+				// Command Blacklist
+				analytics.POST("/blacklist", handleCreateCommandBlacklist(analyticsSvc, logger))
+				analytics.GET("/blacklist", handleListCommandBlacklist(analyticsSvc, logger))
+				analytics.GET("/blacklist/:id", handleGetCommandBlacklist(analyticsSvc, logger))
+				analytics.PUT("/blacklist/:id", handleUpdateCommandBlacklist(analyticsSvc, logger))
+				analytics.DELETE("/blacklist/:id", handleDeleteCommandBlacklist(analyticsSvc, logger))
+				analytics.GET("/blacklist/stats", handleGetBlacklistStats(analyticsSvc, logger))
+				analytics.POST("/blacklist/:id/enable", handleEnableCommandBlacklist(analyticsSvc, logger))
+				analytics.POST("/blacklist/:id/disable", handleDisableCommandBlacklist(analyticsSvc, logger))
+			}
 
 			// Admin routes
 			admin := protected.Group("/admin")
@@ -483,4 +534,726 @@ func getIntQuery(c *gin.Context, key string, defaultVal int) int {
 		return intVal
 	}
 	return defaultVal
+}
+
+// =============================================================================
+// Analytics Handler Functions
+// =============================================================================
+
+func handleAnalyticsDashboard(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		summary, err := svc.GetDashboardSummary(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get dashboard summary")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get dashboard summary"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"summary": summary})
+	}
+}
+
+func handleAnalyticsSummary(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		summary, err := svc.GetDashboardSummary(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get analytics summary")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get summary"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"summary": summary})
+	}
+}
+
+// Anomaly handlers
+
+func handleListAnomalies(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		limit := getIntQuery(c, "limit", 50)
+		offset := getIntQuery(c, "offset", 0)
+
+		// Build filter
+		var filter model.AnomalyFilter
+		if userID := c.Query("user_id"); userID != "" {
+			if uid, err := uuid.Parse(userID); err == nil {
+				filter.UserID = &uid
+			}
+		}
+		if anomalyType := c.Query("anomaly_type"); anomalyType != "" {
+			filter.AnomalyType = &anomalyType
+		}
+		if severity := c.Query("severity"); severity != "" {
+			filter.Severity = &severity
+		}
+		if status := c.Query("status"); status != "" {
+			filter.Status = &status
+		}
+		if assignedTo := c.Query("assigned_to"); assignedTo != "" {
+			if uid, err := uuid.Parse(assignedTo); err == nil {
+				filter.AssignedTo = &uid
+			}
+		}
+		if dateFrom := c.Query("date_from"); dateFrom != "" {
+			if t, err := time.Parse(time.RFC3339, dateFrom); err == nil {
+				filter.DateFrom = &t
+			}
+		}
+		if dateTo := c.Query("date_to"); dateTo != "" {
+			if t, err := time.Parse(time.RFC3339, dateTo); err == nil {
+				filter.DateTo = &t
+			}
+		}
+		filter.Search = c.Query("search")
+
+		anomalies, total, err := svc.ListAnomalies(c.Request.Context(), tenantID, filter, limit, offset)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to list anomalies")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list anomalies"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"anomalies": anomalies,
+			"total":     total,
+			"limit":     limit,
+			"offset":    offset,
+		})
+	}
+}
+
+func handleGetAnomaly(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid anomaly ID"}})
+			return
+		}
+
+		anomaly, err := svc.GetAnomaly(c.Request.Context(), id)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get anomaly")
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Anomaly not found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"anomaly": anomaly})
+	}
+}
+
+func handleUpdateAnomaly(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid anomaly ID"}})
+			return
+		}
+
+		var req model.UpdateAnomalyRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		// Get existing anomaly
+		anomaly, err := svc.GetAnomaly(c.Request.Context(), id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Anomaly not found"}})
+			return
+		}
+
+		// Update fields
+		if req.Status != nil {
+			anomaly.Status = *req.Status
+		}
+		if req.AssignedTo != nil {
+			anomaly.AssignedTo = req.AssignedTo
+		}
+		if req.ResolutionNotes != nil {
+			anomaly.ResolutionNotes = req.ResolutionNotes
+		}
+
+		if err := svc.UpdateAnomaly(c.Request.Context(), anomaly); err != nil {
+			logger.Error().Err(err).Msg("Failed to update anomaly")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to update anomaly"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"anomaly": anomaly})
+	}
+}
+
+func handleDeleteAnomaly(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid anomaly ID"}})
+			return
+		}
+
+		if err := svc.DeleteAnomaly(c.Request.Context(), id); err != nil {
+			logger.Error().Err(err).Msg("Failed to delete anomaly")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete anomaly"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Anomaly deleted"})
+	}
+}
+
+func handleGetAnomalyStats(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		stats, err := svc.GetAnomalyStats(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get anomaly stats")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get stats"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"stats": stats})
+	}
+}
+
+func handleRunAnomalyDetection(svc *pamanalytics.Service, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		anomalies, err := svc.RunAnomalyDetection(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to run anomaly detection")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to run anomaly detection"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"anomalies": anomalies,
+			"count":     len(anomalies),
+		})
+	}
+}
+
+func handleBulkUpdateAnomalies(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			AnomalyIDs      []string `json:"anomaly_ids" binding:"required"`
+			Status          *string  `json:"status"`
+			AssignedTo      *string  `json:"assigned_to"`
+			ResolutionNotes *string  `json:"resolution_notes"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		var assignedTo *uuid.UUID
+		if req.AssignedTo != nil {
+			if uid, err := uuid.Parse(*req.AssignedTo); err == nil {
+				assignedTo = &uid
+			}
+		}
+
+		updated := 0
+		for _, idStr := range req.AnomalyIDs {
+			id, err := uuid.Parse(idStr)
+			if err != nil {
+				continue
+			}
+
+			anomaly, err := svc.GetAnomaly(c.Request.Context(), id)
+			if err != nil {
+				continue
+			}
+
+			if req.Status != nil {
+				anomaly.Status = *req.Status
+			}
+			if assignedTo != nil {
+				anomaly.AssignedTo = assignedTo
+			}
+			if req.ResolutionNotes != nil {
+				anomaly.ResolutionNotes = req.ResolutionNotes
+			}
+
+			if err := svc.UpdateAnomaly(c.Request.Context(), anomaly); err == nil {
+				updated++
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"updated": updated})
+	}
+}
+
+// SSH Key Analytics handlers
+
+func handleGetSSHKeyAnalytics(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		sshKeyID, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid SSH key ID"}})
+			return
+		}
+
+		// Default to today
+		date := time.Now().Truncate(24 * time.Hour)
+		if dateStr := c.Query("date"); dateStr != "" {
+			if t, err := time.Parse("2006-01-02", dateStr); err == nil {
+				date = t
+			}
+		}
+
+		analytics, err := svc.GetSSHKeyAnalytics(c.Request.Context(), tenantID, sshKeyID, date)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get SSH key analytics")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get analytics"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"analytics": analytics})
+	}
+}
+
+func handleListSSHKeyAnalytics(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		filter := model.SSHKeyAnalyticsFilter{TenantID: &tenantID}
+
+		if sshKeyID := c.Query("ssh_key_id"); sshKeyID != "" {
+			if id, err := uuid.Parse(sshKeyID); err == nil {
+				filter.SSHKeyID = &id
+			}
+		}
+		if dateFrom := c.Query("date_from"); dateFrom != "" {
+			if t, err := time.Parse("2006-01-02", dateFrom); err == nil {
+				filter.DateFrom = &t
+			}
+		}
+		if dateTo := c.Query("date_to"); dateTo != "" {
+			if t, err := time.Parse("2006-01-02", dateTo); err == nil {
+				filter.DateTo = &t
+			}
+		}
+
+		analytics, err := svc.ListSSHKeyAnalytics(c.Request.Context(), filter)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to list SSH key analytics")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list analytics"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"analytics": analytics})
+	}
+}
+
+func handleGetSSHKeyUsageSummary(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		// Default to last 30 days
+		dateTo := time.Now()
+		dateFrom := dateTo.AddDate(0, 0, -30)
+
+		if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+			if t, err := time.Parse("2006-01-02", dateFromStr); err == nil {
+				dateFrom = t
+			}
+		}
+		if dateToStr := c.Query("date_to"); dateToStr != "" {
+			if t, err := time.Parse("2006-01-02", dateToStr); err == nil {
+				dateTo = t
+			}
+		}
+
+		summary, err := svc.GetSSHKeyUsageSummary(c.Request.Context(), tenantID, dateFrom, dateTo)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get SSH key usage summary")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get summary"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"summary": summary})
+	}
+}
+
+func handleGetMostUsedSSHKeys(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		dateTo := time.Now()
+		dateFrom := dateTo.AddDate(0, 0, -30)
+
+		if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+			if t, err := time.Parse("2006-01-02", dateFromStr); err == nil {
+				dateFrom = t
+			}
+		}
+		if dateToStr := c.Query("date_to"); dateToStr != "" {
+			if t, err := time.Parse("2006-01-02", dateToStr); err == nil {
+				dateTo = t
+			}
+		}
+
+		limit := getIntQuery(c, "limit", 10)
+
+		ranks, err := svc.GetMostUsedSSHKeys(c.Request.Context(), tenantID, dateFrom, dateTo, limit)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get most used SSH keys")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get most used keys"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"keys": ranks})
+	}
+}
+
+func handleGetAnomalousSSHKeys(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		dateTo := time.Now()
+		dateFrom := dateTo.AddDate(0, 0, -30)
+
+		if dateFromStr := c.Query("date_from"); dateFromStr != "" {
+			if t, err := time.Parse("2006-01-02", dateFromStr); err == nil {
+				dateFrom = t
+			}
+		}
+		if dateToStr := c.Query("date_to"); dateToStr != "" {
+			if t, err := time.Parse("2006-01-02", dateToStr); err == nil {
+				dateTo = t
+			}
+		}
+
+		threshold := getIntQuery(c, "threshold", 5)
+
+		analytics, err := svc.GetAnomalousSSHKeys(c.Request.Context(), tenantID, dateFrom, dateTo, threshold)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get anomalous SSH keys")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get anomalous keys"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"analytics": analytics})
+	}
+}
+
+// Command Blacklist handlers
+
+func handleCreateCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req model.CreateCommandBlacklistRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		userID, _ := c.Get("user_id")
+		userIDUUID, _ := uuid.Parse(userID.(string))
+
+		blacklist := &model.CommandBlacklist{
+			TenantID:        &tenantID,
+			CommandPattern:  req.CommandPattern,
+			PatternType:     req.PatternType,
+			Action:          req.Action,
+			Severity:        req.Severity,
+			AppliesToUsers:  req.AppliesToUsers,
+			AppliesToGroups: req.AppliesToGroups,
+			AppliesToTargets: req.AppliesToTargets,
+			AllowOverride:   req.AllowOverride,
+			OverrideRoles:   req.OverrideRoles,
+			Reason:          req.Reason,
+			CreatedBy:       userIDUUID,
+			Enabled:         true,
+		}
+
+		if req.BaseCommand != "" {
+			blacklist.BaseCommand = &req.BaseCommand
+		}
+		if req.RiskCategory != "" {
+			blacklist.RiskCategory = &req.RiskCategory
+		}
+
+		if err := svc.CreateCommandBlacklist(c.Request.Context(), blacklist); err != nil {
+			logger.Error().Err(err).Msg("Failed to create command blacklist")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to create blacklist entry"}})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"blacklist": blacklist})
+	}
+}
+
+func handleListCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		filter := model.CommandBlacklistFilter{TenantID: &tenantID}
+
+		if enabled := c.Query("enabled"); enabled != "" {
+			if e, err := parseBool(enabled); err == nil {
+				filter.Enabled = &e
+			}
+		}
+		if patternType := c.Query("pattern_type"); patternType != "" {
+			filter.PatternType = &patternType
+		}
+		if action := c.Query("action"); action != "" {
+			filter.Action = &action
+		}
+		if severity := c.Query("severity"); severity != "" {
+			filter.Severity = &severity
+		}
+
+		blacklists, err := svc.ListCommandBlacklist(c.Request.Context(), filter)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to list command blacklist")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to list blacklist"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"blacklist": blacklists})
+	}
+}
+
+func handleGetCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid blacklist ID"}})
+			return
+		}
+
+		blacklist, err := svc.GetCommandBlacklist(c.Request.Context(), id)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get command blacklist")
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Blacklist entry not found"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"blacklist": blacklist})
+	}
+}
+
+func handleUpdateCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid blacklist ID"}})
+			return
+		}
+
+		blacklist, err := svc.GetCommandBlacklist(c.Request.Context(), id)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Blacklist entry not found"}})
+			return
+		}
+
+		var req model.UpdateCommandBlacklistRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_INPUT", "message": err.Error()}})
+			return
+		}
+
+		if req.CommandPattern != nil {
+			blacklist.CommandPattern = *req.CommandPattern
+		}
+		if req.PatternType != nil {
+			blacklist.PatternType = *req.PatternType
+		}
+		if req.BaseCommand != nil {
+			blacklist.BaseCommand = req.BaseCommand
+		}
+		if req.Action != nil {
+			blacklist.Action = *req.Action
+		}
+		if req.Severity != nil {
+			blacklist.Severity = *req.Severity
+		}
+		if req.AppliesToUsers != nil {
+			blacklist.AppliesToUsers = req.AppliesToUsers
+		}
+		if req.AppliesToGroups != nil {
+			blacklist.AppliesToGroups = req.AppliesToGroups
+		}
+		if req.AppliesToTargets != nil {
+			blacklist.AppliesToTargets = req.AppliesToTargets
+		}
+		if req.AllowOverride != nil {
+			blacklist.AllowOverride = *req.AllowOverride
+		}
+		if req.OverrideRoles != nil {
+			blacklist.OverrideRoles = req.OverrideRoles
+		}
+		if req.Reason != nil {
+			blacklist.Reason = *req.Reason
+		}
+		if req.RiskCategory != nil {
+			blacklist.RiskCategory = req.RiskCategory
+		}
+		if req.Enabled != nil {
+			blacklist.Enabled = *req.Enabled
+		}
+
+		if err := svc.UpdateCommandBlacklist(c.Request.Context(), blacklist); err != nil {
+			logger.Error().Err(err).Msg("Failed to update command blacklist")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to update blacklist"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"blacklist": blacklist})
+	}
+}
+
+func handleDeleteCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid blacklist ID"}})
+			return
+		}
+
+		if err := svc.DeleteCommandBlacklist(c.Request.Context(), id); err != nil {
+			logger.Error().Err(err).Msg("Failed to delete command blacklist")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to delete blacklist"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Blacklist entry deleted"})
+	}
+}
+
+func handleGetBlacklistStats(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tenantID, err := getTenantUUID(c)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_TENANT", "message": "Invalid tenant ID"}})
+			return
+		}
+
+		stats, err := svc.GetBlacklistStats(c.Request.Context(), tenantID)
+		if err != nil {
+			logger.Error().Err(err).Msg("Failed to get blacklist stats")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to get stats"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"stats": stats})
+	}
+}
+
+func handleEnableCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid blacklist ID"}})
+			return
+		}
+
+		if err := svc.EnableCommandBlacklist(c.Request.Context(), id); err != nil {
+			logger.Error().Err(err).Msg("Failed to enable command blacklist")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to enable blacklist"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Blacklist entry enabled"})
+	}
+}
+
+func handleDisableCommandBlacklist(svc *audit.AnalyticsService, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := uuid.Parse(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_ID", "message": "Invalid blacklist ID"}})
+			return
+		}
+
+		if err := svc.DisableCommandBlacklist(c.Request.Context(), id); err != nil {
+			logger.Error().Err(err).Msg("Failed to disable command blacklist")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to disable blacklist"}})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "Blacklist entry disabled"})
+	}
+}
+
+// Helper functions
+
+func getTenantUUID(c *gin.Context) (uuid.UUID, error) {
+	tenantID, exists := c.Get("tenant_id")
+	if !exists {
+		return uuid.Nil, fmt.Errorf("tenant_id not found in context")
+	}
+	return uuid.Parse(tenantID.(string))
+}
+
+func parseBool(s string) (bool, error) {
+	switch s {
+	case "true", "1", "yes", "on":
+		return true, nil
+	case "false", "0", "no", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean value: %s", s)
+	}
 }

@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/rs/zerolog"
 )
@@ -304,15 +305,23 @@ func (ws *WrappedKeySerializer) Serialize(wk *WrappedKey) (string, error) {
 
 // Deserialize parses a wrapped key from storage
 func (ws *WrappedKeySerializer) Deserialize(data string) (*WrappedKey, error) {
-	var keyID, encodedKey, alg string
-	var version int
-
-	_, err := fmt.Sscanf(data, "%[^.].%[^.].%d.%s", &keyID, &encodedKey, &version, &alg)
-	if err != nil {
-		return nil, fmt.Errorf("kms: invalid wrapped key format: %w", err)
+	parts := strings.Split(data, ".")
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("kms: invalid wrapped key format: expected 4 parts, got %d", len(parts))
 	}
 
-	decodedKeyID, err := base64.RawURLEncoding.DecodeString(keyID)
+	encodedKeyID := parts[0]
+	encodedKey := parts[1]
+	versionStr := parts[2]
+	alg := parts[3]
+
+	var version int
+	_, err := fmt.Sscanf(versionStr, "%d", &version)
+	if err != nil {
+		return nil, fmt.Errorf("kms: invalid version format: %w", err)
+	}
+
+	decodedKeyID, err := base64.RawURLEncoding.DecodeString(encodedKeyID)
 	if err != nil {
 		return nil, fmt.Errorf("kms: invalid key ID encoding: %w", err)
 	}
