@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
+	"github.com/openpam/openpam/internal/security"
 	"github.com/rs/zerolog"
 )
 
@@ -355,13 +356,28 @@ func (r *TargetRepository) invalidateCache(ctx context.Context, tenantID uuid.UU
 
 // TargetService handles target business logic
 type TargetService struct {
-	repo   *TargetRepository
-	logger zerolog.Logger
+	repo    *TargetRepository
+	logger  zerolog.Logger
+	ssrfCfg security.SSRFValidatorConfig
 }
 
 // NewTargetService creates a new target service
 func NewTargetService(repo *TargetRepository, logger zerolog.Logger) *TargetService {
-	return &TargetService{repo: repo, logger: logger}
+	return &TargetService{
+		repo:    repo,
+		logger:  logger,
+		ssrfCfg: security.DefaultSSRFValidatorConfig(),
+	}
+}
+
+// NewTargetServiceWithSSRFConfig creates a new target service with custom SSRF config
+// This is useful for tests that need to allow private networks
+func NewTargetServiceWithSSRFConfig(repo *TargetRepository, logger zerolog.Logger, ssrfCfg security.SSRFValidatorConfig) *TargetService {
+	return &TargetService{
+		repo:    repo,
+		logger:  logger,
+		ssrfCfg: ssrfCfg,
+	}
 }
 
 // CreateTarget creates a new target with validation
@@ -435,6 +451,7 @@ func (s *TargetService) GetByID(ctx context.Context, id uuid.UUID) (*Target, err
 }
 
 // validateTarget validates target data
+// SECURITY: Includes SSRF validation to prevent Server-Side Request Forgery attacks
 func (s *TargetService) validateTarget(target *Target) error {
 	if target.Name == "" {
 		return fmt.Errorf("target: name is required")
@@ -450,6 +467,17 @@ func (s *TargetService) validateTarget(target *Target) error {
 	}
 	if target.TenantID == uuid.Nil {
 		return fmt.Errorf("target: tenant ID is required")
+	}
+
+	// SECURITY: Validate host against SSRF attacks
+	// Uses the service's SSRF configuration (default blocks private networks, link-local, and loopback)
+	// This prevents attackers from scanning internal networks or accessing metadata services
+	if err := security.ValidateTargetHostQuick(target.Host, s.ssrfCfg); err != nil {
+		s.logger.Warn().
+			Str("host", target.Host).
+			Err(err).
+			Msg("Target host failed SSRF validation")
+		return fmt.Errorf("target: host validation failed: %w", err)
 	}
 
 	// Validate connection string for database targets

@@ -51,11 +51,11 @@ export const ReportDetailPage: React.FC = () => {
     enabled: !!id,
     refetchInterval: (data) => {
       // Auto-refresh if report is still generating
-      return data?.data.status === 'generating' || data?.data.status === 'pending' ? 5000 : false;
+      return (data as any)?.status === 'generating' || (data as any)?.status === 'pending' ? 5000 : false;
     },
   });
 
-  const snapshot = snapshotData?.data as ReportSnapshot | undefined;
+  const snapshot = snapshotData as ReportSnapshot | undefined;
 
   useEffect(() => {
     if (snapshot?.status === 'completed' && showViewer === false) {
@@ -69,8 +69,9 @@ export const ReportDetailPage: React.FC = () => {
 
     try {
       const response = await reportsApi.downloadSnapshot(snapshot.id);
-      if (response.data.download_url) {
-        window.open(response.data.download_url, '_blank');
+      const downloadUrl = (response as any).download_url || (response as any).data?.download_url;
+      if (downloadUrl) {
+        window.open(downloadUrl, '_blank');
         toast.success('Download started');
       }
     } catch (error) {

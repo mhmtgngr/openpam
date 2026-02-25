@@ -157,7 +157,7 @@ func TestTargetHandler_Create(t *testing.T) {
 			Type:        "invalid-type",
 			Environment: "production",
 			Sensitivity: "medium",
-			Host:        "192.168.1.1",
+			Host:        "8.8.8.8",
 			Port:        22,
 		}
 		jsonBody, _ := json.Marshal(body)
@@ -184,7 +184,7 @@ func TestTargetHandler_Create(t *testing.T) {
 			Type:        "ssh",
 			Environment: "production",
 			Sensitivity: "medium",
-			Host:        "192.168.1.1",
+			Host:        "8.8.8.8",
 			Port:        0,
 		}
 		jsonBody, _ := json.Marshal(body)
@@ -211,7 +211,7 @@ func TestTargetHandler_Create(t *testing.T) {
 			Type:        "ssh",
 			Environment: "production",
 			Sensitivity: "medium",
-			Host:        "192.168.1.1",
+			Host:        "8.8.8.8",
 			Port:        70000,
 		}
 		jsonBody, _ := json.Marshal(body)
@@ -241,7 +241,7 @@ func TestTargetHandler_Create(t *testing.T) {
 				Type:        targetType,
 				Environment: "production",
 				Sensitivity: "medium",
-				Host:        "192.168.1.1",
+				Host:        "8.8.8.8", // Use public IP to pass SSRF validation
 				Port:        22,
 			}
 			jsonBody, _ := json.Marshal(body)
@@ -282,7 +282,7 @@ func TestTargetHandler_Create(t *testing.T) {
 				Type:        "ssh",
 				Environment: env,
 				Sensitivity: "medium",
-				Host:        "192.168.1.1",
+				Host:        "8.8.8.8",
 				Port:        22,
 			}
 			jsonBody, _ := json.Marshal(body)
@@ -323,7 +323,7 @@ func TestTargetHandler_Create(t *testing.T) {
 				Type:        "ssh",
 				Environment: "production",
 				Sensitivity: level,
-				Host:        "192.168.1.1",
+				Host:        "8.8.8.8",
 				Port:        22,
 			}
 			jsonBody, _ := json.Marshal(body)

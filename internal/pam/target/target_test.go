@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/openpam/openpam/internal/security"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -305,7 +306,10 @@ func TestSensitivityDefaults_MFAAndApproval(t *testing.T) {
 
 // Test validation
 func TestTargetService_ValidateTarget(t *testing.T) {
-	service := &TargetService{}
+	// Create a test service with SSRF config that allows private networks for testing
+	ssrfCfg := security.DefaultSSRFValidatorConfig()
+	ssrfCfg.AllowPrivateNetworks = true // Allow private IPs in tests
+	service := &TargetService{ssrfCfg: ssrfCfg}
 
 	tests := []struct {
 		name    string

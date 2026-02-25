@@ -98,15 +98,18 @@ export const ReportTemplatesPage: React.FC = () => {
   // Handle duplicate
   const handleDuplicate = useCallback(async (template: ReportTemplate) => {
     try {
-      const newTemplate = await reportsApi.create({
+      const createData: any = {
         name: `${template.name} (Copy)`,
         description: template.description,
-        framework: template.framework,
         type: template.type,
         config: template.config,
         sections: template.sections,
-      });
-      setTemplates((prev) => [...prev, newTemplate as ReportTemplate]);
+      };
+      if (template.framework) {
+        createData.framework = template.framework;
+      }
+      const newTemplate = await reportsApi.create(createData);
+      setTemplates((prev) => [...prev, newTemplate as unknown as ReportTemplate]);
       setSuccessMessage('Template duplicated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err) {
@@ -133,11 +136,11 @@ export const ReportTemplatesPage: React.FC = () => {
       if (selectedTemplate) {
         // Update existing
         const updated = await reportsApi.update(selectedTemplate.id, data);
-        setTemplates((prev) => prev.map((t) => (t.id === selectedTemplate.id ? updated as ReportTemplate : t)));
+        setTemplates((prev) => prev.map((t) => (t.id === selectedTemplate.id ? updated as unknown as ReportTemplate : t)));
       } else {
         // Create new
         const created = await reportsApi.create(data as any);
-        setTemplates((prev) => [...prev, created as ReportTemplate]);
+        setTemplates((prev) => [...prev, created as unknown as ReportTemplate]);
       }
       setViewMode('list');
       setSuccessMessage(selectedTemplate ? 'Template updated successfully' : 'Template created successfully');

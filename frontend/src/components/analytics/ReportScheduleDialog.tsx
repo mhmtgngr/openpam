@@ -76,7 +76,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
       setEnabled(existingSchedule?.enabled ?? true);
       setTime(existingSchedule?.time || '09:00');
       setTimezone(existingSchedule?.timezone || 'UTC');
-      setDayOfWeek(existingSchedule?.day_of_week ?? 1);
+      setDayOfWeek(existingSchedule?.day_of_week?.toString() ?? '1');
       setDayOfMonth(existingSchedule?.day_of_month ?? 1);
       setRecipients(existingSchedule?.recipients?.join(', ') || '');
     }
@@ -128,7 +128,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
     };
 
     if (frequency === 'weekly') {
-      schedule.day_of_week = dayOfWeek;
+      schedule.day_of_week = parseInt(dayOfWeek, 10);
     } else if (frequency === 'monthly') {
       schedule.day_of_month = dayOfMonth;
     }
@@ -238,7 +238,7 @@ export const ReportScheduleDialog: React.FC<ReportScheduleDialogProps> = ({
             <Select
               options={daysOfWeek}
               value={dayOfWeek.toString()}
-              onChange={(e) => setDayOfWeek(parseInt(e.target.value, 10))}
+              onChange={(e) => setDayOfWeek(e.target.value)}
             />
           </div>
         )}

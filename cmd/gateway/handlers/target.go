@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/openpam/openpam/internal/pam/target"
+	"github.com/openpam/openpam/internal/security"
 	"github.com/rs/zerolog"
 )
 
@@ -162,6 +163,7 @@ func (h *TargetHandler) Get(c *gin.Context) {
 }
 
 // Create creates a new target
+// SECURITY: Includes SSRF validation to prevent Server-Side Request Forgery attacks
 func (h *TargetHandler) Create(c *gin.Context) {
 	var req CreateTargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -176,6 +178,25 @@ func (h *TargetHandler) Create(c *gin.Context) {
 
 	tenantID, _ := c.Get("tenant_id")
 	tenantIDUUID, _ := uuid.Parse(tenantID.(string))
+
+	// SECURITY: Validate target host against SSRF attacks BEFORE creating target
+	// This prevents attackers from creating targets that point to internal infrastructure
+	// or using the PAM platform as a pivot for network scanning
+	ssrfCfg := security.DefaultSSRFValidatorConfig()
+	if err := security.ValidateTargetHostQuick(req.Host, ssrfCfg); err != nil {
+		h.logger.Warn().
+			Str("host", req.Host).
+			Str("tenant_id", tenantIDUUID.String()).
+			Err(err).
+			Msg("Target host failed SSRF validation during creation")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "INVALID_TARGET_HOST",
+				"message": "Target host validation failed: " + err.Error(),
+			},
+		})
+		return
+	}
 
 	targetObj := &target.Target{
 		Name:             req.Name,
@@ -278,7 +299,24 @@ func (h *TargetHandler) Update(c *gin.Context) {
 	if req.Sensitivity != nil {
 		t.Sensitivity = target.TargetSensitivity(*req.Sensitivity)
 	}
+	// SECURITY: Validate target host against SSRF attacks when updating
+	// This prevents attackers from updating existing targets to point to internal infrastructure
 	if req.Host != nil {
+		ssrfCfg := security.DefaultSSRFValidatorConfig()
+		if err := security.ValidateTargetHostQuick(*req.Host, ssrfCfg); err != nil {
+			h.logger.Warn().
+				Str("host", *req.Host).
+				Str("target_id", t.ID.String()).
+				Err(err).
+				Msg("Target host failed SSRF validation during update")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": gin.H{
+					"code":    "INVALID_TARGET_HOST",
+					"message": "Target host validation failed: " + err.Error(),
+				},
+			})
+			return
+		}
 		t.Host = *req.Host
 	}
 	if req.Port != nil {

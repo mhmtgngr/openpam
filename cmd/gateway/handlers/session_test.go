@@ -154,7 +154,7 @@ func TestSessionHandler_Create(t *testing.T) {
 		body := CreateSessionRequest{
 			CredentialID: uuid.New().String(),
 			Type:         "invalid-type",
-			TargetHost:   "192.168.1.1",
+			TargetHost:   "example.com",
 			TargetPort:   22,
 		}
 		jsonBody, _ := json.Marshal(body)
@@ -179,7 +179,7 @@ func TestSessionHandler_Create(t *testing.T) {
 		body := CreateSessionRequest{
 			CredentialID: uuid.New().String(),
 			Type:         "ssh",
-			TargetHost:   "192.168.1.1",
+			TargetHost:   "example.com",
 			TargetPort:   0,
 		}
 		jsonBody, _ := json.Marshal(body)
@@ -204,7 +204,7 @@ func TestSessionHandler_Create(t *testing.T) {
 		body := CreateSessionRequest{
 			CredentialID: uuid.New().String(),
 			Type:         "ssh",
-			TargetHost:   "192.168.1.1",
+			TargetHost:   "example.com",
 			TargetPort:   70000,
 		}
 		jsonBody, _ := json.Marshal(body)
@@ -232,7 +232,7 @@ func TestSessionHandler_Create(t *testing.T) {
 			body := CreateSessionRequest{
 				CredentialID: uuid.New().String(),
 				Type:         sessionType,
-				TargetHost:   "192.168.1.1",
+				TargetHost:   "example.com",
 				TargetPort:   22,
 			}
 			jsonBody, _ := json.Marshal(body)
@@ -268,7 +268,7 @@ func TestSessionHandler_Create(t *testing.T) {
 		body := CreateSessionRequest{
 			CredentialID: uuid.New().String(),
 			Type:         "ssh",
-			TargetHost:   "192.168.1.1",
+			TargetHost:   "example.com",
 			TargetPort:   22,
 		}
 		jsonBody, _ := json.Marshal(body)

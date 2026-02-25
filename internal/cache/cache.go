@@ -239,11 +239,13 @@ func (c *Cache) PubSub() *PubSub {
 }
 
 // Event represents a real-time event
+// SECURITY: Signature is included for event verification to prevent spoofing
 type Event struct {
 	Type      string                 `json:"type"`
 	TenantID  string                 `json:"tenant_id"`
 	Data      map[string]interface{} `json:"data"`
 	Timestamp int64                  `json:"timestamp"`
+	Signature string                 `json:"signature"` // HMAC signature for event verification
 }
 
 // Publish publishes an event to a channel

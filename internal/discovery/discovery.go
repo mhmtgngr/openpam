@@ -292,6 +292,7 @@ type Service struct {
 	cache      *cache.Cache
 	logger     zerolog.Logger
 	scanners   map[string]Scanner
+	scanConfig ScannerConfig
 	mu         sync.RWMutex
 }
 
@@ -301,14 +302,46 @@ type Scanner interface {
 	Name() string
 }
 
+// ScannerConfig configures security limits for network scanning
+type ScannerConfig struct {
+	// AllowedCIDRs are the only CIDR ranges that can be scanned
+	// If empty, private networks (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) are allowed by default
+	AllowedCIDRs []string
+
+	// MaxConcurrentScans limits the number of simultaneous scan operations
+	MaxConcurrentScans int
+
+	// ScanTimeout is the maximum time a single scan can take
+	ScanTimeout time.Duration
+}
+
+// DefaultScannerConfig returns secure defaults for network scanning
+func DefaultScannerConfig() ScannerConfig {
+	return ScannerConfig{
+		AllowedCIDRs: []string{
+			"10.0.0.0/8",     // RFC1918 private
+			"172.16.0.0/12",  // RFC1918 private
+			"192.168.0.0/16", // RFC1918 private
+		},
+		MaxConcurrentScans: 5,
+		ScanTimeout:        30 * time.Minute,
+	}
+}
+
 // NewService creates a new discovery service
 func NewService(repo *Repository, targetSvc *targetpkg.TargetService, c *cache.Cache, logger zerolog.Logger) *Service {
+	return NewServiceWithConfig(repo, targetSvc, c, logger, DefaultScannerConfig())
+}
+
+// NewServiceWithConfig creates a new discovery service with custom scanner config
+func NewServiceWithConfig(repo *Repository, targetSvc *targetpkg.TargetService, c *cache.Cache, logger zerolog.Logger, scanCfg ScannerConfig) *Service {
 	s := &Service{
-		repo:      repo,
-		targetSvc: targetSvc,
-		cache:     c,
-		logger:    logger,
-		scanners:  make(map[string]Scanner),
+		repo:       repo,
+		targetSvc:  targetSvc,
+		cache:      c,
+		logger:     logger,
+		scanners:   make(map[string]Scanner),
+		scanConfig: scanCfg,
 	}
 
 	// Register default scanners
@@ -331,11 +364,25 @@ func (s *Service) CreateScan(ctx context.Context, scan *Scan) error {
 }
 
 // RunScan executes a discovery scan
+// SECURITY: Validates that scan targets are within allowed CIDR ranges to prevent SSRF attacks
 func (s *Service) RunScan(ctx context.Context, scanID uuid.UUID) error {
 	// Get scan
 	scan, err := s.repo.GetScan(ctx, scanID)
 	if err != nil {
 		return err
+	}
+
+	// SECURITY: Validate scan subnets against SSRF attacks
+	// This prevents the discovery service from being used as a pivot for network reconnaissance
+	for _, subnet := range scan.Subnets {
+		if err := s.validateScanTarget(subnet); err != nil {
+			s.logger.Warn().
+				Str("scan_id", scanID.String()).
+				Str("subnet", subnet).
+				Err(err).
+				Msg("Scan target failed security validation")
+			return fmt.Errorf("scan target '%s' failed security validation: %w", subnet, err)
+		}
 	}
 
 	// Update status
@@ -346,10 +393,101 @@ func (s *Service) RunScan(ctx context.Context, scanID uuid.UUID) error {
 		return err
 	}
 
-	// Run scan asynchronously
-	go s.executeScan(context.Background(), scan)
+	// Run scan asynchronously with timeout
+	scanCtx, cancel := context.WithTimeout(context.Background(), s.scanConfig.ScanTimeout)
+	go func() {
+		defer cancel()
+		s.executeScan(scanCtx, scan)
+	}()
 
 	return nil
+}
+
+// validateScanTarget validates that a scan target is within allowed ranges
+func (s *Service) validateScanTarget(target string) error {
+	// Parse as IP address first
+	ip := net.ParseIP(target)
+	if ip != nil {
+		return s.validateIPAgainstAllowedRanges(ip)
+	}
+
+	// Try parsing as CIDR
+	_, ipNet, err := net.ParseCIDR(target)
+	if err != nil {
+		// Not a valid IP or CIDR
+		return fmt.Errorf("invalid target format: %w", err)
+	}
+
+	// Check that the CIDR is within allowed ranges
+	// We check if the network overlaps with any allowed range
+	for _, allowedCIDR := range s.scanConfig.AllowedCIDRs {
+		_, allowedNet, err := net.ParseCIDR(allowedCIDR)
+		if err != nil {
+			continue
+		}
+		// Check if the target CIDR is contained within or overlaps with allowed CIDR
+		if allowedNet.Contains(ipNet.IP) || ipNet.Contains(allowedNet.IP) {
+			return nil
+		}
+	}
+
+	// If no specific CIDRs are configured, allow RFC1918 private addresses
+	if len(s.scanConfig.AllowedCIDRs) == 0 {
+		if s.isPrivateNetwork(ipNet) {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("target '%s' is not within allowed CIDR ranges", target)
+}
+
+// validateIPAgainstAllowedRanges checks if an IP is within allowed ranges
+func (s *Service) validateIPAgainstAllowedRanges(ip net.IP) error {
+	// Check against explicit forbidden hosts
+	forbiddenHosts := map[string]bool{
+		"169.254.169.254":        true, // AWS/GCP/Azure metadata
+		"metadata.google.internal": true,
+		"metadata":               true,
+		"localhost":              true,
+	}
+
+	if forbiddenHosts[ip.String()] {
+		return fmt.Errorf("target '%s' is explicitly forbidden", ip.String())
+	}
+
+	// Check against allowed CIDRs
+	for _, allowedCIDR := range s.scanConfig.AllowedCIDRs {
+		_, allowedNet, err := net.ParseCIDR(allowedCIDR)
+		if err != nil {
+			continue
+		}
+		if allowedNet.Contains(ip) {
+			return nil
+		}
+	}
+
+	// If no specific CIDRs configured, allow private networks
+	if len(s.scanConfig.AllowedCIDRs) == 0 && isPrivateIP(ip) {
+		return nil
+	}
+
+	return fmt.Errorf("target '%s' is not within allowed CIDR ranges", ip.String())
+}
+
+// isPrivateNetwork checks if a CIDR is a private network range
+func (s *Service) isPrivateNetwork(cidr *net.IPNet) bool {
+	privateCIDRs := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+	}
+	for _, privateCIDR := range privateCIDRs {
+		_, privateNet, _ := net.ParseCIDR(privateCIDR)
+		if privateNet.Contains(cidr.IP) {
+			return true
+		}
+	}
+	return false
 }
 
 // executeScan executes the actual scan
@@ -595,4 +733,20 @@ func (s *NmapScanner) Scan(ctx context.Context, subnets []string, ports string, 
 // Name returns the scanner name
 func (s *NmapScanner) Name() string {
 	return "nmap"
+}
+
+// isPrivateIP checks if an IP address is in a private range
+func isPrivateIP(ip net.IP) bool {
+	privateCIDRs := []string{
+		"10.0.0.0/8",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+	}
+	for _, privateCIDR := range privateCIDRs {
+		_, privateNet, _ := net.ParseCIDR(privateCIDR)
+		if privateNet.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

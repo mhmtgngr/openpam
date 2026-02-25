@@ -40,8 +40,17 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 	// SECURITY FIX: Remove environment-based SSL detection entirely
 	// SSL mode must be explicitly set to a secure value
 	sslMode := cfg.SSLMode
+
+	// SECURITY: Check if running in production before defaulting SSL mode
+	// In production, SSL mode MUST be explicitly configured - no defaults allowed
 	if sslMode == "" {
-		// SECURITY FIX: Default to verify-full for maximum security
+		if security.IsProductionEnvironment() {
+			// In production, require explicit SSL mode configuration
+			return nil, fmt.Errorf("database: SSL mode must be explicitly configured in production. " +
+				"Set Config.SSLMode to one of: require, verify-ca, verify-full. " +
+				"DO NOT leave SSLMode empty in production deployments")
+		}
+		// In development, default to verify-full for maximum security
 		// verify-full ensures the server certificate is valid AND the hostname matches
 		sslMode = "verify-full"
 		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'verify-full'")
@@ -50,6 +59,11 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 	// SECURITY: Infrastructure-level TLS enforcement via security package
 	// This check is performed at the infrastructure level and cannot be bypassed
 	if err := security.EnforceDatabaseSSL(sslMode); err != nil {
+		return nil, err
+	}
+
+	// SECURITY: Additional production check to verify SSL is properly configured
+	if err := security.ValidateProductionSSLConfig(sslMode); err != nil {
 		return nil, err
 	}
 
@@ -70,6 +84,7 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 		Str("ssl_mode", sslMode).
 		Str("driver_sslmode", driverSSLMode).
 		Bool("tls_enforced", security.IsProductionBuild()).
+		Bool("production_env", security.IsProductionEnvironment()).
 		Msg("Database SSL/TLS enforced at infrastructure level - connections are encrypted")
 
 	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters

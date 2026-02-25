@@ -87,7 +87,7 @@ export const ScheduledReportsPage: React.FC = () => {
         frequency: filters.frequency,
         is_active: filters.isActive,
       });
-      setSchedules(data.data || []);
+      setSchedules((data.data || []) as unknown as ReportScheduleEntity[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load schedules');
     } finally {
@@ -99,7 +99,7 @@ export const ScheduledReportsPage: React.FC = () => {
   const fetchExecutions = useCallback(async (scheduleId: string) => {
     try {
       const data = await reportSchedulesApi.getHistory(scheduleId, { limit: 5 });
-      setExecutions((prev) => ({ ...prev, [scheduleId]: data.data || [] }));
+      setExecutions((prev) => ({ ...prev, [scheduleId]: (data.data || []) as unknown as ScheduledReportExecution[] }));
     } catch (err) {
       console.warn('Failed to fetch executions:', err);
     }
@@ -181,10 +181,10 @@ export const ScheduledReportsPage: React.FC = () => {
     try {
       if (selectedSchedule) {
         const updated = await reportSchedulesApi.update(selectedSchedule.id, data);
-        setSchedules((prev) => prev.map((s) => (s.id === selectedSchedule.id ? updated : s)));
+        setSchedules((prev) => prev.map((s) => (s.id === selectedSchedule.id ? updated as unknown as ReportScheduleEntity : s)));
       } else {
         const created = await reportSchedulesApi.create(data);
-        setSchedules((prev) => [...prev, created]);
+        setSchedules((prev) => [...prev, created as unknown as ReportScheduleEntity]);
       }
       setViewMode('list');
       setSuccessMessage(selectedSchedule ? 'Schedule updated successfully' : 'Schedule created successfully');
@@ -360,8 +360,18 @@ export const ScheduledReportsPage: React.FC = () => {
   return (
     <div>
       <ReportScheduleDialog
-        open={true}
-        schedule={selectedSchedule}
+        isOpen={true}
+        existingSchedule={selectedSchedule ? {
+          frequency: selectedSchedule.frequency,
+          cron_expression: selectedSchedule.cron_expression,
+          day_of_week: undefined,
+          day_of_month: undefined,
+          time: selectedSchedule.next_run_at ? new Date(selectedSchedule.next_run_at).toTimeString().slice(0, 5) : undefined,
+          timezone: selectedSchedule.timezone,
+          enabled: selectedSchedule.is_active,
+          recipients: selectedSchedule.recipients,
+          next_run_at: selectedSchedule.next_run_at,
+        } : undefined}
         onSave={handleSave}
         onClose={() => setViewMode('list')}
       />

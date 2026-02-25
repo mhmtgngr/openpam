@@ -291,9 +291,9 @@ export const AnalyticsProvider: React.FC<AnalyticsProviderProps> = ({
   }, [refreshAnomalies, setError]);
 
   // Update anomaly status
-  const updateAnomalyStatus = useCallback(async (id: string, status: 'open' | 'investigating' | 'resolved' | 'false_positive', notes?: string) => {
+  const updateAnomalyStatus = useCallback(async (id: string, status: string, notes?: string) => {
     try {
-      await complianceApi.updateAnomaly(id, { status, resolution_notes: notes });
+      await complianceApi.updateAnomaly(id, { status: status as 'open' | 'investigating' | 'resolved' | 'false_positive', resolution_notes: notes });
       await refreshAnomalies();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update anomaly status');

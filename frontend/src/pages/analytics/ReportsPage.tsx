@@ -155,8 +155,9 @@ export const ReportsPage: React.FC = () => {
   const handleDownload = async (report: ReportSnapshot) => {
     try {
       const response = await reportsApi.downloadSnapshot(report.id);
-      if (response.data.download_url) {
-        window.open(response.data.download_url, '_blank');
+      const downloadUrl = (response as any).download_url || (response as any).data?.download_url;
+      if (downloadUrl) {
+        window.open(downloadUrl, '_blank');
         toast.success('Download started');
       }
     } catch (error) {
@@ -319,7 +320,7 @@ export const ReportsPage: React.FC = () => {
                 <Filter className="h-4 w-4" />
                 Filters
                 {activeFilterCount > 0 && (
-                  <Badge variant="primary" className="ml-2">
+                  <Badge variant="info" className="ml-2">
                     {activeFilterCount}
                   </Badge>
                 )}

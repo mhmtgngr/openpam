@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/openpam/openpam/internal/security"
 	"github.com/openpam/openpam/internal/session"
 	"github.com/rs/zerolog"
 )
@@ -128,6 +129,7 @@ func (h *SessionHandler) Get(c *gin.Context) {
 }
 
 // Create creates a new session
+// SECURITY: Includes SSRF validation to prevent Server-Side Request Forgery attacks
 func (h *SessionHandler) Create(c *gin.Context) {
 	var req CreateSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -151,6 +153,24 @@ func (h *SessionHandler) Create(c *gin.Context) {
 			"error": gin.H{
 				"code":    "INVALID_CREDENTIAL_ID",
 				"message": "Invalid credential ID",
+			},
+		})
+		return
+	}
+
+	// SECURITY: Validate target host against SSRF attacks
+	// This prevents attackers from scanning internal networks or accessing metadata services
+	ssrfCfg := security.DefaultSSRFValidatorConfig()
+	if err := security.ValidateTargetHostQuick(req.TargetHost, ssrfCfg); err != nil {
+		h.logger.Warn().
+			Str("target_host", req.TargetHost).
+			Str("user_id", userIDUUID.String()).
+			Err(err).
+			Msg("Target host failed SSRF validation")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "INVALID_TARGET_HOST",
+				"message": "Target host validation failed: " + err.Error(),
 			},
 		})
 		return

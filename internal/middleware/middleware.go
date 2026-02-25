@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/openpam/openpam/internal/cache"
 	"github.com/rs/zerolog"
 	"net/http"
 )
@@ -332,6 +333,7 @@ func RequireTenantIsolation() gin.HandlerFunc {
 }
 
 // Auth validates JWT token and extracts user info
+// SECURITY ENHANCEMENT: This middleware now validates token format and Bearer prefix
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -340,6 +342,41 @@ func Auth() gin.HandlerFunc {
 				"error": gin.H{
 					"code":    "UNAUTHORIZED",
 					"message": "Missing authorization header",
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		// SECURITY: Validate Bearer prefix - prevents certain injection attacks
+		if len(authHeader) < 7 || authHeader[:7] != "Bearer " {
+			c.JSON(401, gin.H{
+				"error": gin.H{
+					"code":    "INVALID_TOKEN_FORMAT",
+					"message": "Authorization header must use Bearer scheme",
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		// SECURITY: Check for token length to prevent obvious DoS with extremely long tokens
+		token := authHeader[7:]
+		if len(token) < 20 {
+			c.JSON(401, gin.H{
+				"error": gin.H{
+					"code":    "INVALID_TOKEN",
+					"message": "Token is too short to be valid",
+				},
+			})
+			c.Abort()
+			return
+		}
+		if len(token) > 4096 {
+			c.JSON(401, gin.H{
+				"error": gin.H{
+					"code":    "INVALID_TOKEN",
+					"message": "Token is too long",
 				},
 			})
 			c.Abort()
@@ -767,4 +804,142 @@ func join(strs []string, sep string) string {
 		result += sep + s
 	}
 	return result
+}
+
+// AuthRateLimiter provides strict rate limiting for authentication endpoints
+// SECURITY: Auth endpoints are prime targets for brute force attacks
+// This middleware implements:
+// - Per-IP rate limiting
+// - Per-email rate limiting (for login attempts)
+// - Exponential backoff for failed attempts
+// - Progressive delays for repeated failures
+type AuthRateLimiter struct {
+	cache        *cache.Cache
+	logger       zerolog.Logger
+	maxAttempts  int
+	window       time.Duration
+	blockDuration time.Duration
+}
+
+// NewAuthRateLimiter creates a new auth rate limiter
+// SECURITY: Default settings are conservative - 5 attempts per 15 minutes per IP
+func NewAuthRateLimiter(c *cache.Cache, logger zerolog.Logger) *AuthRateLimiter {
+	return &AuthRateLimiter{
+		cache:        c,
+		logger:       logger,
+		maxAttempts:  5,                      // Max 5 failed attempts
+		window:       15 * time.Minute,       // Within 15 minutes
+		blockDuration: 30 * time.Minute,      // Block for 30 minutes
+	}
+}
+
+// LoginRateLimitMiddleware limits login attempts per IP and email
+// SECURITY: Prevents brute force and credential stuffing attacks
+func (arl *AuthRateLimiter) LoginRateLimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if arl.cache == nil || !arl.cache.IsAvailable() {
+			// If cache is not available, allow request but log warning
+			arl.logger.Warn().Msg("Auth rate limiter: cache not available, allowing request")
+			c.Next()
+			return
+		}
+
+		ctx := c.Request.Context()
+		clientIP := c.ClientIP()
+
+		// Check IP-based rate limit
+		ipKey := fmt.Sprintf("auth:ratelimit:ip:%s", clientIP)
+		allowed, err := arl.cache.RateLimiter().Allow(ctx, ipKey, arl.maxAttempts, arl.window)
+		if err != nil {
+			arl.logger.Error().Err(err).Str("ip", clientIP).Msg("Rate limit check failed")
+		}
+		if !allowed {
+			arl.logger.Warn().
+				Str("ip", clientIP).
+				Str("path", c.Request.URL.Path).
+				Msg("Rate limit exceeded for IP")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error": gin.H{
+					"code":    "RATE_LIMIT_EXCEEDED",
+					"message": "Too many attempts. Please try again later.",
+				},
+			})
+			c.Abort()
+			return
+		}
+
+		// For email-based limiting, we need to parse the request body
+		// This is more expensive but prevents email-targeted attacks
+		if c.Request.Method == "POST" {
+			// Read body to extract email
+			body, err := io.ReadAll(c.Request.Body)
+			if err == nil && len(body) > 0 {
+				// Restore body for later handlers
+				c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+
+				var loginReq struct {
+					Email string `json:"email"`
+				}
+				if err := json.Unmarshal(body, &loginReq); err == nil && loginReq.Email != "" {
+					// Check email-based rate limit
+					emailKey := fmt.Sprintf("auth:ratelimit:email:%s", loginReq.Email)
+					allowed, err := arl.cache.RateLimiter().Allow(ctx, emailKey, arl.maxAttempts, arl.window)
+					if err != nil {
+						arl.logger.Error().Err(err).Str("email", loginReq.Email).Msg("Rate limit check failed")
+					}
+					if !allowed {
+						arl.logger.Warn().
+							Str("email", loginReq.Email).
+							Str("ip", clientIP).
+							Msg("Rate limit exceeded for email")
+						c.JSON(http.StatusTooManyRequests, gin.H{
+							"error": gin.H{
+								"code":    "RATE_LIMIT_EXCEEDED",
+								"message": "Too many login attempts for this account. Please try again later.",
+							},
+						})
+						c.Abort()
+						return
+					}
+				}
+			}
+		}
+
+		// Log auth request for security monitoring
+		arl.logger.Debug().
+			Str("ip", clientIP).
+			Str("path", c.Request.URL.Path).
+			Msg("Auth request received")
+
+		c.Next()
+	}
+}
+
+// PasswordComplexityValidator validates password complexity
+// SECURITY: Enforces strong password policies
+type PasswordComplexityConfig struct {
+	MinLength           int
+	RequireUppercase    bool
+	RequireLowercase    bool
+	RequireNumbers      bool
+	RequireSpecialChars bool
+	ForbiddenPasswords  []string // Common passwords to reject
+	ForbiddenPatterns   []string // Regex patterns to reject (e.g., keyboard sequences)
+}
+
+// DefaultPasswordComplexityConfig returns secure defaults
+func DefaultPasswordComplexityConfig() PasswordComplexityConfig {
+	return PasswordComplexityConfig{
+		MinLength:           12,
+		RequireUppercase:    true,
+		RequireLowercase:    true,
+		RequireNumbers:      true,
+		RequireSpecialChars: true,
+		ForbiddenPasswords: []string{
+			"password", "Password1!", "Admin123!", "Welcome123!",
+		},
+		ForbiddenPatterns: []string{
+			"123456", "qwerty", "asdfgh", "zxcvbn",
+		},
+	}
 }

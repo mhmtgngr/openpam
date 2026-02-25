@@ -147,7 +147,8 @@ export const ReportGeneratorPage: React.FC = () => {
     mutationFn: reportsApi.generate,
     onSuccess: (response) => {
       toast.success('Report generation started successfully');
-      navigate(`/analytics/reports/${response.data.snapshot_id}`);
+      const snapshotId = (response as any).snapshot_id || (response as any).data?.snapshot_id;
+      navigate(`/analytics/reports/${snapshotId}`);
     },
     onError: (error: Error) => {
       toast.error(`Failed to generate report: ${error.message}`);
@@ -190,7 +191,7 @@ export const ReportGeneratorPage: React.FC = () => {
     const config: ReportConfig = {
       period_start: periodStart,
       period_end: periodEnd,
-      include_sections: selectedSections.length > 0 ? selectedSections : undefined,
+      include_sections: selectedSections,
       filters: {},
       format_options: {
         include_charts: includeCharts,
@@ -204,7 +205,7 @@ export const ReportGeneratorPage: React.FC = () => {
       format: reportFormat,
       period_start: periodStart,
       period_end: periodEnd,
-      include_sections: selectedSections.length > 0 ? selectedSections : undefined,
+      include_sections: selectedSections,
       filters: {},
       format_options: {
         include_charts: includeCharts,
@@ -465,14 +466,14 @@ export const ReportGeneratorPage: React.FC = () => {
                   <p className="font-medium text-white">Include Charts</p>
                   <p className="mt-1 text-sm text-gray-400">Add visual charts and graphs to the report</p>
                 </div>
-                <Toggle checked={includeCharts} onChange={(checked: boolean) => setIncludeCharts(checked)} />
+                <Toggle checked={includeCharts} onChange={(e) => setIncludeCharts(e.target.checked)} />
               </div>
               <div className="flex items-center justify-between rounded-lg border border-gray-800 p-4">
                 <div>
                   <p className="font-medium text-white">Include Raw Data</p>
                   <p className="mt-1 text-sm text-gray-400">Append raw data tables to the report</p>
                 </div>
-                <Toggle checked={includeRawData} onChange={(checked: boolean) => setIncludeRawData(checked)} />
+                <Toggle checked={includeRawData} onChange={(e) => setIncludeRawData(e.target.checked)} />
               </div>
             </div>
           </Card>
