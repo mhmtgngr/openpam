@@ -21,6 +21,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./postgres-tls:/tls
+    command:
+      - "postgres"
+      - "-c"
+      - "ssl=on"
+      - "-c"
+      - "ssl_cert_file=/tls/server.crt"
+      - "-c"
+      - "ssl_key_file=/tls/server.key"
+      - "-c"
+      - "ssl_ca_file=/tls/ca.crt"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U openpam"]
       interval: 5s
@@ -83,7 +94,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
 
       # Redis
       REDIS_HOST: redis
@@ -118,6 +129,7 @@ services:
         condition: service_healthy
     volumes:
       - ./jwt-keys:/etc/openpam/jwt
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped
@@ -135,7 +147,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -148,6 +160,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped
@@ -165,7 +179,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -178,6 +192,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped
@@ -195,7 +211,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -208,6 +224,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped
@@ -225,7 +243,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -237,6 +255,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped
@@ -254,7 +274,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -283,7 +303,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -295,6 +315,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped
@@ -317,7 +339,7 @@ services:
       DB_USER: openpam
       DB_PASSWORD: openpam_dev
       DB_NAME: openpam
-      DB_SSLMODE: disable
+      DB_SSLMODE: require
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
@@ -329,6 +351,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./postgres-tls/ca.crt:/etc/ssl/certs/postgresql-ca.crt:ro
     networks:
       - openpam-net
     restart: unless-stopped

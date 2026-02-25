@@ -37,6 +37,7 @@ func main() {
 		Password:        config.DBPassword,
 		Database:        config.DBName,
 		SSLMode:         config.DBSSLMode,
+		SSLRootCert:     config.DBSSLRootCert,
 		MaxOpenConns:    25,
 		MaxIdleConns:    5,
 		ConnMaxLifetime: time.Hour,
@@ -118,6 +119,7 @@ type Config struct {
 	DBPassword string
 	DBName     string
 	DBSSLMode  string
+	DBSSLRootCert string
 
 	RedisHost     string
 	RedisPort     int
@@ -136,6 +138,7 @@ func loadConfig() Config {
 		DBPassword: getEnv("DB_PASSWORD", ""),
 		DBName:     getEnv("DB_NAME", "openpam"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "require"), // SECURITY: Default to require SSL
+		DBSSLRootCert: getEnv("DB_SSLROOTCERT", "/etc/ssl/certs/postgresql-ca.crt"),
 
 		RedisHost:     getEnv("REDIS_HOST", "localhost"),
 		RedisPort:     getEnvInt("REDIS_PORT", 6379),

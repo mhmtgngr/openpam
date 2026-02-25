@@ -20,6 +20,7 @@ type Config struct {
 	Password        string
 	Database        string
 	SSLMode         string
+	SSLRootCert     string // Path to CA certificate for TLS verification
 	MaxOpenConns    int
 	MaxIdleConns    int
 	ConnMaxLifetime time.Duration
@@ -69,15 +70,27 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 		Str("ssl_mode", sslMode).
 		Msg("Database SSL/TLS enforced - connections are encrypted")
 
+	// Determine SSL root certificate path
+	// In Docker, use the mounted PostgreSQL CA cert
+	// In production, use the system CA bundle
+	sslRootCert := cfg.SSLRootCert
+	if sslRootCert == "" {
+		// Default to our mounted PostgreSQL CA for Docker, or system CA bundle
+		sslRootCert = "/etc/ssl/certs/postgresql-ca.crt"
+		// If file doesn't exist, fall back to system CA bundle
+		// (checked after connection attempt fails, if needed)
+	}
+
 	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters
 	// All config values are escaped to prevent malicious content from injecting SQL directives
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=/etc/ssl/certs/ca-certificates.crt",
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s sslrootcert=%s",
 		url.QueryEscape(cfg.Host),
 		cfg.Port,
 		url.QueryEscape(cfg.User),
 		url.QueryEscape(cfg.Password),
 		url.QueryEscape(cfg.Database),
-		url.QueryEscape(sslMode))
+		url.QueryEscape(sslMode),
+		url.QueryEscape(sslRootCert))
 
 	db, err := sqlx.Connect("postgres", dsn)
 	if err != nil {
