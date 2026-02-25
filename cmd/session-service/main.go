@@ -60,16 +60,17 @@ func main() {
 
 	// Initialize services with secure event bus (HMAC signing)
 	eventSigningKey := os.Getenv("EVENT_SIGNING_KEY")
-	if eventSigningKey == "" {
-		// For development only - use a default key
-		eventSigningKey = "CHANGE_THIS_DEFAULT_EVENT_SIGNING_KEY_IN_PRODUCTION_32BYTES"
-		logger.Warn().Msg("EVENT_SIGNING_KEY not set, using insecure default - DO NOT USE IN PRODUCTION")
+	if len(eventSigningKey) < 32 {
+		log.Fatal().Msg("EVENT_SIGNING_KEY environment variable must be set and at least 32 bytes for HMAC-SHA256 security")
 	}
-	eventBus := events.New(events.EventConfig{
+	eventBus, err := events.New(events.EventConfig{
 		Cache:      redisCache,
 		Logger:     logger,
 		SigningKey: []byte(eventSigningKey),
 	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize event bus")
+	}
 	eventPublisher := events.NewPublisher(eventBus)
 
 	sessionRepo := session.NewRepository(db.DB, redisCache, logger)

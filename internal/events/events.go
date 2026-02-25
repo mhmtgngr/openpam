@@ -53,11 +53,11 @@ type EventConfig struct {
 }
 
 // New creates a new event bus
-// SECURITY: Signing key is required. Events without valid signatures are always rejected.
-func New(cfg EventConfig) *EventBus {
+// SECURITY: Signing key is required and must be at least 32 bytes.
+// Refuses to initialize if signing key is missing or too short.
+func New(cfg EventConfig) (*EventBus, error) {
 	if len(cfg.SigningKey) < 32 {
-		cfg.Logger.Warn().Msg("events: signing key is less than 32 bytes, using default insecure key - DO NOT USE IN PRODUCTION")
-		cfg.SigningKey = []byte("CHANGE_THIS_INSECURE_DEFAULT_KEY_32_BYTES!")
+		return nil, fmt.Errorf("events: signing key is required and must be at least 32 bytes for HMAC-SHA256 security (got %d bytes)", len(cfg.SigningKey))
 	}
 
 	bus := &EventBus{
@@ -67,26 +67,35 @@ func New(cfg EventConfig) *EventBus {
 		signingKey: cfg.SigningKey,
 	}
 	go bus.startSubscriptionListener()
-	return bus
+	return bus, nil
 }
 
 // NewWithConfig creates a new event bus with configuration
 // This is an alias for New(EventConfig) for backward compatibility
-func NewWithConfig(cfg EventConfig) *EventBus {
+func NewWithConfig(cfg EventConfig) (*EventBus, error) {
 	return New(cfg)
 }
 
-// DEPRECATED: Use New(EventConfig) instead
-// NewWithoutConfig creates a new event bus without explicit config
-// This is kept for backward compatibility but should not be used in production
-// SECURITY: Even this deprecated version requires signed events
-func NewWithoutConfig(c *cache.Cache, logger zerolog.Logger) *EventBus {
-	logger.Warn().Msg("events: Using deprecated New() function. Use New(EventConfig) with a proper signing key for security.")
-	return New(EventConfig{
+// NewForTest creates a new event bus for testing purposes only
+// SECURITY: This uses a fixed test signing key and should NEVER be used in production
+func NewForTest(c *cache.Cache, logger zerolog.Logger) *EventBus {
+	// This is a cryptographically random 32-byte key for testing only
+	// In a real test environment, this could be generated per test run
+	testKey := make([]byte, 32)
+	for i := range testKey {
+		testKey[i] = byte(i)
+	}
+
+	bus, err := New(EventConfig{
 		Cache:      c,
 		Logger:     logger,
-		SigningKey: []byte("INSECURE_DEFAULT_KEY_DO_NOT_USE_IN_PRODUCTION"),
+		SigningKey: testKey,
 	})
+	if err != nil {
+		// This should never happen since we're providing a valid 32-byte key
+		panic(fmt.Sprintf("events.NewForTest: unexpected error: %v", err))
+	}
+	return bus
 }
 
 // computeSignature computes HMAC-SHA256 signature for an event

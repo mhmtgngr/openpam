@@ -22,12 +22,42 @@ func NewReportRepository(db *sqlx.DB, logger zerolog.Logger) *ReportRepository {
 	return &ReportRepository{Db: db, logger: logger}
 }
 
+// setTenantContext sets the PostgreSQL tenant context for RLS
+// This must be called before any query that uses RLS policies
+func (r *ReportRepository) setTenantContext(ctx context.Context, tenantID uuid.UUID) error {
+	_, err := r.Db.ExecContext(ctx, "SET LOCAL app.tenant_id = $1", tenantID.String())
+	if err != nil {
+		return fmt.Errorf("failed to set tenant context: %w", err)
+	}
+	return nil
+}
+
+// getTenantIDFromContext extracts tenant_id from Go context
+func getTenantIDFromContext(ctx context.Context) (uuid.UUID, error) {
+	tenantIDVal := ctx.Value("tenant_id")
+	if tenantIDVal == nil {
+		return uuid.Nil, fmt.Errorf("tenant_id not found in context")
+	}
+
+	tenantIDStr, ok := tenantIDVal.(string)
+	if !ok {
+		return uuid.Nil, fmt.Errorf("tenant_id is not a string")
+	}
+
+	return uuid.Parse(tenantIDStr)
+}
+
 // =============================================================================
 // ComplianceReport Operations
 // =============================================================================
 
 // CreateComplianceReport creates a new compliance report
 func (r *ReportRepository) CreateComplianceReport(ctx context.Context, report *ComplianceReport) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, report.TenantID); err != nil {
+		return err
+	}
+
 	report.ID = uuid.New()
 	report.CreatedAt = time.Now()
 	report.UpdatedAt = time.Now()
@@ -54,6 +84,11 @@ func (r *ReportRepository) CreateComplianceReport(ctx context.Context, report *C
 
 // GetComplianceReportByID retrieves a compliance report by ID
 func (r *ReportRepository) GetComplianceReportByID(ctx context.Context, id, tenantID uuid.UUID) (*ComplianceReport, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, err
+	}
+
 	var report ComplianceReport
 	query := `SELECT * FROM compliance_reports WHERE id = $1 AND tenant_id = $2`
 	err := r.Db.GetContext(ctx, &report, query, id, tenantID)
@@ -65,6 +100,11 @@ func (r *ReportRepository) GetComplianceReportByID(ctx context.Context, id, tena
 
 // ListComplianceReports lists compliance reports for a tenant with filters
 func (r *ReportRepository) ListComplianceReports(ctx context.Context, tenantID uuid.UUID, filter ComplianceReportFilter) ([]ComplianceReport, int, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, 0, err
+	}
+
 	var reports []ComplianceReport
 
 	// Build where clause
@@ -121,6 +161,11 @@ func (r *ReportRepository) ListComplianceReports(ctx context.Context, tenantID u
 
 // UpdateComplianceReportStatus updates the status of a compliance report
 func (r *ReportRepository) UpdateComplianceReportStatus(ctx context.Context, id, tenantID uuid.UUID, status string, data *json.RawMessage) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE compliance_reports SET
 			status = $1,
@@ -137,6 +182,11 @@ func (r *ReportRepository) UpdateComplianceReportStatus(ctx context.Context, id,
 
 // DeleteComplianceReport soft deletes a compliance report
 func (r *ReportRepository) DeleteComplianceReport(ctx context.Context, id, tenantID uuid.UUID) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return err
+	}
+
 	query := `UPDATE compliance_reports SET status = 'deleted', updated_at = NOW() WHERE id = $1 AND tenant_id = $2`
 	_, err := r.Db.ExecContext(ctx, query, id, tenantID)
 	if err != nil {
@@ -151,6 +201,11 @@ func (r *ReportRepository) DeleteComplianceReport(ctx context.Context, id, tenan
 
 // CreateReportSnapshot creates a new report snapshot
 func (r *ReportRepository) CreateReportSnapshot(ctx context.Context, snapshot *ReportSnapshot) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, snapshot.TenantID); err != nil {
+		return err
+	}
+
 	snapshot.ID = uuid.New()
 	snapshot.CreatedAt = time.Now()
 	snapshot.UpdatedAt = time.Now()
@@ -160,13 +215,13 @@ func (r *ReportRepository) CreateReportSnapshot(ctx context.Context, snapshot *R
 			id, tenant_id, report_id, snapshot_name, framework,
 			generated_at, generated_by, status,
 			file_url, file_size_bytes, file_format, storage_path,
-			period_start, period_end, summary, data, metadata,
+			period_start, period_end, summary, metadata,
 			expires_at, error_message, error_details, created_at, updated_at
 		) VALUES (
 			:id, :tenant_id, :report_id, :snapshot_name, :framework,
 			:generated_at, :generated_by, :status,
 			:file_url, :file_size_bytes, :file_format, :storage_path,
-			:period_start, :period_end, :summary, :data, :metadata,
+			:period_start, :period_end, :summary, :metadata,
 			:expires_at, :error_message, :error_details, :created_at, :updated_at
 		)
 	`
@@ -179,6 +234,11 @@ func (r *ReportRepository) CreateReportSnapshot(ctx context.Context, snapshot *R
 
 // GetReportSnapshotByID retrieves a report snapshot by ID
 func (r *ReportRepository) GetReportSnapshotByID(ctx context.Context, id, tenantID uuid.UUID) (*ReportSnapshot, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, err
+	}
+
 	var snapshot ReportSnapshot
 	query := `SELECT * FROM report_snapshots WHERE id = $1 AND tenant_id = $2`
 	err := r.Db.GetContext(ctx, &snapshot, query, id, tenantID)
@@ -190,6 +250,11 @@ func (r *ReportRepository) GetReportSnapshotByID(ctx context.Context, id, tenant
 
 // ListReportSnapshots lists report snapshots with filters
 func (r *ReportRepository) ListReportSnapshots(ctx context.Context, tenantID uuid.UUID, filter ReportSnapshotFilter) ([]ReportSnapshot, int, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, 0, err
+	}
+
 	var snapshots []ReportSnapshot
 
 	// Build where clause
@@ -252,6 +317,11 @@ func (r *ReportRepository) ListReportSnapshots(ctx context.Context, tenantID uui
 
 // UpdateReportSnapshotStatus updates the status and related fields of a report snapshot
 func (r *ReportRepository) UpdateReportSnapshotStatus(ctx context.Context, id, tenantID uuid.UUID, status ReportSnapshotStatus, fileURL *string, fileSizeBytes *int64, errorMsg *string) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE report_snapshots SET
 			status = $1,
@@ -270,6 +340,11 @@ func (r *ReportRepository) UpdateReportSnapshotStatus(ctx context.Context, id, t
 
 // GetReportSnapshotStats retrieves statistics for report snapshots
 func (r *ReportRepository) GetReportSnapshotStats(ctx context.Context, tenantID uuid.UUID) (*ReportSnapshotStats, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, err
+	}
+
 	var stats ReportSnapshotStats
 	query := `
 		SELECT
@@ -295,6 +370,11 @@ func (r *ReportRepository) GetReportSnapshotStats(ctx context.Context, tenantID 
 
 // CreateReportGenerationJob creates a new report generation job
 func (r *ReportRepository) CreateReportGenerationJob(ctx context.Context, job *ReportGenerationJob) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, job.TenantID); err != nil {
+		return err
+	}
+
 	job.ID = uuid.New()
 	job.CreatedAt = time.Now()
 	job.UpdatedAt = time.Now()
@@ -333,6 +413,11 @@ func (r *ReportRepository) CreateReportGenerationJob(ctx context.Context, job *R
 
 // GetReportGenerationJobByID retrieves a report generation job by ID
 func (r *ReportRepository) GetReportGenerationJobByID(ctx context.Context, id, tenantID uuid.UUID) (*ReportGenerationJob, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, err
+	}
+
 	var job ReportGenerationJob
 	query := `SELECT * FROM report_generation_jobs WHERE id = $1 AND tenant_id = $2`
 	err := r.Db.GetContext(ctx, &job, query, id, tenantID)
@@ -344,6 +429,11 @@ func (r *ReportRepository) GetReportGenerationJobByID(ctx context.Context, id, t
 
 // ListReportGenerationJobs lists report generation jobs with filters
 func (r *ReportRepository) ListReportGenerationJobs(ctx context.Context, tenantID uuid.UUID, filter ReportJobFilter) ([]ReportGenerationJob, int, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, 0, err
+	}
+
 	var jobs []ReportGenerationJob
 
 	// Build where clause
@@ -400,6 +490,11 @@ func (r *ReportRepository) ListReportGenerationJobs(ctx context.Context, tenantI
 
 // UpdateReportGenerationJobStatus updates the status and progress of a job
 func (r *ReportRepository) UpdateReportGenerationJobStatus(ctx context.Context, id, tenantID uuid.UUID, status ReportJobStatus, progress int, errorMsg *string, snapshotID *uuid.UUID) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE report_generation_jobs SET
 			status = $1,
@@ -420,6 +515,11 @@ func (r *ReportRepository) UpdateReportGenerationJobStatus(ctx context.Context, 
 
 // IncrementJobRetryCount increments the retry count for a failed job
 func (r *ReportRepository) IncrementJobRetryCount(ctx context.Context, id, tenantID uuid.UUID) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE report_generation_jobs SET
 			retry_count = retry_count + 1,
@@ -456,6 +556,11 @@ func (r *ReportRepository) ListQueuedJobs(ctx context.Context, limit int) ([]Rep
 
 // CreateReportSchedule creates a new report schedule
 func (r *ReportRepository) CreateReportSchedule(ctx context.Context, schedule *ReportSchedule) error {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, schedule.TenantID); err != nil {
+		return err
+	}
+
 	schedule.ID = uuid.New()
 	schedule.CreatedAt = time.Now()
 	schedule.UpdatedAt = time.Now()
@@ -489,6 +594,11 @@ func (r *ReportRepository) CreateReportSchedule(ctx context.Context, schedule *R
 
 // GetReportScheduleByID retrieves a report schedule by ID
 func (r *ReportRepository) GetReportScheduleByID(ctx context.Context, id, tenantID uuid.UUID) (*ReportSchedule, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, err
+	}
+
 	var schedule ReportSchedule
 	query := `SELECT * FROM report_schedules WHERE id = $1 AND tenant_id = $2`
 	err := r.Db.GetContext(ctx, &schedule, query, id, tenantID)
@@ -500,6 +610,11 @@ func (r *ReportRepository) GetReportScheduleByID(ctx context.Context, id, tenant
 
 // ListReportSchedules lists report schedules with filters
 func (r *ReportRepository) ListReportSchedules(ctx context.Context, tenantID uuid.UUID, filter ReportScheduleFilter) ([]ReportSchedule, int, error) {
+	// Set tenant context for RLS
+	if err := r.setTenantContext(ctx, tenantID); err != nil {
+		return nil, 0, err
+	}
+
 	var schedules []ReportSchedule
 
 	// Build where clause

@@ -332,7 +332,7 @@ func (m *mockPolicyRepository) GetCommandFilterPatterns(ctx context.Context, pol
 func TestNewService(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := NewService(repo, &cache.Cache{}, eventBus, logger)
 	assert.NotNil(t, service)
@@ -347,7 +347,7 @@ func TestService_CreatePolicy(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     repo,
@@ -385,7 +385,7 @@ func TestService_GetPolicy(t *testing.T) {
 	logger := zerolog.Nop()
 	mockRepo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     mockRepo,
@@ -429,7 +429,7 @@ func TestService_ListPolicies(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     repo,
@@ -469,7 +469,7 @@ func TestService_Evaluate(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     repo,
@@ -521,7 +521,7 @@ func TestService_EvaluationRequestCaching(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     repo,
@@ -580,7 +580,7 @@ func TestService_ApprovalWorkflow(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     repo,
@@ -658,7 +658,7 @@ func TestService_EnableDisablePolicy(t *testing.T) {
 	logger := zerolog.Nop()
 	repo := newMockPolicyRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.NewWithoutConfig(&cache.Cache{}, logger)
+	eventBus := events.NewForTest(&cache.Cache{}, logger)
 
 	service := &Service{
 		repo:     repo,

@@ -263,8 +263,8 @@ func (m *mockTestPolicyCache) Warmup(ctx context.Context, tenantID uuid.UUID, po
 func createTestService() *policy.Service {
 	repo := newMockTestPolicyRepository()
 	cache := newMockTestPolicyCache()
-	// Pass nil cache to events for testing
-	eventBus := events.NewWithoutConfig(nil, zerolog.Nop())
+	// Use test event bus with secure test signing key
+	eventBus := events.NewForTest(nil, zerolog.Nop())
 	logger := zerolog.Nop()
 
 	return policy.NewTestService(repo, cache, eventBus, logger)
@@ -446,7 +446,7 @@ func TestPolicyMiddleware_Middleware_Deny(t *testing.T) {
 	repo := newMockTestPolicyRepository()
 	repo.policies[denyPolicy.ID] = denyPolicy
 	testCache := newMockTestPolicyCache()
-	eventBus := events.NewWithoutConfig(nil, zerolog.Nop())
+	eventBus := events.NewForTest(nil, zerolog.Nop())
 	logger := zerolog.Nop()
 
 	service = policy.NewTestService(repo, testCache, eventBus, logger)
