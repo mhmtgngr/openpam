@@ -318,3 +318,36 @@ export interface ComplianceReport {
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * Report type for distribution (common properties)
+ */
+export interface Report {
+  id: string;
+  name: string;
+  framework?: string;
+  created_at: string;
+}
+
+/**
+ * Export report request
+ */
+export interface ExportReportRequest {
+  format: ReportFormat;
+  include_metadata?: boolean;
+  redact_pii?: boolean;
+}
+
+/**
+ * Create exception request data
+ */
+export interface CreateExceptionData {
+  control_id: string;
+  control_name: string;
+  framework: string;
+  reason: string;
+  business_justification: string;
+  mitigation_plan?: string;
+  expires_at?: string;
+  documents?: File[];
+}

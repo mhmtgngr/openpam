@@ -138,7 +138,7 @@ func (r *RedisMetricsCache) InvalidateTenantCache(ctx context.Context, tenantID 
 // UpdateSlidingWindowCounter updates a counter in a sliding time window
 func (r *RedisMetricsCache) UpdateSlidingWindowCounter(ctx context.Context, key string, increment int64, window time.Duration) (int64, error) {
 	now := float64(time.Now().UnixMicro())
-	member := fmt.Sprintf("%d", now)
+	member := fmt.Sprintf("%f", now)
 
 	pipe := r.client.Pipeline()
 

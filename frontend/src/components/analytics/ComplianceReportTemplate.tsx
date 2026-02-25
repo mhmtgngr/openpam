@@ -14,8 +14,8 @@ import { Input } from '@/components/common';
 import { Textarea } from '@/components/common';
 import { DatePicker } from '@/components/common';
 import clsx from 'clsx';
-import type { ComplianceFramework, ReportFormat } from '@/types';
-import type { ReportConfig, ReportTemplateSection } from '@/types/reports';
+import type { ComplianceFramework } from '@/types';
+import type { ReportConfig, ReportFormat, ReportTemplateSection } from '@/types/reports';
 
 interface ComplianceReportTemplateProps {
   framework: ComplianceFramework;

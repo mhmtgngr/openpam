@@ -612,7 +612,7 @@ export interface ComplianceDashboard {
   last_updated: string;
 }
 
-export type ComplianceFramework = 'soc2' | 'iso27001' | 'pci_dss' | 'hipaa' | 'gdpr' | 'custom';
+export type ComplianceFramework = 'soc2' | 'iso27001' | 'pci_dss' | 'hipaa' | 'gdpr' | 'nerc_cip' | 'custom';
 
 export interface ComplianceControl {
   id: string;
@@ -681,7 +681,7 @@ export interface AnomalyIndicator {
   type: string;
   description: string;
   value: number | string;
-  threshold?: number;
+  threshold?: number | string;
   confidence: number;
 }
 

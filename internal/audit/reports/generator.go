@@ -175,17 +175,24 @@ func (g *Generator) GenerateReport(ctx context.Context, req *ReportRequest) (*Re
 
 // generateComplianceReport generates a compliance report
 func (g *Generator) generateComplianceReport(ctx context.Context, req *ReportRequest) ([]byte, string, error) {
-	// Calculate compliance score
-	score, err := g.complianceEngine.CalculateComplianceScore(
+	// Generate compliance report using the engine's GenerateReport method
+	framework := analytics.ComplianceFramework(req.Framework)
+	generatedBy := req.GeneratedBy
+
+	report, err := g.complianceEngine.GenerateReport(
 		ctx,
 		req.TenantID,
-		req.Framework,
+		generatedBy,
+		framework,
 		req.PeriodStart,
 		req.PeriodEnd,
 	)
 	if err != nil {
 		return nil, "", err
 	}
+
+	// Convert ComplianceReport to ComplianceScore for templates
+	score := convertReportToScore(report)
 
 	// Generate filename
 	filename := fmt.Sprintf("compliance_%s_%s_%s.%s",
@@ -407,7 +414,7 @@ func (g *Generator) generateCSVAnomalies(anomalies []Anomaly, filename string) (
 	return buf.Bytes(), filename, nil
 }
 
-func (g *Generator) generateJSONBaselines(stats *BaselineStatistics, filename string) ([]byte, string, error) {
+func (g *Generator) generateJSONBaselines(stats *analytics.BaselineStatistics, filename string) ([]byte, string, error) {
 	data, err := json.MarshalIndent(stats, "", "  ")
 	if err != nil {
 		return nil, "", err
@@ -415,7 +422,7 @@ func (g *Generator) generateJSONBaselines(stats *BaselineStatistics, filename st
 	return data, filename, nil
 }
 
-func (g *Generator) generateHTMLBaselines(stats *BaselineStatistics, req *ReportRequest, filename string) ([]byte, string, error) {
+func (g *Generator) generateHTMLBaselines(stats *analytics.BaselineStatistics, req *ReportRequest, filename string) ([]byte, string, error) {
 	tmpl := GetBaselineReportTemplate()
 
 	var buf bytes.Buffer
@@ -457,7 +464,7 @@ func (g *Generator) generateHTMLSummary(summary *SummaryData, req *ReportRequest
 
 func (g *Generator) generatePDFSummary(summary *SummaryData, req *ReportRequest, filename string) ([]byte, string, error) {
 	// Similar to PDF compliance, would use PDF library
-	html, _, err := g.generateHTMLSummary(summary, req)
+	html, _, err := g.generateHTMLSummary(summary, req, filename)
 	if err != nil {
 		return nil, "", err
 	}
@@ -558,13 +565,18 @@ type Anomaly struct {
 
 // ComplianceScore represents compliance scoring data
 type ComplianceScore struct {
-	TenantID      uuid.UUID              `json:"tenant_id"`
-	Framework     string                 `json:"framework"`
-	OverallScore  float64                `json:"overall_score"`
-	ControlScores map[string]ControlScore `json:"control_scores"`
-	PeriodStart   time.Time              `json:"period_start"`
-	PeriodEnd     time.Time              `json:"period_end"`
-	Findings      []ComplianceFinding    `json:"findings"`
+	TenantID        uuid.UUID              `json:"tenant_id"`
+	Framework       string                 `json:"framework"`
+	OverallScore    float64                `json:"overall_score"`
+	ControlScores   map[string]ControlScore `json:"control_scores"`
+	PeriodStart     time.Time              `json:"period_start"`
+	PeriodEnd       time.Time              `json:"period_end"`
+	Findings        []ComplianceFinding    `json:"findings"`
+	TotalControls   int                    `json:"total_controls"`
+	PassedControls  int                    `json:"passed_controls"`
+	FailedControls  int                    `json:"failed_controls"`
+	SkippedControls int                    `json:"skipped_controls"`
+	Recommendations []string               `json:"recommendations,omitempty"`
 }
 
 // ControlScore represents a control category score
@@ -605,4 +617,84 @@ type SummaryData struct {
 	PeriodEnd   time.Time `json:"period_end"`
 	GeneratedAt time.Time `json:"generated_at"`
 	// Add summary fields as needed
+}
+
+// convertReportToScore converts a ComplianceReport to a ComplianceScore for templates
+func convertReportToScore(report *analytics.ComplianceReport) *ComplianceScore {
+	score := &ComplianceScore{
+		TenantID:      report.TenantID,
+		Framework:     report.Framework,
+		OverallScore:  0,
+		ControlScores: make(map[string]ControlScore),
+		PeriodStart:   report.PeriodStart,
+		PeriodEnd:     report.PeriodEnd,
+		Findings:      []ComplianceFinding{},
+	}
+
+	if report.OverallScore != nil {
+		score.OverallScore = *report.OverallScore
+	}
+
+	// Unmarshal findings and recommendations
+	if report.Findings != nil {
+		var findings []map[string]interface{}
+		_ = json.Unmarshal(report.Findings, &findings)
+		for _, f := range findings {
+			finding := ComplianceFinding{
+				ID:          uuid.New().String(),
+				ControlID:   getStringValue(f, "control_id"),
+				ControlName: getStringValue(f, "control_name"),
+				Category:    getStringValue(f, "category"),
+				Severity:    getStringValue(f, "severity"),
+				Description: getStringValue(f, "description"),
+				Remediation: getStringValue(f, "remediation"),
+				DetectedAt:  report.GeneratedAt,
+			}
+			score.Findings = append(score.Findings, finding)
+		}
+	}
+
+	// Unmarshal recommendations
+	if report.Recommendations != nil {
+		var recs []string
+		_ = json.Unmarshal(report.Recommendations, &recs)
+		// Store recommendations in a field that templates can access
+	}
+
+	// Set additional fields for template rendering
+	score.TotalControls = report.TotalControls
+	score.PassedControls = report.PassedControls
+	score.FailedControls = report.FailedControls
+	score.SkippedControls = report.SkippedControls
+
+	return score
+}
+
+func getStringValue(m map[string]interface{}, key string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+// getStringSlice extracts a string slice from an interface
+func getStringSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+	if arr, ok := v.([]string); ok {
+		return arr
+	}
+	if arr, ok := v.([]interface{}); ok {
+		result := make([]string, 0, len(arr))
+		for _, item := range arr {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		return result
+	}
+	return nil
 }

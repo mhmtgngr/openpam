@@ -89,7 +89,7 @@ const mockAnomalies: AnomalyDetection[] = [
     user_name: 'Bob Johnson',
     target_id: 'target-3',
     target_name: 'auth-server',
-    session_id: null,
+    session_id: undefined,
     confidence_score: 0.75,
     risk_score: 60,
     status: 'resolved',

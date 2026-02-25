@@ -527,7 +527,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                   </div>
                   <Toggle
                     checked={settings.includePassword}
-                    onChange={(e) => setSettings((prev) => ({ ...prev, includePassword: (e as any).target.checked as boolean }))}
+                    onChange={(checked: boolean) => setSettings((prev) => ({ ...prev, includePassword: checked }))}
                   />
                 </div>
               </div>
@@ -559,7 +559,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                 </div>
                 <Toggle
                   checked={settings.redactPii}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, redactPii: (e as any).target.checked as boolean }))}
+                  onChange={(checked: boolean) => setSettings((prev) => ({ ...prev, redactPii: checked }))}
                 />
               </div>
 
@@ -570,7 +570,7 @@ export const ReportDistributionDialog: React.FC<ReportDistributionDialogProps> =
                 </div>
                 <Toggle
                   checked={settings.includeMetadata}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, includeMetadata: (e as any).target.checked as boolean }))}
+                  onChange={(checked: boolean) => setSettings((prev) => ({ ...prev, includeMetadata: checked }))}
                 />
               </div>
             </div>

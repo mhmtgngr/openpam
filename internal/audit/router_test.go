@@ -302,13 +302,6 @@ func (m *mockAnalyticsHandler) GetReportGenerationJob(c *gin.Context) {}
 func (m *mockAnalyticsHandler) ListReportGenerationJobs(c *gin.Context) {}
 func (m *mockAnalyticsHandler) DeleteReportGenerationJob(c *gin.Context) {}
 
-// Report Schedule methods
-func (m *mockAnalyticsHandler) CreateReportSchedule(c *gin.Context) {}
-func (m *mockAnalyticsHandler) GetReportSchedule(c *gin.Context) {}
-func (m *mockAnalyticsHandler) UpdateReportSchedule(c *gin.Context) {}
-func (m *mockAnalyticsHandler) DeleteReportSchedule(c *gin.Context) {}
-func (m *mockAnalyticsHandler) ListReportSchedules(c *gin.Context) {}
-
 func TestMockAnalyticsHandler(t *testing.T) {
 	t.Run("mock handler implements interface", func(t *testing.T) {
 		var handler AnalyticsHandler = &mockAnalyticsHandler{}

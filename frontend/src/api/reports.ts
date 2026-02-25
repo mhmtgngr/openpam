@@ -7,7 +7,6 @@ import { api } from './client';
 import type {
   PaginatedResponse,
   ComplianceFramework,
-  ComplianceReport as BaseComplianceReport,
 } from '@/types';
 import type {
   ReportSnapshot,
@@ -21,6 +20,13 @@ import type {
   ReportScheduleFrequency,
   ReportGenerationProgress,
   ScheduledReportExecution,
+  Report,
+  ExportReportRequest,
+  ComplianceException,
+  ExceptionListParams,
+  ExceptionStatus,
+  CreateExceptionData,
+  ComplianceReport,
 } from '@/types/reports';
 
 // Reports API
@@ -105,6 +111,13 @@ export const reportsApi = {
   // Generate report with format
   generateReport: (id: string, format: ReportFormat) =>
     api.post<{ download_url: string; expires_at: string }>(`/reports/${id}/generate`, { format }),
+
+  // Export a report (returns download URL)
+  export: (id: string, request: ExportReportRequest) =>
+    api.post<{ download_url: string; expires_at: string }>(`/reports/${id}/export`, request),
+
+  // Get direct download URL for a report
+  download: (id: string) => `/reports/${id}/download`,
 
   // ========== Scheduling ==========
 
@@ -210,4 +223,72 @@ export type {
   ReportScheduleFrequency,
   ReportGenerationProgress,
   ScheduledReportExecution,
+  Report,
+  ExportReportRequest,
+  ComplianceException,
+  ExceptionListParams,
+  ExceptionStatus,
+  CreateExceptionData,
+};
+
+// Compliance Exceptions API
+export const complianceExceptionsApi = {
+  // List exceptions with filters
+  list: (params?: ExceptionListParams) =>
+    api.get<PaginatedResponse<ComplianceException>>('/compliance/exceptions', params),
+
+  // Get a specific exception by ID
+  get: (id: string) =>
+    api.get<ComplianceException>(`/compliance/exceptions/${id}`),
+
+  // Create a new exception request
+  create: (data: {
+    control_id: string;
+    control_name: string;
+    framework: string;
+    reason: string;
+    business_justification: string;
+    mitigation_plan?: string;
+    expires_at?: string;
+    documents?: File[];
+  }) => api.post<ComplianceException>('/compliance/exceptions', data),
+
+  // Update an existing exception
+  update: (id: string, data: {
+    control_id?: string;
+    control_name?: string;
+    framework?: string;
+    reason?: string;
+    business_justification?: string;
+    mitigation_plan?: string;
+    expires_at?: string;
+  }) => api.patch<ComplianceException>(`/compliance/exceptions/${id}`, data),
+
+  // Approve an exception
+  approve: (id: string, notes?: string) =>
+    api.post<ComplianceException>(`/compliance/exceptions/${id}/approve`, { notes }),
+
+  // Deny an exception
+  deny: (id: string, reason: string) =>
+    api.post<ComplianceException>(`/compliance/exceptions/${id}/deny`, { reason }),
+
+  // Revoke an exception
+  revoke: (id: string, reason: string) =>
+    api.post<ComplianceException>(`/compliance/exceptions/${id}/revoke`, { reason }),
+
+  // Delete an exception
+  delete: (id: string) =>
+    api.delete<void>(`/compliance/exceptions/${id}`),
+
+  // Get pending exceptions
+  getPending: () =>
+    api.get<PaginatedResponse<ComplianceException>>('/compliance/exceptions/pending'),
+
+  // Get expiring exceptions
+  getExpiring: (days: number) =>
+    api.get<PaginatedResponse<ComplianceException>>('/compliance/exceptions/expiring', { days }),
+
+  // Get exceptions by framework
+  getByFramework: (framework: string, params?: { limit?: number; offset?: number }) =>
+    api.get<PaginatedResponse<ComplianceException>>(`/compliance/exceptions/framework/${framework}`, params),
 };
