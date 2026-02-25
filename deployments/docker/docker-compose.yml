@@ -442,7 +442,6 @@ networks:
     driver: bridge
     name: openpam-net
     ipam:
-      driver: default
       config:
         - subnet: 10.89.0.0/24
           gateway: 10.89.0.1
