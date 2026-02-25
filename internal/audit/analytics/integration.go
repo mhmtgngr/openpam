@@ -36,27 +36,25 @@ type ModuleConfig struct {
 
 // InitializeModule initializes all analytics components
 func InitializeModule(cfg ModuleConfig) (*Module, error) {
-	// Initialize Redis cache
+	// Initialize Redis cache first (needed by other components)
 	redisCache := NewRedisMetricsCache(cfg.RedisClient, cfg.Logger)
+
+	// Initialize metrics store (depends on redis cache)
+	metricsStore := NewMetricsStore(cfg.DB, redisCache, cfg.Logger)
+
+	// Initialize baseline manager (depends on metrics store and redis cache)
+	baselineMgr := NewBaselineManager(cfg.DB, metricsStore, redisCache, cfg.Logger)
 
 	// Initialize anomaly store
 	anomalyStore := anomalies.NewStore(cfg.DB, cfg.Logger)
 
-	// Initialize metrics store
-	metricsStore := NewMetricsStore(cfg.DB, cfg.Logger)
+	// Initialize detector (depends on metrics store and baseline manager)
+	detector := NewDetector(cfg.DB, metricsStore, baselineMgr, cfg.Logger)
 
-	// Initialize baseline manager
-	baselineMgr := NewBaselineManager(cfg.DB, cfg.Logger)
+	// Initialize compliance engine (depends on baseline manager and metrics store)
+	compliance := NewComplianceEngine(cfg.DB, baselineMgr, metricsStore, cfg.Logger)
 
-	// Initialize detector
-	detector := NewDetector(cfg.DB, cfg.Logger)
-
-	// Initialize compliance engine
-	// Need to create a repository wrapper for the compliance engine
-	repo := NewRepository(cfg.DB, cfg.Logger)
-	compliance := NewComplianceEngine(repo, redisCache, cfg.Logger)
-
-	// Initialize scheduler if enabled
+	// Initialize scheduler if enabled (depends on all components)
 	var scheduler *Scheduler
 	if cfg.EnableScheduler {
 		scheduler = NewScheduler(
@@ -64,6 +62,9 @@ func InitializeModule(cfg ModuleConfig) (*Module, error) {
 			detector,
 			metricsStore,
 			baselineMgr,
+			compliance,
+			anomalyStore,
+			redisCache,
 			cfg.Logger,
 		)
 	}

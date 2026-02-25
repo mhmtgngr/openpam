@@ -313,11 +313,7 @@ const AppRoutes: React.FC = () => {
 
         {/* Reports - support both /reports and /analytics/reports routes */}
         <Route
-<<<<<<< HEAD
           path="/reports"
-=======
-          path="/analytics/reports"
->>>>>>> team/fix-srcapianalyticstestts-typescript-com-1772017573
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportsPage />
@@ -325,7 +321,6 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-<<<<<<< HEAD
           path="/analytics/reports"
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
@@ -335,9 +330,6 @@ const AppRoutes: React.FC = () => {
         />
         <Route
           path="/reports/generate"
-=======
-          path="/analytics/reports/generate"
->>>>>>> team/fix-srcapianalyticstestts-typescript-com-1772017573
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportGeneratorPage />
@@ -345,7 +337,6 @@ const AppRoutes: React.FC = () => {
           }
         />
         <Route
-<<<<<<< HEAD
           path="/analytics/reports/generate"
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
@@ -355,16 +346,12 @@ const AppRoutes: React.FC = () => {
         />
         <Route
           path="/reports/:id"
-=======
-          path="/analytics/reports/:id"
->>>>>>> team/fix-srcapianalyticstestts-typescript-com-1772017573
           element={
             <ProtectedRoute requiredRoles={['admin', 'super_admin', 'auditor']}>
               <ReportDetailPage />
             </ProtectedRoute>
           }
         />
-<<<<<<< HEAD
         <Route
           path="/analytics/reports/:id"
           element={
@@ -373,8 +360,6 @@ const AppRoutes: React.FC = () => {
             </ProtectedRoute>
           }
         />
-=======
->>>>>>> team/fix-srcapianalyticstestts-typescript-com-1772017573
 
         {/* Exceptions */}
         <Route

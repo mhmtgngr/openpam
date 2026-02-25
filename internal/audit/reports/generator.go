@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/audit/analytics"
+	"github.com/openpam/openpam/internal/audit/model"
 	"github.com/rs/zerolog"
 )
 
@@ -175,23 +176,22 @@ func (g *Generator) GenerateReport(ctx context.Context, req *ReportRequest) (*Re
 
 // generateComplianceReport generates a compliance report
 func (g *Generator) generateComplianceReport(ctx context.Context, req *ReportRequest) ([]byte, string, error) {
-	// Generate compliance report using the engine's GenerateReport method
-	framework := analytics.ComplianceFramework(req.Framework)
-	generatedBy := req.GeneratedBy
-
-	report, err := g.complianceEngine.GenerateReport(
+	// Calculate compliance score using the engine
+	scoreData, err := g.complianceEngine.CalculateComplianceScore(
 		ctx,
 		req.TenantID,
-		generatedBy,
-		framework,
+		req.Framework,
 		req.PeriodStart,
 		req.PeriodEnd,
 	)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("generateComplianceReport: calculate score: %w", err)
 	}
 
-	// Convert ComplianceReport to ComplianceScore for templates
+	// Convert ComplianceScore to ComplianceReport
+	report := g.complianceEngine.ConvertToComplianceReport(scoreData, req.GeneratedBy)
+
+	// Convert analytics ComplianceReport to reports ComplianceScore for templates
 	score := convertReportToScore(report)
 
 	// Generate filename
@@ -619,8 +619,8 @@ type SummaryData struct {
 	// Add summary fields as needed
 }
 
-// convertReportToScore converts a ComplianceReport to a ComplianceScore for templates
-func convertReportToScore(report *analytics.ComplianceReport) *ComplianceScore {
+// convertReportToScore converts a model.ComplianceReport to a reports.ComplianceScore for templates
+func convertReportToScore(report *model.ComplianceReport) *ComplianceScore {
 	score := &ComplianceScore{
 		TenantID:      report.TenantID,
 		Framework:     report.Framework,

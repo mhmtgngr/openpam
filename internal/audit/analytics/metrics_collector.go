@@ -55,7 +55,20 @@ func (s *MetricsStore) RecordSessionMetrics(ctx context.Context, metrics *Sessio
 	metrics.CollectedAt = time.Now()
 
 	// Store in Redis for fast access (with TTL)
-	if err := s.redis.StoreSessionMetrics(ctx, metrics); err != nil {
+	cachedMetrics := &SessionMetricsFromStore{
+		SessionID:       metrics.SessionID,
+		TenantID:        metrics.TenantID,
+		UserID:          metrics.UserID,
+		TargetHost:      metrics.TargetHost,
+		StartTime:       metrics.StartTime,
+		EndTime:         metrics.EndTime,
+		DurationSeconds: metrics.DurationSeconds,
+		CommandCount:    metrics.CommandCount,
+		FailedCommands:  metrics.FailedCommands,
+		OffHoursAccess:  metrics.OffHoursAccess,
+		FailureRate:     metrics.FailureRate,
+	}
+	if err := s.redis.StoreSessionMetrics(ctx, cachedMetrics); err != nil {
 		s.logger.Warn().Err(err).
 			Str("session_id", metrics.SessionID.String()).
 			Msg("Failed to cache metrics in Redis")

@@ -35,8 +35,8 @@ const SessionMetricsCacheDuration = 24 * time.Hour
 const BaselineCacheDuration = 1 * time.Hour
 
 // StoreSessionMetrics stores session metrics in Redis
-func (r *RedisMetricsCache) StoreSessionMetrics(ctx context.Context, metrics interface{}) error {
-	key := r.sessionMetricsKey(metrics.(*SessionMetricsFromStore).SessionID)
+func (r *RedisMetricsCache) StoreSessionMetrics(ctx context.Context, metrics *SessionMetricsFromStore) error {
+	key := r.sessionMetricsKey(metrics.SessionID)
 
 	data, err := json.Marshal(metrics)
 	if err != nil {
