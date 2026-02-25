@@ -57,8 +57,19 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to connect to Redis")
 	}
 
-	// Initialize services
-	eventBus := events.New(redisCache, logger)
+	// Initialize services with secure event bus (HMAC signing)
+	eventSigningKey := os.Getenv("EVENT_SIGNING_KEY")
+	if eventSigningKey == "" {
+		// For development only - use a default key
+		eventSigningKey = "CHANGE_THIS_DEFAULT_EVENT_SIGNING_KEY_IN_PRODUCTION_32BYTES"
+		logger.Warn().Msg("EVENT_SIGNING_KEY not set, using insecure default - DO NOT USE IN PRODUCTION")
+	}
+	eventBus := events.New(events.EventConfig{
+		Cache:        redisCache,
+		Logger:       logger,
+		SigningKey:   []byte(eventSigningKey),
+		AllowUnsigned: false, // Reject unsigned events for security
+	})
 	eventPublisher := events.NewPublisher(eventBus)
 
 	sessionRepo := session.NewRepository(db.DB, redisCache, logger)

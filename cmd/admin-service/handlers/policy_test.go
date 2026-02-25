@@ -326,7 +326,7 @@ type testContext struct {
 func createTestService() *policy.Service {
 	repo := newMockTestHandlerRepository()
 	mockCache := newMockPolicyCache()
-	eventBus := events.New(nil, zerolog.Nop())
+	eventBus := events.NewWithoutConfig(nil, zerolog.Nop())
 	logger := zerolog.Nop()
 
 	return policy.NewTestService(repo, mockCache, eventBus, logger)

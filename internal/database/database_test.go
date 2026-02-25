@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -273,121 +272,81 @@ func TestDB_WrapsSQLXDB(t *testing.T) {
 	})
 }
 
-// Test isLikelyProductionEnvironment function
-func TestIsLikelyProductionEnvironment(t *testing.T) {
-	// Save original environment values
-	originalEnv := []struct {
-		name, restore string
-	}{
-		{"ENV", ""},
-		{"GO_ENV", ""},
-		{"ENVIRONMENT", ""},
-		{"DB_HOST", ""},
-	}
-
-	for _, e := range originalEnv {
-		e.restore = os.Getenv(e.name)
-	}
-
-	// Restore environment after tests
-	defer func() {
-		for _, e := range originalEnv {
-			if e.restore == "" {
-				os.Unsetenv(e.name)
-			} else {
-				os.Setenv(e.name, e.restore)
-			}
-		}
-	}()
-
+// TestSSLModeValidation tests that insecure SSL modes are rejected
+func TestSSLModeValidation(t *testing.T) {
 	tests := []struct {
-		name           string
-		env            string
-		goEnv          string
-		environmentEnv string
-		dbHost         string
-		wantProduction bool
+		name        string
+		sslMode     string
+		wantError   bool
+		errorMsg    string
 	}{
 		{
-			name:           "ENV=local is not production",
-			env:            "local",
-			wantProduction: false,
+			name:      "disable is rejected",
+			sslMode:   "disable",
+			wantError: true,
+			errorMsg:  "SSL mode 'disable' is NEVER allowed",
 		},
 		{
-			name:           "ENV=dev with localhost is not production",
-			env:            "dev",
-			dbHost:         "localhost",
-			wantProduction: false,
+			name:      "allow is rejected",
+			sslMode:   "allow",
+			wantError: true,
+			errorMsg:  "SSL mode 'allow' is NEVER allowed",
 		},
 		{
-			name:           "ENV=dev with 127.0.0.1 is not production",
-			env:            "dev",
-			dbHost:         "127.0.0.1",
-			wantProduction: false,
+			name:        "require is accepted",
+			sslMode:     "require",
+			wantError:   false,
 		},
 		{
-			name:           "ENV=dev with remote host IS production",
-			env:            "dev",
-			dbHost:         "db.example.com",
-			wantProduction: true,
+			name:        "verify-ca is accepted",
+			sslMode:     "verify-ca",
+			wantError:   false,
 		},
 		{
-			name:           "ENV=development with localhost is not production",
-			env:            "development",
-			dbHost:         "localhost",
-			wantProduction: false,
+			name:        "verify-full is accepted",
+			sslMode:     "verify-full",
+			wantError:   false,
 		},
 		{
-			name:           "ENV unset IS production (safe default)",
-			wantProduction: true,
-		},
-		{
-			name:           "ENV=production IS production",
-			env:            "production",
-			wantProduction: true,
-		},
-		{
-			name:           "ENV=prod IS production",
-			env:            "prod",
-			wantProduction: true,
-		},
-		{
-			name:           "ENV=staging IS production",
-			env:            "staging",
-			wantProduction: true,
-		},
-		{
-			name:           "ENV=test IS production (safe default for test envs)",
-			env:            "test",
-			wantProduction: true,
+			name:      "invalid mode is rejected",
+			sslMode:   "invalid",
+			wantError: true,
+			errorMsg:  "invalid SSL mode",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Clean environment first
-			os.Unsetenv("ENV")
-			os.Unsetenv("GO_ENV")
-			os.Unsetenv("ENVIRONMENT")
-			os.Unsetenv("DB_HOST")
-
-			// Set test values
-			if tt.env != "" {
-				os.Setenv("ENV", tt.env)
-			}
-			if tt.goEnv != "" {
-				os.Setenv("GO_ENV", tt.goEnv)
-			}
-			if tt.environmentEnv != "" {
-				os.Setenv("ENVIRONMENT", tt.environmentEnv)
-			}
-			if tt.dbHost != "" {
-				os.Setenv("DB_HOST", tt.dbHost)
+			logger := zerolog.Nop()
+			cfg := Config{
+				Host:            "localhost",
+				Port:            5432,
+				User:            "test",
+				Password:        "test",
+				Database:        "test",
+				SSLMode:         tt.sslMode,
+				MaxOpenConns:    10,
+				MaxIdleConns:    5,
+				ConnMaxLifetime: time.Hour,
+				ConnMaxIdleTime: time.Minute * 30,
 			}
 
-			got := isLikelyProductionEnvironment()
-			assert.Equal(t, tt.wantProduction, got,
-				"isLikelyProductionEnvironment() = %v, want %v", got, tt.wantProduction)
+			db, err := New(cfg, logger)
+
+			if tt.wantError {
+				assert.Error(t, err)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+				assert.Nil(t, db)
+			} else {
+				// For valid SSL modes, we expect an error because we're not
+				// actually connecting to a database, but it should be a
+				// connection error, not an SSL validation error
+				if err != nil {
+					assert.NotContains(t, err.Error(), "SSL mode")
+				}
+			}
 		})
 	}
 }

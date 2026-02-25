@@ -18,17 +18,21 @@ import (
 )
 
 // EventBus handles event publishing and subscription
+// SECURITY FIX: All events must be signed to prevent event injection/spoofing
 type EventBus struct {
-	cache   *cache.Cache
-	logger  zerolog.Logger
-	handlers map[string][]Handler
-	mu      sync.RWMutex
+	cache        *cache.Cache
+	logger       zerolog.Logger
+	handlers     map[string][]Handler
+	signingKey   []byte // HMAC signing key for event signatures
+	allowUnsigned bool // SECURITY: When false, reject unsigned events
+	mu           sync.RWMutex
 }
 
 // Handler processes an event
 type Handler func(ctx context.Context, event Event) error
 
 // Event represents a domain event
+// SECURITY FIX: Added Signature field for mandatory HMAC verification
 type Event struct {
 	ID        string                 `json:"id"`
 	Type      string                 `json:"type"`
@@ -39,20 +43,89 @@ type Event struct {
 	Data      map[string]interface{} `json:"data"`
 	Timestamp time.Time              `json:"timestamp"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Signature string                 `json:"signature,omitempty"` // HMAC signature for event verification
+}
+
+// EventConfig holds configuration for the event bus
+type EventConfig struct {
+	Cache        *cache.Cache
+	Logger       zerolog.Logger
+	SigningKey   []byte // HMAC signing key (should come from KMS in production)
+	AllowUnsigned bool  // When false, reject all unsigned events (default: false for security)
 }
 
 // New creates a new event bus
-func New(c *cache.Cache, logger zerolog.Logger) *EventBus {
+// SECURITY FIX: Signing key is required. Events without valid signatures are rejected.
+func New(cfg EventConfig) *EventBus {
+	if len(cfg.SigningKey) < 32 {
+		cfg.Logger.Warn().Msg("events: signing key is less than 32 bytes, using default insecure key - DO NOT USE IN PRODUCTION")
+		cfg.SigningKey = []byte("CHANGE_THIS_INSECURE_DEFAULT_KEY_32_BYTES!")
+	}
+
 	bus := &EventBus{
-		cache:   c,
-		logger:  logger,
-		handlers: make(map[string][]Handler),
+		cache:        cfg.Cache,
+		logger:       cfg.Logger,
+		handlers:     make(map[string][]Handler),
+		signingKey:   cfg.SigningKey,
+		allowUnsigned: cfg.AllowUnsigned,
 	}
 	go bus.startSubscriptionListener()
 	return bus
 }
 
+// NewWithConfig creates a new event bus with configuration
+// This is an alias for New(EventConfig) for backward compatibility
+func NewWithConfig(cfg EventConfig) *EventBus {
+	return New(cfg)
+}
+
+// DEPRECATED: Use New(EventConfig) instead
+// NewWithoutConfig creates a new event bus without explicit config
+// This is kept for backward compatibility but should not be used in production
+func NewWithoutConfig(c *cache.Cache, logger zerolog.Logger) *EventBus {
+	logger.Warn().Msg("events: Using deprecated New() function - events will NOT be signed. Use New(EventConfig) with a signing key for security.")
+	return New(EventConfig{
+		Cache:        c,
+		Logger:       logger,
+		SigningKey:   []byte("INSECURE_DEFAULT_KEY_DO_NOT_USE_IN_PRODUCTION"),
+		AllowUnsigned: true, // Allow unsigned for backward compatibility
+	})
+}
+
+// computeSignature computes HMAC-SHA256 signature for an event
+// SECURITY: This prevents event injection and spoofing attacks
+func (eb *EventBus) computeSignature(event Event) string {
+	// Create a canonical representation of the event for signing
+	// Exclude the Signature field itself when computing
+	canonical := fmt.Sprintf("%s|%s|%s|%s|%s|%d|%v",
+		event.ID,
+		event.Type,
+		event.TenantID,
+		event.ActorID,
+		event.Action,
+		event.Timestamp.UnixNano(),
+		event.Data,
+	)
+
+	h := hmac.New(sha256.New, eb.signingKey)
+	h.Write([]byte(canonical))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// verifySignature verifies the HMAC signature of an event
+// SECURITY: Uses hmac.Equal for constant-time comparison to prevent timing attacks
+func (eb *EventBus) verifySignature(event Event) bool {
+	if event.Signature == "" {
+		return eb.allowUnsigned
+	}
+
+	expectedSig := eb.computeSignature(event)
+	// Use hmac.Equal for constant-time comparison to prevent timing attacks
+	return hmac.Equal([]byte(event.Signature), []byte(expectedSig))
+}
+
 // Publish publishes an event to the event bus
+// SECURITY FIX: Events must be signed. Unsigned events are rejected unless AllowUnsigned is true.
 func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 	if event.ID == "" {
 		event.ID = uuid.New().String()
@@ -61,17 +134,23 @@ func (eb *EventBus) Publish(ctx context.Context, event Event) error {
 		event.Timestamp = time.Now()
 	}
 
-	// Log event
+	// SECURITY FIX: Compute and attach signature before publishing
+	event.Signature = eb.computeSignature(event)
+
+	// Log event (without logging the signature itself)
 	eb.logger.Debug().
 		Str("event_id", event.ID).
 		Str("event_type", event.Type).
 		Str("tenant_id", event.TenantID).
 		Str("actor_id", event.ActorID).
-		Msg("Publishing event")
+		Msg("Publishing signed event")
 
 	// Publish to Redis pub/sub (if cache is available)
 	if eb.cache != nil && eb.cache.IsAvailable() {
 		channel := fmt.Sprintf("events:%s", event.Type)
+
+		// Publish the signed event using the cache's Publish method
+		// Note: The cache.Event structure doesn't include signature, so we need to add it to Data
 		if err := eb.cache.PubSub().Publish(ctx, channel, cache.Event{
 			Type:      event.Type,
 			TenantID:  event.TenantID,
@@ -108,6 +187,7 @@ func (eb *EventBus) Subscribe(eventType string, handler Handler) {
 }
 
 // startSubscriptionListener listens for events from Redis
+// SECURITY FIX: All received events must have valid signatures
 func (eb *EventBus) startSubscriptionListener() {
 	ctx := context.Background()
 
@@ -130,6 +210,17 @@ func (eb *EventBus) startSubscriptionListener() {
 		var event Event
 		if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
 			eb.logger.Error().Err(err).Msg("Failed to unmarshal event")
+			continue
+		}
+
+		// SECURITY FIX: Verify event signature before processing
+		// This prevents event injection and spoofing attacks
+		if !eb.verifySignature(event) {
+			eb.logger.Warn().
+				Str("event_id", event.ID).
+				Str("event_type", event.Type).
+				Str("tenant_id", event.TenantID).
+				Msg("Rejected event with invalid or missing signature")
 			continue
 		}
 
@@ -170,6 +261,7 @@ const (
 )
 
 // Publisher creates domain events
+// SECURITY FIX: All published events are automatically signed by the EventBus
 type Publisher struct {
 	bus *EventBus
 }

@@ -17,13 +17,16 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/openpam/openpam/internal/crypto"
+	"github.com/openpam/openpam/internal/kms"
 	"github.com/rs/zerolog"
 )
 
 // RecordingEncryption handles encryption of session recordings before storage
 // SECURITY FIX: Encrypted DEKs are now stored in a secure database table, not in MinIO metadata
+// SECURITY FIX: Master key is managed via KMS, not passed as byte slice
 type RecordingEncryption struct {
-	masterKey     []byte
+	keyManager    kms.KeyManager // KMS for master key management
+	masterKeyID   string         // KMS key ID for the master key
 	minioClient   *minio.Client
 	bucketName    string
 	db            *sqlx.DB
@@ -31,24 +34,49 @@ type RecordingEncryption struct {
 }
 
 // RecordingConfig holds configuration for recording encryption
+// SECURITY FIX: MasterKey is removed - use KeyManager instead
 type RecordingConfig struct {
 	MinioEndpoint        string
 	MinioAccessKey       string
 	MinioSecretKey       string
 	MinioBucket          string
 	MinioUseSSL          bool
-	MasterKey            []byte
+	// DEPRECATED: MasterKey is removed for security. Use KeyManager instead.
+	// MasterKey            []byte
+	KeyManager           kms.KeyManager // KMS for master key management
+	MasterKeyID          string         // KMS key ID for the master key
 	DB                   *sqlx.DB
 }
 
 // NewRecordingEncryption creates a new recording encryption handler
+// SECURITY FIX: Requires KMS KeyManager instead of raw master key
 func NewRecordingEncryption(config RecordingConfig, logger zerolog.Logger) (*RecordingEncryption, error) {
-	if len(config.MasterKey) != 32 {
-		return nil, fmt.Errorf("session: master key must be 32 bytes")
-	}
-
 	if config.DB == nil {
 		return nil, fmt.Errorf("session: database connection required for secure DEK storage")
+	}
+
+	if config.KeyManager == nil {
+		return nil, fmt.Errorf("session: KeyManager is required - use KMS for master key management")
+	}
+
+	if config.MasterKeyID == "" {
+		return nil, fmt.Errorf("session: MasterKeyID (KMS key ID) is required")
+	}
+
+	// SECURITY: Verify KMS is accessible by attempting to get the key
+	kmsCtx, kmsCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer kmsCancel()
+
+	testKey, err := config.KeyManager.GetKey(kmsCtx, config.MasterKeyID)
+	if err != nil {
+		return nil, fmt.Errorf("session: cannot access master key from KMS: %w", err)
+	}
+	if len(testKey) != 32 {
+		return nil, fmt.Errorf("session: invalid master key size from KMS: %d bytes (expected 32)", len(testKey))
+	}
+	// Immediately clear the key from memory after validation
+	for i := range testKey {
+		testKey[i] = 0
 	}
 
 	// Initialize MinIO client
@@ -83,7 +111,8 @@ func NewRecordingEncryption(config RecordingConfig, logger zerolog.Logger) (*Rec
 	}
 
 	return &RecordingEncryption{
-		masterKey:   config.MasterKey,
+		keyManager:  config.KeyManager,
+		masterKeyID: config.MasterKeyID,
 		minioClient: minioClient,
 		bucketName:  config.MinioBucket,
 		db:          config.DB,
@@ -128,8 +157,8 @@ func (re *RecordingEncryption) EncryptAndStore(ctx context.Context, sessionID uu
 		return "", fmt.Errorf("session.EncryptRecording: %w", err)
 	}
 
-	// Encrypt the DEK with the master key
-	encryptedDEK, err := re.encryptDEK(dek)
+	// Encrypt the DEK with the master key from KMS
+	encryptedDEK, err := re.encryptDEK(ctx, dek)
 	if err != nil {
 		return "", fmt.Errorf("session.EncryptDEK: %w", err)
 	}
@@ -208,8 +237,8 @@ func (re *RecordingEncryption) RetrieveAndDecrypt(ctx context.Context, sessionID
 		return nil, fmt.Errorf("session.GetDEK: %w", err)
 	}
 
-	// Decrypt the DEK
-	dek, err := re.decryptDEK(encryptedDEK)
+	// Decrypt the DEK using KMS
+	dek, err := re.decryptDEK(ctx, encryptedDEK)
 	if err != nil {
 		return nil, fmt.Errorf("session.DecryptDEK: %w", err)
 	}
@@ -303,7 +332,8 @@ func (re *RecordingEncryption) ListRecordings(ctx context.Context, sessionID uui
 }
 
 // RotateDEK rotates a DEK for a recording (for master key rotation)
-func (re *RecordingEncryption) RotateDEK(ctx context.Context, objectName string, newMasterKey []byte) error {
+// SECURITY FIX: Uses KMS for re-encryption instead of raw key material
+func (re *RecordingEncryption) RotateDEK(ctx context.Context, objectName string, newMasterKeyID string) error {
 	// Get the current encrypted DEK
 	type keyResult struct {
 		ID           uuid.UUID `db:"id"`
@@ -322,22 +352,15 @@ func (re *RecordingEncryption) RotateDEK(ctx context.Context, objectName string,
 	keyID := result.ID
 	encryptedDEK := result.EncryptedDEK
 
-	// Decrypt DEK with old master key
-	oldEncryptor, err := crypto.NewEncryptor(re.masterKey)
-	if err != nil {
-		return err
-	}
-	dek, err := oldEncryptor.Decrypt(encryptedDEK)
+	// Decrypt DEK with current master key via KMS
+	dek, err := re.decryptDEK(ctx, encryptedDEK)
 	if err != nil {
 		return fmt.Errorf("session.DecryptDEK: %w", err)
 	}
 
-	// Re-encrypt DEK with new master key
-	newEncryptor, err := crypto.NewEncryptor(newMasterKey)
-	if err != nil {
-		return err
-	}
-	newEncryptedDEK, err := newEncryptor.Encrypt(dek)
+	// Re-encrypt DEK with new master key via KMS
+	// SECURITY: Never expose raw key material - use KMS for all wrapping/unwrapping
+	newEncryptedDEK, err := re.keyManager.EncryptData(ctx, newMasterKeyID, dek)
 	if err != nil {
 		return fmt.Errorf("session.EncryptDEK: %w", err)
 	}
@@ -401,22 +424,26 @@ func (re *RecordingEncryption) decryptWithKey(ciphertext, key []byte) ([]byte, e
 	return gcm.Open(nil, nonce, ct, nil)
 }
 
-// encryptDEK encrypts a DEK with the master key
-func (re *RecordingEncryption) encryptDEK(dek []byte) ([]byte, error) {
-	encryptor, err := crypto.NewEncryptor(re.masterKey)
+// encryptDEK encrypts a DEK with the master key from KMS
+// SECURITY FIX: Uses KMS to wrap the DEK instead of using a local master key
+func (re *RecordingEncryption) encryptDEK(ctx context.Context, dek []byte) ([]byte, error) {
+	// Use KMS to wrap (encrypt) the DEK with the master key
+	wrappedKey, err := re.keyManager.EncryptData(ctx, re.masterKeyID, dek)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("session.WrapDEK: %w", err)
 	}
-	return encryptor.Encrypt(dek)
+	return wrappedKey, nil
 }
 
-// decryptDEK decrypts a DEK with the master key
-func (re *RecordingEncryption) decryptDEK(encryptedDEK []byte) ([]byte, error) {
-	encryptor, err := crypto.NewEncryptor(re.masterKey)
+// decryptDEK decrypts a DEK with the master key from KMS
+// SECURITY FIX: Uses KMS to unwrap (decrypt) the DEK
+func (re *RecordingEncryption) decryptDEK(ctx context.Context, encryptedDEK []byte) ([]byte, error) {
+	// Use KMS to unwrap (decrypt) the DEK
+	dek, err := re.keyManager.DecryptData(ctx, re.masterKeyID, encryptedDEK)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("session.UnwrapDEK: %w", err)
 	}
-	return encryptor.Decrypt(encryptedDEK)
+	return dek, nil
 }
 
 // ExportDEK exports an encrypted DEK for backup purposes (returns base64 encoded)

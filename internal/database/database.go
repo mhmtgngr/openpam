@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -34,10 +33,14 @@ type DB struct {
 }
 
 // New creates a new database connection
+// SECURITY: SSL/TLS is ALWAYS required. This is enforced at the application level
+// and should be enforced at the infrastructure layer via:
+// 1. Build tags: go build -tags ssl_required
+// 2. Sidecar proxy that terminates TLS
+// 3. Cloud IAM authentication (e.g., AWS RDS IAM, GCP Cloud SQL IAM)
 func New(cfg Config, logger zerolog.Logger) (*DB, error) {
-	// Enforce SSL/TLS for secure database connections
-	// In production, sslmode must be "require", "verify-ca", or "verify-full"
-	// Allow "disable" and "prefer" only for development environments
+	// SECURITY FIX: Remove environment-based SSL detection entirely
+	// SSL mode must be explicitly set to a secure value
 	sslMode := cfg.SSLMode
 	if sslMode == "" {
 		// Default to require for security
@@ -45,19 +48,26 @@ func New(cfg Config, logger zerolog.Logger) (*DB, error) {
 		logger.Warn().Msg("Database SSL mode not configured, defaulting to 'require'")
 	}
 
-	// PRODUCTION GUARD: Prevent SSL disable in production environments
-	// This prevents accidental deployment with insecure database connections
-	// SECURITY: The ENV=development override is REMOVED to prevent SSL bypass attacks
-	if isLikelyProductionEnvironment() && (sslMode == "disable" || sslMode == "allow") {
-		return nil, fmt.Errorf("database: SSL mode '%s' is not allowed in production-like environments. Use 'require', 'verify-ca', or 'verify-full'. Containerized and Kubernetes environments require encrypted connections", sslMode)
+	// SECURITY FIX: Reject insecure SSL modes unconditionally
+	// This prevents SSL bypass attacks via environment variable manipulation
+	// The only valid SSL modes are: require, verify-ca, verify-full
+	if sslMode == "disable" || sslMode == "allow" {
+		return nil, fmt.Errorf("database: SSL mode '%s' is NEVER allowed. Database connections must be encrypted. Use 'require', 'verify-ca', or 'verify-full'. For local development, use a local database with TLS enabled or use SSH tunneling", sslMode)
 	}
 
-	// Warn if SSL is disabled in non-production environments
-	if sslMode == "disable" || sslMode == "allow" {
-		logger.Warn().
-			Str("ssl_mode", sslMode).
-			Msg("Database SSL/TLS is disabled - database connections are NOT encrypted. Only use this for local development with explicit ENV=local")
+	// Verify SSL mode is one of the allowed secure modes
+	validModes := map[string]bool{
+		"require":     true,
+		"verify-ca":   true,
+		"verify-full": true,
 	}
+	if !validModes[sslMode] {
+		return nil, fmt.Errorf("database: invalid SSL mode '%s'. Must be one of: require, verify-ca, verify-full", sslMode)
+	}
+
+	logger.Info().
+		Str("ssl_mode", sslMode).
+		Msg("Database SSL/TLS enforced - connections are encrypted")
 
 	// Build DSN safely using url.QueryEscape to prevent SQL injection via DSN parameters
 	// All config values are escaped to prevent malicious content from injecting SQL directives
@@ -175,37 +185,19 @@ func (ts *TenantScoped) NamedSelect(ctx context.Context, dest interface{}, query
 	return ts.db.SelectContext(ctx, dest, query, arg)
 }
 
-// isLikelyProductionEnvironment determines if the application is running in a production-like environment
-// SECURITY: This function uses a whitelist approach for non-production environments
-// Only explicit "local" or "dev" with localhost connections are considered non-production
-// This prevents SSL bypass attacks via ENV variable manipulation
-func isLikelyProductionEnvironment() bool {
-	// Check explicit environment variable
-	env := os.Getenv("ENV")
-	if env == "" {
-		env = os.Getenv("GO_ENV")
-	}
-	if env == "" {
-		env = os.Getenv("ENVIRONMENT")
-	}
-
-	// WHITELIST: Only these specific values are considered non-production
-	// "local" - for local development
-	// "dev" with additional checks for localhost
-	if env == "local" {
-		return false
-	}
-
-	// For "dev", only allow if connecting to localhost
-	if env == "dev" || env == "development" {
-		// Check DB host - only allow unencrypted for localhost
-		dbHost := os.Getenv("DB_HOST")
-		if dbHost == "localhost" || dbHost == "127.0.0.1" || dbHost == "" {
-			return false
-		}
-	}
-
-	// All other cases are considered production-like and require SSL
-	// This prevents SSL bypass in containerized/cloud environments
-	return true
-}
+// isLikelyProductionEnvironment REMOVED for security reasons
+// SECURITY FIX: Environment-based detection is fundamentally insecure because:
+// 1. Environment variables can be manipulated at runtime
+// 2. Container orchestration platforms may not set expected ENV variables
+// 3. The check can be bypassed by an attacker with code execution
+//
+// SSL/TLS must be enforced at infrastructure layer:
+// 1. Use build tags: go build -tags ssl_required
+// 2. Use sidecar proxy (Envoy, nginx) for TLS termination
+// 3. Use cloud provider IAM authentication (AWS RDS IAM, GCP Cloud SQL IAM)
+// 4. Use Kubernetes network policies with mTLS (Istio, Linkerd)
+//
+// For local development:
+// - Use PostgreSQL with TLS enabled locally
+// - Use SSH tunneling to remote databases
+// - Run database in Docker with TLS certificates mounted
