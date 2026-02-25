@@ -284,6 +284,26 @@ func (m *mockAnalyticsHandler) RunAnomalyDetection(c *gin.Context) {}
 func (m *mockAnalyticsHandler) GenerateComplianceReport(c *gin.Context) {}
 func (m *mockAnalyticsHandler) GetCacheStats(c *gin.Context) {}
 
+// Report Snapshot methods
+func (m *mockAnalyticsHandler) GenerateReportSnapshot(c *gin.Context) {}
+func (m *mockAnalyticsHandler) QueueReportGeneration(c *gin.Context) {}
+func (m *mockAnalyticsHandler) GetReportSnapshot(c *gin.Context) {}
+func (m *mockAnalyticsHandler) ListReportSnapshots(c *gin.Context) {}
+func (m *mockAnalyticsHandler) DeleteReportSnapshot(c *gin.Context) {}
+func (m *mockAnalyticsHandler) GetReportSnapshotStats(c *gin.Context) {}
+
+// Report Generation Job methods
+func (m *mockAnalyticsHandler) GetReportGenerationJob(c *gin.Context) {}
+func (m *mockAnalyticsHandler) ListReportGenerationJobs(c *gin.Context) {}
+func (m *mockAnalyticsHandler) DeleteReportGenerationJob(c *gin.Context) {}
+
+// Report Schedule methods
+func (m *mockAnalyticsHandler) CreateReportSchedule(c *gin.Context) {}
+func (m *mockAnalyticsHandler) GetReportSchedule(c *gin.Context) {}
+func (m *mockAnalyticsHandler) UpdateReportSchedule(c *gin.Context) {}
+func (m *mockAnalyticsHandler) DeleteReportSchedule(c *gin.Context) {}
+func (m *mockAnalyticsHandler) ListReportSchedules(c *gin.Context) {}
+
 func TestMockAnalyticsHandler(t *testing.T) {
 	t.Run("mock handler implements interface", func(t *testing.T) {
 		var handler AnalyticsHandler = &mockAnalyticsHandler{}
