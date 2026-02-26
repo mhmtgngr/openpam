@@ -101,17 +101,17 @@ type Alert struct {
 
 // AlertRule defines a rule for generating alerts
 type AlertRule struct {
-	ID          uuid.UUID     `db:"id" json:"id"`
-	TenantID    uuid.UUID     `db:"tenant_id" json:"tenant_id"`
-	Name        string        `db:"name" json:"name"`
-	Type        AlertType     `db:"type" json:"type"`
-	Description string        `db:"description" json:"description"`
-	Enabled     bool          `db:"enabled" json:"enabled"`
-	Conditions  RuleCondition `db:"conditions" json:"conditions"`
-	Actions     []RuleAction  `db:"actions" json:"actions"`
-	Severity    AlertSeverity `db:"severity" json:"severity"`
-	CreatedAt   time.Time     `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time     `db:"updated_at" json:"updated_at"`
+	ID          uuid.UUID      `db:"id" json:"id"`
+	TenantID    uuid.UUID      `db:"tenant_id" json:"tenant_id"`
+	Name        string         `db:"name" json:"name"`
+	Type        AlertType      `db:"type" json:"type"`
+	Description string         `db:"description" json:"description"`
+	Enabled     bool           `db:"enabled" json:"enabled"`
+	Conditions  []RuleCondition `db:"conditions" json:"conditions"`
+	Actions     []RuleAction   `db:"actions" json:"actions"`
+	Severity    AlertSeverity  `db:"severity" json:"severity"`
+	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
 }
 
 // RuleCondition defines when an alert should be triggered
@@ -193,19 +193,10 @@ func (m *AlertManager) CreateAlert(ctx context.Context, alert *Alert) error {
 
 	// Publish event
 	if m.publisher != nil {
-		_ = m.publisher.Publish(ctx, events.Event{
-			Type:     "alert.created",
-			TenantID: alert.TenantID.String(),
-			ActorID:  "system",
-			Action:   "create",
-			Resource: "alert",
-			Data: map[string]interface{}{
-				"alert_id":  alert.ID.String(),
-				"type":      string(alert.Type),
-				"severity":  string(alert.Severity),
-				"title":     alert.Title,
-			},
-		})
+		_ = m.publisher.PublishAlertTriggered(ctx, alert.TenantID.String(), alert.ID.String(),
+			string(alert.Type), string(alert.Severity), map[string]interface{}{
+				"title": alert.Title,
+			})
 	}
 
 	m.logger.Info().
@@ -269,11 +260,8 @@ func (m *AlertManager) GetAlert(ctx context.Context, alertID uuid.UUID) (*Alert,
 		return nil, fmt.Errorf("alert_manager.GetAlert: %w", err)
 	}
 
-	// Parse metadata JSON
-	var metadata map[string]interface{}
-	if err := json.Unmarshal(alert.Metadata, &metadata); err == nil {
-		// Note: In real implementation, you'd have a separate field for parsed metadata
-	}
+	// Note: In real implementation, you might need to parse metadata from JSONB
+	// For now, alert.Metadata is already map[string]interface{}
 
 	return &alert, nil
 }
