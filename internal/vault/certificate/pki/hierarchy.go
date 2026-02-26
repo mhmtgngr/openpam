@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/openpam/openpam/internal/vault/certificate"
+	"github.com/openpam/openpam/internal/vault/cert"
 	"github.com/openpam/openpam/internal/vault/repository"
 	"github.com/rs/zerolog"
 )
@@ -67,7 +67,7 @@ func NewHierarchy(cfg Config, repo *repository.CertificateRepository, logger zer
 }
 
 // InitializeRootCA initializes the root CA for a tenant
-func (h *Hierarchy) InitializeRootCA(ctx context.Context, tenantID uuid.UUID, subject certificate.CertificateSubject) (*certificate.Certificate, error) {
+func (h *Hierarchy) InitializeRootCA(ctx context.Context, tenantID uuid.UUID, subject cert.CertificateSubject) (*cert.Certificate, error) {
 	// Check if root CA already exists
 	existing, err := h.repo.GetRootCA(ctx, tenantID)
 	if err == nil && existing != nil {
@@ -119,12 +119,12 @@ func (h *Hierarchy) InitializeRootCA(ctx context.Context, tenantID uuid.UUID, su
 	}
 
 	// Create certificate record
-	cert := &certificate.Certificate{
+	cert := &cert.Certificate{
 		ID:             uuid.New(),
 		TenantID:       tenantID,
 		Name:           "Root CA",
-		Type:           certificate.TypeRootCA,
-		Status:         certificate.StatusActive,
+		Type:           cert.TypeRootCA,
+		Status:         cert.StatusActive,
 		PEMCertificate: certPEM,
 		PEMPrivateKey:  keyPEM,
 		SerialNumber:   serialNumber.String(),
@@ -150,8 +150,8 @@ func (h *Hierarchy) InitializeRootCA(ctx context.Context, tenantID uuid.UUID, su
 }
 
 // IssueIntermediateCA issues an intermediate CA certificate
-func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *certificate.Certificate, subject certificate.CertificateSubject, issuerID *uuid.UUID) error {
-	var issuerCert *certificate.Certificate
+func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *cert.Certificate, subject cert.CertificateSubject, issuerID *uuid.UUID) error {
+	var issuerCert *cert.Certificate
 	var err error
 
 	if issuerID == nil {
@@ -219,8 +219,8 @@ func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *certificate.C
 	}
 
 	// Update certificate record
-	cert.Type = certificate.TypeIntermediateCA
-	cert.Status = certificate.StatusActive
+	cert.Type = cert.TypeIntermediateCA
+	cert.Status = cert.StatusActive
 	cert.PEMCertificate = certPEM
 	cert.PEMPrivateKey = keyPEM
 	cert.SerialNumber = serialNumber.String()
@@ -235,7 +235,7 @@ func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *certificate.C
 }
 
 // IssueLeaf issues a leaf certificate
-func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *certificate.Certificate, subject certificate.CertificateSubject, issuerID uuid.UUID) error {
+func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *cert.Certificate, subject cert.CertificateSubject, issuerID uuid.UUID) error {
 	// Get issuer certificate
 	issuerCert, err := h.repo.GetByID(ctx, issuerID)
 	if err != nil {
@@ -296,8 +296,8 @@ func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *certificate.Certificate
 	}
 
 	// Update certificate record
-	cert.Type = certificate.TypeLeaf
-	cert.Status = certificate.StatusActive
+	cert.Type = cert.TypeLeaf
+	cert.Status = cert.StatusActive
 	cert.PEMCertificate = certPEM
 	cert.PEMPrivateKey = keyPEM
 	cert.SerialNumber = serialNumber.String()
@@ -310,7 +310,7 @@ func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *certificate.Certificate
 }
 
 // AddToCRL adds a revoked certificate to the CRL
-func (h *Hierarchy) AddToCRL(ctx context.Context, cert *certificate.Certificate) error {
+func (h *Hierarchy) AddToCRL(ctx context.Context, cert *cert.Certificate) error {
 	// In production, this would:
 	// 1. Parse the certificate
 	// 2. Add it to the CRL maintained by the issuing CA
@@ -333,7 +333,7 @@ func (h *Hierarchy) GetCRL(ctx context.Context, caCertID uuid.UUID) ([]byte, err
 }
 
 // ValidateChain validates a certificate chain
-func (h *Hierarchy) ValidateChain(ctx context.Context, chain []*certificate.Certificate) error {
+func (h *Hierarchy) ValidateChain(ctx context.Context, chain []*cert.Certificate) error {
 	if len(chain) == 0 {
 		return fmt.Errorf("pki: empty certificate chain")
 	}
@@ -424,7 +424,7 @@ func (h *Hierarchy) encodePrivateKey(privateKey crypto.PrivateKey) ([]byte, erro
 }
 
 // parseCertificateAndKey parses a certificate and its private key
-func (h *Hierarchy) parseCertificateAndKey(cert *certificate.Certificate) (*x509.Certificate, crypto.PrivateKey, error) {
+func (h *Hierarchy) parseCertificateAndKey(cert *cert.Certificate) (*x509.Certificate, crypto.PrivateKey, error) {
 	// Parse certificate
 	certBlock, _ := pem.Decode(cert.PEMCertificate)
 	if certBlock == nil {

@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openpam/openpam/internal/vault/certificate"
+	"github.com/openpam/openpam/internal/vault/cert"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/acme"
 )
@@ -279,7 +279,7 @@ func (c *Client) WaitForAuthorization(ctx context.Context, authURL string, timeo
 }
 
 // IssueCertificate issues an ACME certificate (used by certificate manager)
-func (c *Client) IssueCertificate(ctx context.Context, cert *certificate.Certificate, req *certificate.CertificateRequest) error {
+func (c *Client) IssueCertificate(ctx context.Context, certData *cert.Certificate, req *cert.CertificateRequest) error {
 	if len(req.DNSNames) == 0 {
 		return fmt.Errorf("acme: DNS names required for ACME certificates")
 	}
@@ -304,9 +304,9 @@ func (c *Client) IssueCertificate(ctx context.Context, cert *certificate.Certifi
 	})
 
 	// Update certificate with issued data
-	cert.PEMCertificate = certPEM
-	cert.PEMPrivateKey = privKeyPEM
-	cert.Subject = domain
+	certData.PEMCertificate = certPEM
+	certData.PEMPrivateKey = privKeyPEM
+	certData.Subject = domain
 
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/events"
+		certtypes "github.com/openpam/openpam/internal/vault/cert"
 	"github.com/openpam/openpam/internal/vault/certificate/acme"
 	"github.com/openpam/openpam/internal/vault/certificate/pki"
 	"github.com/openpam/openpam/internal/vault/repository"
@@ -48,90 +49,6 @@ type Config struct {
 	// Auto-rotation
 	AutoRotateBefore time.Duration
 	CheckInterval    time.Duration
-}
-
-// CertificateType represents the type of certificate
-type CertificateType string
-
-const (
-	TypeRootCA         CertificateType = "root_ca"
-	TypeIntermediateCA CertificateType = "intermediate_ca"
-	TypeLeaf           CertificateType = "leaf"
-	TypeExternal       CertificateType = "external"
-	TypeACME           CertificateType = "acme"
-)
-
-// CertificateStatus represents the status of a certificate
-type CertificateStatus string
-
-const (
-	StatusActive    CertificateStatus = "active"
-	StatusExpired   CertificateStatus = "expired"
-	StatusRevoked   CertificateStatus = "revoked"
-	StatusPending   CertificateStatus = "pending"
-	StatusRenewing  CertificateStatus = "renewing"
-)
-
-// Certificate represents a certificate in the system
-type Certificate struct {
-	ID              uuid.UUID           `db:"id" json:"id"`
-	TenantID        uuid.UUID           `db:"tenant_id" json:"tenant_id"`
-	Name            string              `db:"name" json:"name"`
-	Type            CertificateType     `db:"type" json:"type"`
-	Status          CertificateStatus   `db:"status" json:"status"`
-
-	// Certificate data
-	PEMCertificate  []byte              `db:"pem_certificate" json:"-"`
-	PEMPrivateKey   []byte              `db:"pem_private_key" json:"-"`
-	SerialNumber    string              `db:"serial_number" json:"serial_number"`
-	Subject         string              `db:"subject" json:"subject"`
-	IssuerID        *uuid.UUID          `db:"issuer_id" json:"issuer_id,omitempty"`
-
-	// Validity
-	NotBefore       time.Time           `db:"not_before" json:"not_before"`
-	NotAfter        time.Time           `db:"not_after" json:"not_after"`
-
-	// Usage
-	KeyUsage        []string            `db:"key_usage" json:"key_usage"`
-	ExtKeyUsage     []string            `db:"ext_key_usage" json:"ext_key_usage"`
-	DNSNames        []string            `db:"dns_names" json:"dns_names"`
-	IPAddresses     []string            `db:"ip_addresses" json:"ip_addresses"`
-
-	// ACME specific
-	ACMEAccountID   *string             `db:"acme_account_id" json:"acme_account_id,omitempty"`
-	ACMEOrderURL    *string             `db:"acme_order_url" json:"acme_order_url,omitempty"`
-
-	// Metadata
-	CreatedAt       time.Time           `db:"created_at" json:"created_at"`
-	UpdatedAt       time.Time           `db:"updated_at" json:"updated_at"`
-	RevokedAt       *time.Time          `db:"revoked_at" json:"revoked_at,omitempty"`
-	RevokedBy       *uuid.UUID          `db:"revoked_by" json:"revoked_by,omitempty"`
-	RevocationReason *string            `db:"revocation_reason" json:"revocation_reason,omitempty"`
-}
-
-// CertificateRequest represents a certificate signing request
-type CertificateRequest struct {
-	TenantID       uuid.UUID           `json:"tenant_id"`
-	Name           string              `json:"name"`
-	Type           CertificateType     `json:"type"`
-	Subject        CertificateSubject   `json:"subject"`
-	DNSNames       []string            `json:"dns_names"`
-	IPAddresses    []string            `json:"ip_addresses"`
-	KeyUsage       []string            `json:"key_usage"`
-	ExtKeyUsage    []string            `json:"ext_key_usage"`
-	Duration       time.Duration       `json:"duration"`
-	IssuerID       *uuid.UUID          `json:"issuer_id,omitempty"`
-	ACMEChallenge  string              `json:"acme_challenge,omitempty"`
-}
-
-// CertificateSubject represents X.509 subject information
-type CertificateSubject struct {
-	CommonName         string `json:"common_name"`
-	Organization       string `json:"organization,omitempty"`
-	OrganizationalUnit string `json:"organizational_unit,omitempty"`
-	Country            string `json:"country,omitempty"`
-	Locality           string `json:"locality,omitempty"`
-	Province           string `json:"province,omitempty"`
 }
 
 // NewManager creates a new certificate manager
@@ -177,13 +94,13 @@ func NewManager(
 }
 
 // IssueCertificate issues a new certificate
-func (m *Manager) IssueCertificate(ctx context.Context, req *CertificateRequest) (*Certificate, error) {
-	cert := &Certificate{
+func (m *Manager) IssueCertificate(ctx context.Context, req *certtypes.CertificateRequest) (*certtypes.Certificate, error) {
+	cert := &certtypes.Certificate{
 		ID:        uuid.New(),
 		TenantID:  req.TenantID,
 		Name:      req.Name,
 		Type:      req.Type,
-		Status:    StatusActive,
+		Status:    certtypes.StatusActive,
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(req.Duration),
 		DNSNames:  req.DNSNames,
@@ -199,7 +116,7 @@ func (m *Manager) IssueCertificate(ctx context.Context, req *CertificateRequest)
 	}
 
 	switch req.Type {
-	case TypeLeaf:
+	case certtypes.TypeLeaf:
 		if req.IssuerID == nil {
 			return nil, fmt.Errorf("certificate: issuer_id required for leaf certificates")
 		}
@@ -207,12 +124,12 @@ func (m *Manager) IssueCertificate(ctx context.Context, req *CertificateRequest)
 			return nil, fmt.Errorf("certificate: failed to issue leaf: %w", err)
 		}
 
-	case TypeIntermediateCA:
+	case certtypes.TypeIntermediateCA:
 		if err := m.pkiHierarchy.IssueIntermediateCA(ctx, cert, req.Subject, req.IssuerID); err != nil {
 			return nil, fmt.Errorf("certificate: failed to issue intermediate CA: %w", err)
 		}
 
-	case TypeACME:
+	case certtypes.TypeACME:
 		if m.acmeClient == nil {
 			return nil, fmt.Errorf("certificate: ACME client not configured")
 		}
@@ -233,22 +150,22 @@ func (m *Manager) IssueCertificate(ctx context.Context, req *CertificateRequest)
 	if m.publisher != nil {
 		_ = m.publisher.Publish(ctx, events.Event{
 			Type:     "certificate.issued",
-			TenantID: cert.TenantID.String(),
+			TenantID: certtypes.TenantID.String(),
 			ActorID:  "system",
 			Action:   "issue",
 			Resource: "certificate",
 			Data: map[string]interface{}{
-				"certificate_id": cert.ID.String(),
-				"type":          string(cert.Type),
-				"subject":       cert.Subject,
+				"certificate_id": certtypes.ID.String(),
+				"type":          string(certtypes.Type),
+				"subject":       certtypes.Subject,
 			},
 		})
 	}
 
 	m.logger.Info().
-		Str("certificate_id", cert.ID.String()).
-		Str("type", string(cert.Type)).
-		Str("subject", cert.Subject).
+		Str("certificate_id", certtypes.ID.String()).
+		Str("type", string(certtypes.Type)).
+		Str("subject", certtypes.Subject).
 		Msg("Certificate issued")
 
 	return cert, nil
@@ -261,23 +178,23 @@ func (m *Manager) RevokeCertificate(ctx context.Context, certID uuid.UUID, reaso
 		return fmt.Errorf("certificate: failed to get certificate: %w", err)
 	}
 
-	if cert.Status == StatusRevoked {
+	if certtypes.Status == certtypes.StatusRevoked {
 		return fmt.Errorf("certificate: already revoked")
 	}
 
 	now := time.Now()
-	cert.Status = StatusRevoked
-	cert.RevokedAt = &now
-	cert.RevokedBy = &revokedBy
-	cert.RevocationReason = &reason
-	cert.UpdatedAt = now
+	certtypes.Status = certtypes.StatusRevoked
+	certtypes.RevokedAt = &now
+	certtypes.RevokedBy = &revokedBy
+	certtypes.RevocationReason = &reason
+	certtypes.UpdatedAt = now
 
 	if err := m.repo.Update(ctx, cert); err != nil {
 		return fmt.Errorf("certificate: failed to update certificate: %w", err)
 	}
 
 	// Add to CRL if this is a CA certificate
-	if cert.Type == TypeRootCA || cert.Type == TypeIntermediateCA {
+	if certtypes.Type == certtypes.TypeRootCA || certtypes.Type == certtypes.TypeIntermediateCA {
 		if err := m.pkiHierarchy.AddToCRL(ctx, cert); err != nil {
 			m.logger.Error().Err(err).Msg("Failed to add revoked certificate to CRL")
 		}
@@ -287,19 +204,19 @@ func (m *Manager) RevokeCertificate(ctx context.Context, certID uuid.UUID, reaso
 	if m.publisher != nil {
 		_ = m.publisher.Publish(ctx, events.Event{
 			Type:     "certificate.revoked",
-			TenantID: cert.TenantID.String(),
+			TenantID: certtypes.TenantID.String(),
 			ActorID:  revokedBy.String(),
 			Action:   "revoke",
 			Resource: "certificate",
 			Data: map[string]interface{}{
-				"certificate_id": cert.ID.String(),
+				"certificate_id": certtypes.ID.String(),
 				"reason":        reason,
 			},
 		})
 	}
 
 	m.logger.Info().
-		Str("certificate_id", cert.ID.String()).
+		Str("certificate_id", certtypes.ID.String()).
 		Str("reason", reason).
 		Msg("Certificate revoked")
 
@@ -307,29 +224,29 @@ func (m *Manager) RevokeCertificate(ctx context.Context, certID uuid.UUID, reaso
 }
 
 // RenewCertificate renews an existing certificate
-func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*Certificate, error) {
+func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*certtypes.Certificate, error) {
 	cert, err := m.repo.GetByID(ctx, certID)
 	if err != nil {
 		return nil, fmt.Errorf("certificate: failed to get certificate: %w", err)
 	}
 
 	// Create renewal request
-	renewalReq := &CertificateRequest{
-		TenantID:    cert.TenantID,
-		Name:        cert.Name + "-renewed",
-		Type:        cert.Type,
-		DNSNames:    cert.DNSNames,
-		IPAddresses: cert.IPAddresses,
-		KeyUsage:    cert.KeyUsage,
-		ExtKeyUsage: cert.ExtKeyUsage,
-		Duration:    cert.NotAfter.Sub(cert.NotBefore),
-		IssuerID:    cert.IssuerID,
+	renewalReq := &certtypes.CertificateRequest{
+		TenantID:    certtypes.TenantID,
+		Name:        certtypes.Name + "-renewed",
+		Type:        certtypes.Type,
+		DNSNames:    certtypes.DNSNames,
+		IPAddresses: certtypes.IPAddresses,
+		KeyUsage:    certtypes.KeyUsage,
+		ExtKeyUsage: certtypes.ExtKeyUsage,
+		Duration:    certtypes.NotAfter.Sub(certtypes.NotBefore),
+		IssuerID:    certtypes.IssuerID,
 	}
 
 	// Parse existing subject for renewal
 	// In production, you'd parse the PEM certificate properly
-	subject := CertificateSubject{
-		CommonName: cert.Subject,
+	subject := certtypes.CertificateSubject{
+		CommonName: certtypes.Subject,
 	}
 	renewalReq.Subject = subject
 
@@ -340,14 +257,14 @@ func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*Cert
 	}
 
 	// Mark old certificate as being replaced
-	cert.Status = StatusExpired
-	cert.UpdatedAt = time.Now()
+	certtypes.Status = certtypes.StatusExpired
+	certtypes.UpdatedAt = time.Now()
 	if err := m.repo.Update(ctx, cert); err != nil {
 		m.logger.Error().Err(err).Msg("Failed to update old certificate status")
 	}
 
 	m.logger.Info().
-		Str("old_cert_id", cert.ID.String()).
+		Str("old_cert_id", certtypes.ID.String()).
 		Str("new_cert_id", newCert.ID.String()).
 		Msg("Certificate renewed")
 
@@ -355,26 +272,26 @@ func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*Cert
 }
 
 // GetCertificate retrieves a certificate by ID
-func (m *Manager) GetCertificate(ctx context.Context, certID uuid.UUID) (*Certificate, error) {
+func (m *Manager) GetCertificate(ctx context.Context, certID uuid.UUID) (*certtypes.Certificate, error) {
 	return m.repo.GetByID(ctx, certID)
 }
 
 // ListCertificates lists certificates with filtering
-func (m *Manager) ListCertificates(ctx context.Context, tenantID uuid.UUID, filter *CertificateFilter) ([]*Certificate, error) {
+func (m *Manager) ListCertificates(ctx context.Context, tenantID uuid.UUID, filter *CertificateFilter) ([]*certtypes.Certificate, error) {
 	return m.repo.List(ctx, tenantID, filter)
 }
 
 // GetCertificateChain returns the full certificate chain for a leaf certificate
-func (m *Manager) GetCertificateChain(ctx context.Context, certID uuid.UUID) ([]*Certificate, error) {
+func (m *Manager) GetCertificateChain(ctx context.Context, certID uuid.UUID) ([]*certtypes.Certificate, error) {
 	cert, err := m.repo.GetByID(ctx, certID)
 	if err != nil {
 		return nil, err
 	}
 
-	chain := []*Certificate{cert}
+	chain := []*certtypes.Certificate{cert}
 
-	for cert.IssuerID != nil {
-		cert, err = m.repo.GetByID(ctx, *cert.IssuerID)
+	for certtypes.IssuerID != nil {
+		cert, err = m.repo.GetByID(ctx, *certtypes.IssuerID)
 		if err != nil {
 			break
 		}
@@ -399,26 +316,26 @@ func (m *Manager) ValidateCertificate(ctx context.Context, certPEM []byte) (*Val
 
 	result := &ValidationResult{
 		IsValid:    true,
-		Subject:    cert.Subject.CommonName,
-		Issuer:     cert.Issuer.CommonName,
-		NotBefore:  cert.NotBefore,
-		NotAfter:   cert.NotAfter,
-		SerialNumber: cert.SerialNumber.String(),
+		Subject:    certtypes.Subject.CommonName,
+		Issuer:     certtypes.Issuer.CommonName,
+		NotBefore:  certtypes.NotBefore,
+		NotAfter:   certtypes.NotAfter,
+		SerialNumber: certtypes.SerialNumber.String(),
 	}
 
 	// Check expiration
 	now := time.Now()
-	if now.Before(cert.NotBefore) {
+	if now.Before(certtypes.NotBefore) {
 		result.IsValid = false
 		result.Reasons = append(result.Reasons, "certificate not yet valid")
 	}
-	if now.After(cert.NotAfter) {
+	if now.After(certtypes.NotAfter) {
 		result.IsValid = false
 		result.Reasons = append(result.Reasons, "certificate expired")
 	}
 
 	// Verify signature chain if issuer is known
-	if cert.Issuer.CommonName != cert.Subject.CommonName {
+	if certtypes.Issuer.CommonName != certtypes.Subject.CommonName {
 		// This is not a self-signed cert, verify against issuer
 		if err := m.verifyChain(ctx, cert); err != nil {
 			result.IsValid = false
@@ -432,7 +349,7 @@ func (m *Manager) ValidateCertificate(ctx context.Context, certPEM []byte) (*Val
 // verifyChain verifies the certificate chain
 func (m *Manager) verifyChain(ctx context.Context, cert *x509.Certificate) error {
 	// Find issuer certificate
-	issuer, err := m.repo.GetBySerialNumber(ctx, cert.Issuer.SerialNumber.String())
+	issuer, err := m.repo.GetBySerialNumber(ctx, certtypes.Issuer.SerialNumber.String())
 	if err != nil {
 		return fmt.Errorf("issuer not found")
 	}
@@ -449,7 +366,7 @@ func (m *Manager) verifyChain(ctx context.Context, cert *x509.Certificate) error
 	}
 
 	// Verify signature
-	if err := cert.CheckSignatureFrom(issuerCert); err != nil {
+	if err := certtypes.CheckSignatureFrom(issuerCert); err != nil {
 		return fmt.Errorf("signature verification failed: %w", err)
 	}
 
@@ -457,7 +374,7 @@ func (m *Manager) verifyChain(ctx context.Context, cert *x509.Certificate) error
 }
 
 // CheckExpiringCertificates finds certificates expiring soon
-func (m *Manager) CheckExpiringCertificates(ctx context.Context, within time.Duration) ([]*Certificate, error) {
+func (m *Manager) CheckExpiringCertificates(ctx context.Context, within time.Duration) ([]*certtypes.Certificate, error) {
 	return m.repo.GetExpiring(ctx, time.Now().Add(within))
 }
 
@@ -487,8 +404,8 @@ func generateECDSAKey(bits int) (crypto.PrivateKey, interface{}, error) {
 
 // CertificateFilter filters certificate queries
 type CertificateFilter struct {
-	Type   *CertificateType
-	Status *CertificateStatus
+	Type   *certtypes.CertificateType
+	Status *certtypes.CertificateStatus
 	IssuerID *uuid.UUID
 }
 

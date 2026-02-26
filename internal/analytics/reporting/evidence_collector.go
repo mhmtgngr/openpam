@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/openpam/internal/analytics"
+	"github.com/openpam/openpam/internal/analytics"
 	"github.com/rs/zerolog"
 )
 

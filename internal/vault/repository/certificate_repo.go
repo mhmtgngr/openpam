@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
-	"github.com/openpam/openpam/internal/vault/certificate"
+	"github.com/openpam/openpam/internal/vault/cert"
 	"github.com/rs/zerolog"
 )
 
@@ -30,7 +30,7 @@ func NewCertificateRepository(db *sqlx.DB, c *cache.Cache, logger zerolog.Logger
 }
 
 // Create saves a new certificate
-func (r *CertificateRepository) Create(ctx context.Context, cert *certificate.Certificate) error {
+func (r *CertificateRepository) Create(ctx context.Context, cert *cert.Certificate) error {
 	query := `
 		INSERT INTO certificates (
 			id, tenant_id, name, type, status, pem_certificate, pem_private_key,
@@ -85,16 +85,16 @@ func (r *CertificateRepository) Create(ctx context.Context, cert *certificate.Ce
 }
 
 // GetByID retrieves a certificate by ID
-func (r *CertificateRepository) GetByID(ctx context.Context, id uuid.UUID) (*certificate.Certificate, error) {
+func (r *CertificateRepository) GetByID(ctx context.Context, id uuid.UUID) (*cert.Certificate, error) {
 	// Try cache first
 	cacheKey := fmt.Sprintf("cert:id:%s", id)
-	var cached certificate.Certificate
+	var cached cert.Certificate
 	if err := r.cache.Get(ctx, cacheKey, &cached); err == nil {
 		return &cached, nil
 	}
 
 	query := `SELECT * FROM certificates WHERE id = $1`
-	var cert certificate.Certificate
+	var cert cert.Certificate
 	if err := r.db.GetContext(ctx, &cert, query, id); err != nil {
 		return nil, fmt.Errorf("certificate_repo.GetByID: %w", err)
 	}
@@ -106,9 +106,9 @@ func (r *CertificateRepository) GetByID(ctx context.Context, id uuid.UUID) (*cer
 }
 
 // GetBySerialNumber retrieves a certificate by serial number
-func (r *CertificateRepository) GetBySerialNumber(ctx context.Context, serialNumber string) (*certificate.Certificate, error) {
+func (r *CertificateRepository) GetBySerialNumber(ctx context.Context, serialNumber string) (*cert.Certificate, error) {
 	query := `SELECT * FROM certificates WHERE serial_number = $1`
-	var cert certificate.Certificate
+	var cert cert.Certificate
 	if err := r.db.GetContext(ctx, &cert, query, serialNumber); err != nil {
 		return nil, fmt.Errorf("certificate_repo.GetBySerialNumber: %w", err)
 	}
@@ -116,14 +116,14 @@ func (r *CertificateRepository) GetBySerialNumber(ctx context.Context, serialNum
 }
 
 // GetRootCA retrieves the root CA for a tenant
-func (r *CertificateRepository) GetRootCA(ctx context.Context, tenantID uuid.UUID) (*certificate.Certificate, error) {
+func (r *CertificateRepository) GetRootCA(ctx context.Context, tenantID uuid.UUID) (*cert.Certificate, error) {
 	query := `
 		SELECT * FROM certificates
 		WHERE tenant_id = $1 AND type = 'root_ca' AND status = 'active'
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
-	var cert certificate.Certificate
+	var cert cert.Certificate
 	if err := r.db.GetContext(ctx, &cert, query, tenantID); err != nil {
 		return nil, fmt.Errorf("certificate_repo.GetRootCA: %w", err)
 	}
@@ -131,7 +131,7 @@ func (r *CertificateRepository) GetRootCA(ctx context.Context, tenantID uuid.UUI
 }
 
 // List retrieves certificates with filtering
-func (r *CertificateRepository) List(ctx context.Context, tenantID uuid.UUID, filter *certificate.CertificateFilter) ([]*certificate.Certificate, error) {
+func (r *CertificateRepository) List(ctx context.Context, tenantID uuid.UUID, filter *cert.CertificateFilter) ([]*cert.Certificate, error) {
 	baseQuery := `
 		SELECT * FROM certificates
 		WHERE tenant_id = $1
@@ -159,7 +159,7 @@ func (r *CertificateRepository) List(ctx context.Context, tenantID uuid.UUID, fi
 
 	baseQuery += " ORDER BY created_at DESC"
 
-	var certs []*certificate.Certificate
+	var certs []*cert.Certificate
 	if err := r.db.SelectContext(ctx, &certs, baseQuery, args...); err != nil {
 		return nil, fmt.Errorf("certificate_repo.List: %w", err)
 	}
@@ -168,7 +168,7 @@ func (r *CertificateRepository) List(ctx context.Context, tenantID uuid.UUID, fi
 }
 
 // Update updates a certificate
-func (r *CertificateRepository) Update(ctx context.Context, cert *certificate.Certificate) error {
+func (r *CertificateRepository) Update(ctx context.Context, cert *cert.Certificate) error {
 	query := `
 		UPDATE certificates SET
 			name = :name,
@@ -239,7 +239,7 @@ func (r *CertificateRepository) Delete(ctx context.Context, id uuid.UUID) error 
 }
 
 // GetExpiring retrieves certificates expiring before the given time
-func (r *CertificateRepository) GetExpiring(ctx context.Context, before time.Time) ([]*certificate.Certificate, error) {
+func (r *CertificateRepository) GetExpiring(ctx context.Context, before time.Time) ([]*cert.Certificate, error) {
 	query := `
 		SELECT * FROM certificates
 		WHERE status = 'active'
@@ -247,7 +247,7 @@ func (r *CertificateRepository) GetExpiring(ctx context.Context, before time.Tim
 			AND not_after > NOW()
 		ORDER BY not_after ASC
 	`
-	var certs []*certificate.Certificate
+	var certs []*cert.Certificate
 	if err := r.db.SelectContext(ctx, &certs, query, before); err != nil {
 		return nil, fmt.Errorf("certificate_repo.GetExpiring: %w", err)
 	}
@@ -255,14 +255,14 @@ func (r *CertificateRepository) GetExpiring(ctx context.Context, before time.Tim
 }
 
 // GetExpired retrieves certificates that have expired
-func (r *CertificateRepository) GetExpired(ctx context.Context) ([]*certificate.Certificate, error) {
+func (r *CertificateRepository) GetExpired(ctx context.Context) ([]*cert.Certificate, error) {
 	query := `
 		SELECT * FROM certificates
 		WHERE status = 'active'
 			AND not_after <= NOW()
 		ORDER BY not_after ASC
 	`
-	var certs []*certificate.Certificate
+	var certs []*cert.Certificate
 	if err := r.db.SelectContext(ctx, &certs, query); err != nil {
 		return nil, fmt.Errorf("certificate_repo.GetExpired: %w", err)
 	}
@@ -270,13 +270,13 @@ func (r *CertificateRepository) GetExpired(ctx context.Context) ([]*certificate.
 }
 
 // ListByIssuer retrieves all certificates issued by a given issuer
-func (r *CertificateRepository) ListByIssuer(ctx context.Context, issuerID uuid.UUID) ([]*certificate.Certificate, error) {
+func (r *CertificateRepository) ListByIssuer(ctx context.Context, issuerID uuid.UUID) ([]*cert.Certificate, error) {
 	query := `
 		SELECT * FROM certificates
 		WHERE issuer_id = $1
 		ORDER BY created_at DESC
 	`
-	var certs []*certificate.Certificate
+	var certs []*cert.Certificate
 	if err := r.db.SelectContext(ctx, &certs, query, issuerID); err != nil {
 		return nil, fmt.Errorf("certificate_repo.ListByIssuer: %w", err)
 	}
@@ -284,13 +284,13 @@ func (r *CertificateRepository) ListByIssuer(ctx context.Context, issuerID uuid.
 }
 
 // GetChainIssuers returns the issuer chain for a certificate
-func (r *CertificateRepository) GetChainIssuers(ctx context.Context, certID uuid.UUID) ([]*certificate.Certificate, error) {
+func (r *CertificateRepository) GetChainIssuers(ctx context.Context, certID uuid.UUID) ([]*cert.Certificate, error) {
 	cert, err := r.GetByID(ctx, certID)
 	if err != nil {
 		return nil, err
 	}
 
-	var chain []*certificate.Certificate
+	var chain []*cert.Certificate
 
 	for cert.IssuerID != nil {
 		issuer, err := r.GetByID(ctx, *cert.IssuerID)
