@@ -6,9 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/events"
+	"github.com/openpam/openpam/internal/vault/cert"
 	"github.com/openpam/openpam/internal/vault/certificate"
 	"github.com/openpam/openpam/internal/vault/repository"
 	"github.com/rs/zerolog"
@@ -16,17 +18,17 @@ import (
 
 // CertificateRotationWorker handles automatic certificate rotation
 type CertificateRotationWorker struct {
-	db             *sqlx.DB
-	cache          *cache.Cache
-	certManager    *certificate.Manager
-	publisher      *events.Publisher
-	repo           *repository.CertificateRepository
-	logger         zerolog.Logger
+	db          *sqlx.DB
+	cache       *cache.Cache
+	certManager *certificate.Manager
+	eventBus    *events.EventBus
+	repo        *repository.CertificateRepository
+	logger      zerolog.Logger
 
 	// Configuration
-	checkInterval  time.Duration
-	renewBefore    time.Duration
-	batchSize      int
+	checkInterval time.Duration
+	renewBefore   time.Duration
+	batchSize     int
 
 	// Control
 	ctx    context.Context
@@ -48,7 +50,7 @@ func NewCertificateRotationWorker(
 	db *sqlx.DB,
 	cache *cache.Cache,
 	certManager *certificate.Manager,
-	publisher *events.Publisher,
+	eventBus *events.EventBus,
 	cfg Config,
 	logger zerolog.Logger,
 ) *CertificateRotationWorker {
@@ -68,7 +70,7 @@ func NewCertificateRotationWorker(
 		db:            db,
 		cache:         cache,
 		certManager:   certManager,
-		publisher:     publisher,
+		eventBus:      eventBus,
 		repo:          repository.NewCertificateRepository(db, cache, logger),
 		logger:        logger,
 		checkInterval: cfg.CheckInterval,
@@ -175,7 +177,7 @@ func (w *CertificateRotationWorker) checkAndRotate() {
 }
 
 // processBatch processes a batch of certificates
-func (w *CertificateRotationWorker) processBatch(ctx context.Context, certs []*certificate.Certificate) {
+func (w *CertificateRotationWorker) processBatch(ctx context.Context, certs []*cert.Certificate) {
 	for _, cert := range certs {
 		if err := w.rotateCertificate(ctx, cert); err != nil {
 			w.logger.Error().
@@ -188,48 +190,48 @@ func (w *CertificateRotationWorker) processBatch(ctx context.Context, certs []*c
 }
 
 // rotateCertificate rotates a single certificate
-func (w *CertificateRotationWorker) rotateCertificate(ctx context.Context, cert *certificate.Certificate) error {
+func (w *CertificateRotationWorker) rotateCertificate(ctx context.Context, certificate *cert.Certificate) error {
 	w.logger.Info().
-		Str("certificate_id", cert.ID.String()).
-		Str("name", cert.Name).
-		Str("type", string(cert.Type)).
-		Time("expires", cert.NotAfter).
+		Str("certificate_id", certificate.ID.String()).
+		Str("name", certificate.Name).
+		Str("type", string(certificate.Type)).
+		Time("expires", certificate.NotAfter).
 		Msg("Rotating certificate")
 
 	// Mark as renewing
-	cert.Status = certificate.StatusRenewing
-	cert.UpdatedAt = time.Now()
-	if err := w.repo.Update(ctx, cert); err != nil {
+	certificate.Status = cert.StatusRenewing
+	certificate.UpdatedAt = time.Now()
+	if err := w.repo.Update(ctx, certificate); err != nil {
 		return fmt.Errorf("failed to update certificate status: %w", err)
 	}
 
 	// Renew the certificate
-	newCert, err := w.certManager.RenewCertificate(ctx, cert.ID)
+	newCert, err := w.certManager.RenewCertificate(ctx, certificate.ID)
 	if err != nil {
 		// Revert status on error
-		cert.Status = certificate.StatusActive
-		_ = w.repo.Update(ctx, cert)
+		certificate.Status = cert.StatusActive
+		_ = w.repo.Update(ctx, certificate)
 		return fmt.Errorf("failed to renew certificate: %w", err)
 	}
 
 	w.logger.Info().
-		Str("old_cert_id", cert.ID.String()).
+		Str("old_cert_id", certificate.ID.String()).
 		Str("new_cert_id", newCert.ID.String()).
 		Time("new_expires", newCert.NotAfter).
 		Msg("Certificate rotated successfully")
 
 	// Publish event
-	if w.publisher != nil {
-		_ = w.publisher.Publish(ctx, events.Event{
+	if w.eventBus != nil {
+		_ = w.eventBus.Publish(ctx, events.Event{
 			Type:     "certificate.rotated",
-			TenantID: cert.TenantID.String(),
+			TenantID: certificate.TenantID.String(),
 			ActorID:  "system",
 			Action:   "rotate",
 			Resource: "certificate",
 			Data: map[string]interface{}{
-				"old_certificate_id": cert.ID.String(),
+				"old_certificate_id": certificate.ID.String(),
 				"new_certificate_id": newCert.ID.String(),
-				"type":              string(cert.Type),
+				"type":              string(certificate.Type),
 			},
 		})
 	}
@@ -239,17 +241,21 @@ func (w *CertificateRotationWorker) rotateCertificate(ctx context.Context, cert 
 
 // CheckCertificate checks if a certificate needs rotation
 func (w *CertificateRotationWorker) CheckCertificate(ctx context.Context, certID string) (bool, time.Duration, error) {
-	cert, err := w.repo.GetByID(ctx, certID)
+	id, err := uuid.Parse(certID)
+	if err != nil {
+		return false, 0, fmt.Errorf("invalid certificate ID: %w", err)
+	}
+	certificate, err := w.repo.GetByID(ctx, id)
 	if err != nil {
 		return false, 0, fmt.Errorf("failed to get certificate: %w", err)
 	}
 
-	if cert.Status != certificate.StatusActive {
+	if certificate.Status != cert.StatusActive {
 		return false, 0, fmt.Errorf("certificate not active")
 	}
 
 	now := time.Now()
-	timeUntilExpiry := cert.NotAfter.Sub(now)
+	timeUntilExpiry := certificate.NotAfter.Sub(now)
 
 	needsRotation := timeUntilExpiry <= w.renewBefore
 	return needsRotation, timeUntilExpiry, nil
@@ -257,12 +263,16 @@ func (w *CertificateRotationWorker) CheckCertificate(ctx context.Context, certID
 
 // RotateCertificateNow forces immediate rotation of a certificate
 func (w *CertificateRotationWorker) RotateCertificateNow(ctx context.Context, certID string) error {
-	cert, err := w.repo.GetByID(ctx, certID)
+	id, err := uuid.Parse(certID)
+	if err != nil {
+		return fmt.Errorf("invalid certificate ID: %w", err)
+	}
+	certificate, err := w.repo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get certificate: %w", err)
 	}
 
-	return w.rotateCertificate(ctx, cert)
+	return w.rotateCertificate(ctx, certificate)
 }
 
 // GetRotationStatus returns the status of certificate rotation
@@ -305,11 +315,11 @@ func InitRotationWorker(
 	db *sqlx.DB,
 	cache *cache.Cache,
 	certManager *certificate.Manager,
-	publisher *events.Publisher,
+	eventBus *events.EventBus,
 	cfg Config,
 	logger zerolog.Logger,
 ) {
-	rotationWorker = NewCertificateRotationWorker(db, cache, certManager, publisher, cfg, logger)
+	rotationWorker = NewCertificateRotationWorker(db, cache, certManager, eventBus, cfg, logger)
 }
 
 // GetRotationWorker returns the global rotation worker

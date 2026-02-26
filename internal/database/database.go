@@ -34,6 +34,31 @@ type DB struct {
 	logger zerolog.Logger
 }
 
+// NewPostgres creates a new database connection from a URL string
+// This is a convenience function for services that have a pre-built connection URL
+func NewPostgres(databaseURL string) (*sqlx.DB, error) {
+	db, err := sqlx.Connect("postgres", databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("database.NewPostgres: %w", err)
+	}
+
+	// Set reasonable defaults
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(30 * time.Second)
+
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		return nil, fmt.Errorf("database.Ping: %w", err)
+	}
+
+	return db, nil
+}
+
 // New creates a new database connection
 // SECURITY: SSL/TLS is ALWAYS required. This is enforced at both application and infrastructure levels.
 func New(cfg Config, logger zerolog.Logger) (*DB, error) {

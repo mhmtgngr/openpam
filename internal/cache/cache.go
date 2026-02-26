@@ -46,6 +46,33 @@ func New(cfg Config, logger zerolog.Logger) (*Cache, error) {
 	return &Cache{client: client, logger: logger}, nil
 }
 
+// NewRedisCache creates a new Redis cache from a go-redis client
+// This is a convenience function for services that already have a redis client
+func NewRedisCache(client *redis.Client, logger *zerolog.Logger) *Cache {
+	return &Cache{client: client, logger: *logger}
+}
+
+// NewOrig creates a new Redis cache client
+func NewOrig(cfg Config, logger zerolog.Logger) (*Cache, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Password: cfg.Password,
+		DB:       cfg.DB,
+		PoolSize: cfg.PoolSize,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("cache.Ping: %w", err)
+	}
+
+	logger.Info().Str("addr", client.Options().Addr).Msg("Redis connection established")
+
+	return &Cache{client: client, logger: logger}, nil
+}
+
 // Close closes the Redis connection
 func (c *Cache) Close() error {
 	if c == nil || c.client == nil {

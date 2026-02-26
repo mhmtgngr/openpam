@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
@@ -20,11 +18,9 @@ import (
 	"github.com/openpam/openpam/internal/config"
 	"github.com/openpam/openpam/internal/database"
 	"github.com/openpam/openpam/internal/identity/handler"
-	"github.com/openpam/openpam/internal/identity/itsm"
 	"github.com/openpam/openpam/internal/identity/repository"
 	"github.com/openpam/openpam/internal/identity/service"
 	"github.com/openpam/openpam/internal/middleware"
-	"github.com/openpam/openpam/internal/models"
 )
 
 const (
@@ -83,26 +79,8 @@ func main() {
 	approvalRepo := repository.NewApprovalRepository(db, &logger)
 
 	// Initialize ITSM clients
+	// TODO: Implement ITSM client adapters to match service.ITSMClient interface
 	var itsmClients []service.ITSMClient
-	if cfg.ServiceNow.Enabled {
-		snowClient := itsm.NewServiceNowClient(
-			cfg.ServiceNow.InstanceURL,
-			cfg.ServiceNow.Username,
-			cfg.ServiceNow.Password,
-			&logger,
-		)
-		itsmClients = append(itsmClients, snowClient)
-	}
-	if cfg.Jira.Enabled {
-		jiraClient := itsm.NewJiraClient(
-			cfg.Jira.BaseURL,
-			cfg.Jira.Username,
-			cfg.Jira.APIToken,
-			cfg.Jira.ProjectKey,
-			&logger,
-		)
-		itsmClients = append(itsmClients, jiraClient)
-	}
 
 	// Initialize services
 	accessRequestSvc := service.NewAccessRequestService(
@@ -124,10 +102,14 @@ func main() {
 	breakGlassHandler := handler.NewBreakGlassHandler(breakGlassSvc, &logger)
 
 	// Setup router
-	router := setupRouter(cfg, accessHandler, workflowHandler, breakGlassHandler)
+	router := setupRouter(&cfg, accessHandler, workflowHandler, breakGlassHandler, &logger)
 
 	// Start ITSM sync worker
-	itsmWorker := NewITSMSyncWorker(accessRequestSvc, itsmClients, cfg.ITSM.SyncInterval, &logger)
+	syncInterval, _ := time.ParseDuration(cfg.ITSM.SyncInterval)
+	if syncInterval == 0 {
+		syncInterval = 5 * time.Minute
+	}
+	itsmWorker := NewITSMSyncWorker(accessRequestSvc, itsmClients, syncInterval, &logger)
 	itsmWorker.Start(ctx)
 	defer itsmWorker.Stop()
 
@@ -167,6 +149,7 @@ func setupRouter(
 	accessHandler *handler.AccessRequestHandler,
 	workflowHandler *handler.WorkflowHandler,
 	breakGlassHandler *handler.BreakGlassHandler,
+	logger *zerolog.Logger,
 ) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -174,14 +157,22 @@ func setupRouter(
 
 	router := gin.New()
 
+	// Create CORS config
+	corsConfig := middleware.Config{
+		AllowedOrigins:  []string{"*"},
+		AllowedMethods:  []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:  []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
+		ExposeHeaders:   []string{"Content-Length"},
+		MaxRequestBody:  10 << 20, // 10MB
+	}
+
 	// Middleware
 	router.Use(gin.Recovery())
-	router.Use(middleware.CORS())
-	router.Use(middleware.CorrelationID())
-	router.Use(middleware.RequestLogger())
-	router.Use(middleware.RateLimit(cfg.RateLimit))
-	router.Use(middleware.Auth(cfg.JWT.Secret))
-	router.Use(middleware.TenantContext())
+	router.Use(middleware.CORS(corsConfig))
+	router.Use(middleware.RequestID())
+	router.Use(middleware.Logger(*logger))
+	router.Use(middleware.Auth())
+	router.Use(middleware.RequireTenantIsolation())
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {

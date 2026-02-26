@@ -15,7 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/events"
-		certtypes "github.com/openpam/openpam/internal/vault/cert"
+	"github.com/openpam/openpam/internal/vault/cert"
 	"github.com/openpam/openpam/internal/vault/certificate/acme"
 	"github.com/openpam/openpam/internal/vault/certificate/pki"
 	"github.com/openpam/openpam/internal/vault/repository"
@@ -29,7 +29,7 @@ type Manager struct {
 	repo         *repository.CertificateRepository
 	pkiHierarchy *pki.Hierarchy
 	acmeClient   *acme.Client
-	publisher    *events.Publisher
+	eventBus     *events.EventBus
 	logger       zerolog.Logger
 }
 
@@ -55,7 +55,7 @@ type Config struct {
 func NewManager(
 	db *sqlx.DB,
 	cache *cache.Cache,
-	publisher *events.Publisher,
+	eventBus *events.EventBus,
 	cfg Config,
 	logger zerolog.Logger,
 ) (*Manager, error) {
@@ -88,19 +88,19 @@ func NewManager(
 		repo:         repo,
 		pkiHierarchy: pkiHierarchy,
 		acmeClient:   acmeClient,
-		publisher:    publisher,
+		eventBus:     eventBus,
 		logger:       logger,
 	}, nil
 }
 
 // IssueCertificate issues a new certificate
-func (m *Manager) IssueCertificate(ctx context.Context, req *certtypes.CertificateRequest) (*certtypes.Certificate, error) {
-	cert := &certtypes.Certificate{
+func (m *Manager) IssueCertificate(ctx context.Context, req *cert.CertificateRequest) (*cert.Certificate, error) {
+	certificate := &cert.Certificate{
 		ID:        uuid.New(),
 		TenantID:  req.TenantID,
 		Name:      req.Name,
 		Type:      req.Type,
-		Status:    certtypes.StatusActive,
+		Status:    cert.StatusActive,
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(req.Duration),
 		DNSNames:  req.DNSNames,
@@ -109,31 +109,31 @@ func (m *Manager) IssueCertificate(ctx context.Context, req *certtypes.Certifica
 			copy(ips, req.IPAddresses)
 			return ips
 		}(),
-		KeyUsage:   req.KeyUsage,
+		KeyUsage:    req.KeyUsage,
 		ExtKeyUsage: req.ExtKeyUsage,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 
 	switch req.Type {
-	case certtypes.TypeLeaf:
+	case cert.TypeLeaf:
 		if req.IssuerID == nil {
 			return nil, fmt.Errorf("certificate: issuer_id required for leaf certificates")
 		}
-		if err := m.pkiHierarchy.IssueLeaf(ctx, cert, req.Subject, *req.IssuerID); err != nil {
+		if err := m.pkiHierarchy.IssueLeaf(ctx, certificate, req.Subject, *req.IssuerID); err != nil {
 			return nil, fmt.Errorf("certificate: failed to issue leaf: %w", err)
 		}
 
-	case certtypes.TypeIntermediateCA:
-		if err := m.pkiHierarchy.IssueIntermediateCA(ctx, cert, req.Subject, req.IssuerID); err != nil {
+	case cert.TypeIntermediateCA:
+		if err := m.pkiHierarchy.IssueIntermediateCA(ctx, certificate, req.Subject, req.IssuerID); err != nil {
 			return nil, fmt.Errorf("certificate: failed to issue intermediate CA: %w", err)
 		}
 
-	case certtypes.TypeACME:
+	case cert.TypeACME:
 		if m.acmeClient == nil {
 			return nil, fmt.Errorf("certificate: ACME client not configured")
 		}
-		if err := m.acmeClient.IssueCertificate(ctx, cert, req); err != nil {
+		if err := m.acmeClient.IssueCertificate(ctx, certificate, req); err != nil {
 			return nil, fmt.Errorf("certificate: failed to issue ACME certificate: %w", err)
 		}
 
@@ -142,81 +142,81 @@ func (m *Manager) IssueCertificate(ctx context.Context, req *certtypes.Certifica
 	}
 
 	// Save to database
-	if err := m.repo.Create(ctx, cert); err != nil {
+	if err := m.repo.Create(ctx, certificate); err != nil {
 		return nil, fmt.Errorf("certificate: failed to save certificate: %w", err)
 	}
 
 	// Publish event
-	if m.publisher != nil {
-		_ = m.publisher.Publish(ctx, events.Event{
+	if m.eventBus != nil {
+		_ = m.eventBus.Publish(ctx, events.Event{
 			Type:     "certificate.issued",
-			TenantID: certtypes.TenantID.String(),
+			TenantID: certificate.TenantID.String(),
 			ActorID:  "system",
 			Action:   "issue",
 			Resource: "certificate",
 			Data: map[string]interface{}{
-				"certificate_id": certtypes.ID.String(),
-				"type":          string(certtypes.Type),
-				"subject":       certtypes.Subject,
+				"certificate_id": certificate.ID.String(),
+				"type":          string(certificate.Type),
+				"subject":       certificate.Subject,
 			},
 		})
 	}
 
 	m.logger.Info().
-		Str("certificate_id", certtypes.ID.String()).
-		Str("type", string(certtypes.Type)).
-		Str("subject", certtypes.Subject).
+		Str("certificate_id", certificate.ID.String()).
+		Str("type", string(certificate.Type)).
+		Str("subject", certificate.Subject).
 		Msg("Certificate issued")
 
-	return cert, nil
+	return certificate, nil
 }
 
 // RevokeCertificate revokes a certificate
 func (m *Manager) RevokeCertificate(ctx context.Context, certID uuid.UUID, reason string, revokedBy uuid.UUID) error {
-	cert, err := m.repo.GetByID(ctx, certID)
+	certificate, err := m.repo.GetByID(ctx, certID)
 	if err != nil {
 		return fmt.Errorf("certificate: failed to get certificate: %w", err)
 	}
 
-	if certtypes.Status == certtypes.StatusRevoked {
+	if certificate.Status == cert.StatusRevoked {
 		return fmt.Errorf("certificate: already revoked")
 	}
 
 	now := time.Now()
-	certtypes.Status = certtypes.StatusRevoked
-	certtypes.RevokedAt = &now
-	certtypes.RevokedBy = &revokedBy
-	certtypes.RevocationReason = &reason
-	certtypes.UpdatedAt = now
+	certificate.Status = cert.StatusRevoked
+	certificate.RevokedAt = &now
+	certificate.RevokedBy = &revokedBy
+	certificate.RevocationReason = &reason
+	certificate.UpdatedAt = now
 
-	if err := m.repo.Update(ctx, cert); err != nil {
+	if err := m.repo.Update(ctx, certificate); err != nil {
 		return fmt.Errorf("certificate: failed to update certificate: %w", err)
 	}
 
 	// Add to CRL if this is a CA certificate
-	if certtypes.Type == certtypes.TypeRootCA || certtypes.Type == certtypes.TypeIntermediateCA {
-		if err := m.pkiHierarchy.AddToCRL(ctx, cert); err != nil {
+	if certificate.Type == cert.TypeRootCA || certificate.Type == cert.TypeIntermediateCA {
+		if err := m.pkiHierarchy.AddToCRL(ctx, certificate); err != nil {
 			m.logger.Error().Err(err).Msg("Failed to add revoked certificate to CRL")
 		}
 	}
 
 	// Publish event
-	if m.publisher != nil {
-		_ = m.publisher.Publish(ctx, events.Event{
+	if m.eventBus != nil {
+		_ = m.eventBus.Publish(ctx, events.Event{
 			Type:     "certificate.revoked",
-			TenantID: certtypes.TenantID.String(),
+			TenantID: certificate.TenantID.String(),
 			ActorID:  revokedBy.String(),
 			Action:   "revoke",
 			Resource: "certificate",
 			Data: map[string]interface{}{
-				"certificate_id": certtypes.ID.String(),
+				"certificate_id": certificate.ID.String(),
 				"reason":        reason,
 			},
 		})
 	}
 
 	m.logger.Info().
-		Str("certificate_id", certtypes.ID.String()).
+		Str("certificate_id", certificate.ID.String()).
 		Str("reason", reason).
 		Msg("Certificate revoked")
 
@@ -224,29 +224,29 @@ func (m *Manager) RevokeCertificate(ctx context.Context, certID uuid.UUID, reaso
 }
 
 // RenewCertificate renews an existing certificate
-func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*certtypes.Certificate, error) {
-	cert, err := m.repo.GetByID(ctx, certID)
+func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*cert.Certificate, error) {
+	certificate, err := m.repo.GetByID(ctx, certID)
 	if err != nil {
 		return nil, fmt.Errorf("certificate: failed to get certificate: %w", err)
 	}
 
 	// Create renewal request
-	renewalReq := &certtypes.CertificateRequest{
-		TenantID:    certtypes.TenantID,
-		Name:        certtypes.Name + "-renewed",
-		Type:        certtypes.Type,
-		DNSNames:    certtypes.DNSNames,
-		IPAddresses: certtypes.IPAddresses,
-		KeyUsage:    certtypes.KeyUsage,
-		ExtKeyUsage: certtypes.ExtKeyUsage,
-		Duration:    certtypes.NotAfter.Sub(certtypes.NotBefore),
-		IssuerID:    certtypes.IssuerID,
+	renewalReq := &cert.CertificateRequest{
+		TenantID:    certificate.TenantID,
+		Name:        certificate.Name + "-renewed",
+		Type:        certificate.Type,
+		DNSNames:    certificate.DNSNames,
+		IPAddresses: certificate.IPAddresses,
+		KeyUsage:    certificate.KeyUsage,
+		ExtKeyUsage: certificate.ExtKeyUsage,
+		Duration:    certificate.NotAfter.Sub(certificate.NotBefore),
+		IssuerID:    certificate.IssuerID,
 	}
 
 	// Parse existing subject for renewal
 	// In production, you'd parse the PEM certificate properly
-	subject := certtypes.CertificateSubject{
-		CommonName: certtypes.Subject,
+	subject := cert.CertificateSubject{
+		CommonName: certificate.Subject,
 	}
 	renewalReq.Subject = subject
 
@@ -257,14 +257,14 @@ func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*cert
 	}
 
 	// Mark old certificate as being replaced
-	certtypes.Status = certtypes.StatusExpired
-	certtypes.UpdatedAt = time.Now()
-	if err := m.repo.Update(ctx, cert); err != nil {
+	certificate.Status = cert.StatusExpired
+	certificate.UpdatedAt = time.Now()
+	if err := m.repo.Update(ctx, certificate); err != nil {
 		m.logger.Error().Err(err).Msg("Failed to update old certificate status")
 	}
 
 	m.logger.Info().
-		Str("old_cert_id", certtypes.ID.String()).
+		Str("old_cert_id", certificate.ID.String()).
 		Str("new_cert_id", newCert.ID.String()).
 		Msg("Certificate renewed")
 
@@ -272,30 +272,30 @@ func (m *Manager) RenewCertificate(ctx context.Context, certID uuid.UUID) (*cert
 }
 
 // GetCertificate retrieves a certificate by ID
-func (m *Manager) GetCertificate(ctx context.Context, certID uuid.UUID) (*certtypes.Certificate, error) {
+func (m *Manager) GetCertificate(ctx context.Context, certID uuid.UUID) (*cert.Certificate, error) {
 	return m.repo.GetByID(ctx, certID)
 }
 
 // ListCertificates lists certificates with filtering
-func (m *Manager) ListCertificates(ctx context.Context, tenantID uuid.UUID, filter *CertificateFilter) ([]*certtypes.Certificate, error) {
+func (m *Manager) ListCertificates(ctx context.Context, tenantID uuid.UUID, filter *cert.CertificateFilter) ([]*cert.Certificate, error) {
 	return m.repo.List(ctx, tenantID, filter)
 }
 
 // GetCertificateChain returns the full certificate chain for a leaf certificate
-func (m *Manager) GetCertificateChain(ctx context.Context, certID uuid.UUID) ([]*certtypes.Certificate, error) {
-	cert, err := m.repo.GetByID(ctx, certID)
+func (m *Manager) GetCertificateChain(ctx context.Context, certID uuid.UUID) ([]*cert.Certificate, error) {
+	certificate, err := m.repo.GetByID(ctx, certID)
 	if err != nil {
 		return nil, err
 	}
 
-	chain := []*certtypes.Certificate{cert}
+	chain := []*cert.Certificate{certificate}
 
-	for certtypes.IssuerID != nil {
-		cert, err = m.repo.GetByID(ctx, *certtypes.IssuerID)
+	for certificate.IssuerID != nil {
+		certificate, err = m.repo.GetByID(ctx, *certificate.IssuerID)
 		if err != nil {
 			break
 		}
-		chain = append(chain, cert)
+		chain = append(chain, certificate)
 	}
 
 	return chain, nil
@@ -309,35 +309,35 @@ func (m *Manager) ValidateCertificate(ctx context.Context, certPEM []byte) (*Val
 		return nil, fmt.Errorf("certificate: failed to decode PEM")
 	}
 
-	cert, err := x509.ParseCertificate(block.Bytes)
+	x509Cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("certificate: failed to parse certificate: %w", err)
 	}
 
 	result := &ValidationResult{
-		IsValid:    true,
-		Subject:    certtypes.Subject.CommonName,
-		Issuer:     certtypes.Issuer.CommonName,
-		NotBefore:  certtypes.NotBefore,
-		NotAfter:   certtypes.NotAfter,
-		SerialNumber: certtypes.SerialNumber.String(),
+		IsValid:     true,
+		Subject:     x509Cert.Subject.CommonName,
+		Issuer:      x509Cert.Issuer.CommonName,
+		NotBefore:   x509Cert.NotBefore,
+		NotAfter:    x509Cert.NotAfter,
+		SerialNumber: x509Cert.SerialNumber.String(),
 	}
 
 	// Check expiration
 	now := time.Now()
-	if now.Before(certtypes.NotBefore) {
+	if now.Before(x509Cert.NotBefore) {
 		result.IsValid = false
 		result.Reasons = append(result.Reasons, "certificate not yet valid")
 	}
-	if now.After(certtypes.NotAfter) {
+	if now.After(x509Cert.NotAfter) {
 		result.IsValid = false
 		result.Reasons = append(result.Reasons, "certificate expired")
 	}
 
 	// Verify signature chain if issuer is known
-	if certtypes.Issuer.CommonName != certtypes.Subject.CommonName {
+	if x509Cert.Issuer.CommonName != x509Cert.Subject.CommonName {
 		// This is not a self-signed cert, verify against issuer
-		if err := m.verifyChain(ctx, cert); err != nil {
+		if err := m.verifyChain(ctx, x509Cert); err != nil {
 			result.IsValid = false
 			result.Reasons = append(result.Reasons, "signature verification failed")
 		}
@@ -347,9 +347,9 @@ func (m *Manager) ValidateCertificate(ctx context.Context, certPEM []byte) (*Val
 }
 
 // verifyChain verifies the certificate chain
-func (m *Manager) verifyChain(ctx context.Context, cert *x509.Certificate) error {
+func (m *Manager) verifyChain(ctx context.Context, x509Cert *x509.Certificate) error {
 	// Find issuer certificate
-	issuer, err := m.repo.GetBySerialNumber(ctx, certtypes.Issuer.SerialNumber.String())
+	issuer, err := m.repo.GetBySerialNumber(ctx, x509Cert.SerialNumber.String())
 	if err != nil {
 		return fmt.Errorf("issuer not found")
 	}
@@ -366,7 +366,7 @@ func (m *Manager) verifyChain(ctx context.Context, cert *x509.Certificate) error
 	}
 
 	// Verify signature
-	if err := certtypes.CheckSignatureFrom(issuerCert); err != nil {
+	if err := x509Cert.CheckSignatureFrom(issuerCert); err != nil {
 		return fmt.Errorf("signature verification failed: %w", err)
 	}
 
@@ -374,7 +374,7 @@ func (m *Manager) verifyChain(ctx context.Context, cert *x509.Certificate) error
 }
 
 // CheckExpiringCertificates finds certificates expiring soon
-func (m *Manager) CheckExpiringCertificates(ctx context.Context, within time.Duration) ([]*certtypes.Certificate, error) {
+func (m *Manager) CheckExpiringCertificates(ctx context.Context, within time.Duration) ([]*cert.Certificate, error) {
 	return m.repo.GetExpiring(ctx, time.Now().Add(within))
 }
 
@@ -400,13 +400,6 @@ func generateRSAKey(bits int) (crypto.PrivateKey, interface{}, error) {
 func generateECDSAKey(bits int) (crypto.PrivateKey, interface{}, error) {
 	// Implementation would use crypto/ecdsa
 	return nil, nil, fmt.Errorf("not implemented")
-}
-
-// CertificateFilter filters certificate queries
-type CertificateFilter struct {
-	Type   *certtypes.CertificateType
-	Status *certtypes.CertificateStatus
-	IssuerID *uuid.UUID
 }
 
 // ValidationResult represents the result of certificate validation

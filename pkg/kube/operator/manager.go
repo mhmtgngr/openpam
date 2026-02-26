@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/openpam/openpam/pkg/kube/rbac"
-	"github.com/openpam/openpam/pkg/kube/webhook"
 	"github.com/rs/zerolog"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -22,8 +21,7 @@ type Manager struct {
 	config       *rest.Config
 	clientSet    *kubernetes.Clientset
 	dynamicClient dynamic.Interface
-	rbacManager  *rbac.Manager
-	webhookServer *webhook.Server
+	rbacManager  *rbac.HandlerManager
 	logger       zerolog.Logger
 
 	// Resource tracking
@@ -91,27 +89,10 @@ func NewManager(cfg Config, logger zerolog.Logger) (*Manager, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Initialize RBAC manager
-	rbacManager, err := rbac.NewManager(rbac.Config{
-		ClientSet:           clientSet,
-		DynamicClient:       dynamicClient,
-		Namespace:           cfg.Namespace,
-		SessionTimeout:      cfg.SessionTimeout,
-		AuditLoggingEnabled: cfg.AuditLoggingEnabled,
-	}, logger)
+	rbacManager, err := rbac.NewHandlerManager(clientSet, logger)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("operator: failed to create rbac manager: %w", err)
-	}
-
-	// Initialize webhook server
-	webhookServer, err := webhook.NewServer(webhook.Config{
-		ClientSet: clientSet,
-		Port:      cfg.WebhookPort,
-		RBACMgr:   rbacManager,
-	}, logger)
-	if err != nil {
-		cancel()
-		return nil, fmt.Errorf("operator: failed to create webhook server: %w", err)
 	}
 
 	return &Manager{
@@ -119,7 +100,6 @@ func NewManager(cfg Config, logger zerolog.Logger) (*Manager, error) {
 		clientSet:     clientSet,
 		dynamicClient: dynamicClient,
 		rbacManager:   rbacManager,
-		webhookServer: webhookServer,
 		logger:        logger,
 		watchedResources: make(map[schema.GroupVersionResource]*ResourceWatcher),
 		ctx:           ctx,
@@ -131,19 +111,26 @@ func NewManager(cfg Config, logger zerolog.Logger) (*Manager, error) {
 func (m *Manager) Start() error {
 	m.logger.Info().Msg("Starting Kubernetes operator")
 
-	// Start webhook server
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
-		if err := m.webhookServer.Start(m.ctx); err != nil {
-			m.logger.Error().Err(err).Msg("Webhook server error")
-		}
-	}()
-
-	// Start RBAC manager
-	if err := m.rbacManager.Start(m.ctx); err != nil {
-		return fmt.Errorf("operator: failed to start rbac manager: %w", err)
+	// Start all resource watchers
+	m.mu.RLock()
+	for gvr, watcher := range m.watchedResources {
+		gvr := gvr // capture loop variable
+		watcher := watcher
+		m.wg.Add(1)
+		go func() {
+			defer m.wg.Done()
+			m.logger.Info().
+				Stringer("gvr", gvr).
+				Msg("Starting resource watcher")
+			if err := watcher.controller.Start(m.ctx); err != nil {
+				m.logger.Error().
+					Err(err).
+					Stringer("gvr", gvr).
+					Msg("Resource watcher error")
+			}
+		}()
 	}
+	m.mu.RUnlock()
 
 	// Start all resource watchers
 	m.mu.RLock()
@@ -176,16 +163,6 @@ func (m *Manager) Stop() error {
 
 	// Cancel context to signal all goroutines
 	m.cancel()
-
-	// Stop webhook server
-	if err := m.webhookServer.Stop(); err != nil {
-		m.logger.Error().Err(err).Msg("Error stopping webhook server")
-	}
-
-	// Stop RBAC manager
-	if err := m.rbacManager.Stop(); err != nil {
-		m.logger.Error().Err(err).Msg("Error stopping RBAC manager")
-	}
 
 	// Wait for all goroutines to finish
 	done := make(chan struct{})
@@ -229,7 +206,7 @@ func (m *Manager) GetDynamicClient() dynamic.Interface {
 }
 
 // GetRBACManager returns the RBAC manager
-func (m *Manager) GetRBACManager() *rbac.Manager {
+func (m *Manager) GetRBACManager() *rbac.HandlerManager {
 	return m.rbacManager
 }
 
@@ -250,17 +227,20 @@ func (m *Manager) Health(ctx context.Context) error {
 
 // CreateAccessRequest creates a Kubernetes access request (JIT role binding)
 func (m *Manager) CreateAccessRequest(ctx context.Context, req *AccessRequest) (*AccessResponse, error) {
-	return m.rbacManager.CreateAccessRequest(ctx, req)
+	// TODO: Implement JIT access request using rbac.HandlerManager
+	return nil, fmt.Errorf("operator: CreateAccessRequest not implemented")
 }
 
 // RevokeAccess revokes a Kubernetes access grant
 func (m *Manager) RevokeAccess(ctx context.Context, requestID string) error {
-	return m.rbacManager.RevokeAccess(ctx, requestID)
+	// TODO: Implement access revocation using rbac.HandlerManager
+	return fmt.Errorf("operator: RevokeAccess not implemented")
 }
 
 // ListActiveAccess returns all active access grants
 func (m *Manager) ListActiveAccess(ctx context.Context) ([]*AccessGrant, error) {
-	return m.rbacManager.ListActiveAccess(ctx)
+	// TODO: Implement access listing using rbac.HandlerManager
+	return nil, fmt.Errorf("operator: ListActiveAccess not implemented")
 }
 
 // AccessRequest represents a JIT Kubernetes access request
