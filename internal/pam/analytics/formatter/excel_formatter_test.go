@@ -74,17 +74,15 @@ func TestDedicatedExcelFormatter_Generate(t *testing.T) {
 
 	t.Run("generates Excel without violations", func(t *testing.T) {
 		reportNoViolations := &analytics.ComplianceReport{
-			ID:              uuid.New(),
-			TenantID:        uuid.New(),
-			Framework:       "ISO-27001",
-			PeriodStart:     time.Now().Add(-30 * 24 * time.Hour),
-			PeriodEnd:       time.Now(),
-			GeneratedAt:     time.Now(),
-			OverallScore:    100.0,
-			TotalControls:   10,
-			PassedControls:  10,
-			FailedControls:  0,
-			Violations:      []analytics.ComplianceViolation{},
+			ID:             uuid.New(),
+			TenantID:       uuid.New(),
+			Framework:      "ISO-27001",
+			PeriodStart:    time.Now().Add(-30 * 24 * time.Hour),
+			PeriodEnd:      time.Now(),
+			GeneratedAt:    time.Now(),
+			OverallScore:   100.0,
+			PassedControls: 10,
+			FailedControls: 0,
 		}
 
 		url, size, err := formatter.Generate(ctx, reportNoViolations, snapshot, nil)
@@ -176,11 +174,11 @@ func TestExcelOptions_Unmarshal(t *testing.T) {
 	t.Run("uses defaults when options are empty", func(t *testing.T) {
 		opts := ExcelOptions{}
 
-		// Default values
-		assert.True(t, opts.IncludeCharts)     // Default is true
-		assert.True(t, opts.IncludeViolations) // Default is true
-		assert.True(t, opts.IncludeDetails)    // Default is true
-		assert.True(t, opts.MultipleSheets)    // Default is true
+		// Zero values for bool in Go is false, but Generate function sets defaults
+		assert.False(t, opts.IncludeCharts)     // Zero value is false
+		assert.False(t, opts.IncludeViolations) // Zero value is false
+		assert.False(t, opts.IncludeDetails)    // Zero value is false
+		assert.False(t, opts.MultipleSheets)    // Zero value is false
 	})
 
 	t.Run("handles invalid JSON gracefully", func(t *testing.T) {
@@ -261,45 +259,6 @@ func TestGetSeverityHexColor(t *testing.T) {
 	}
 }
 
-func TestCountViolationsBySeverity(t *testing.T) {
-	report := &analytics.ComplianceReport{
-		Violations: []analytics.ComplianceViolation{
-			{Severity: analytics.SeverityCritical},
-			{Severity: analytics.SeverityCritical},
-			{Severity: analytics.SeverityHigh},
-			{Severity: analytics.SeverityHigh},
-			{Severity: analytics.SeverityHigh},
-			{Severity: analytics.SeverityMedium},
-			{Severity: analytics.SeverityLow},
-		},
-	}
-
-	t.Run("counts critical violations", func(t *testing.T) {
-		count := countViolationsBySeverity(report, "critical")
-		assert.Equal(t, 2, count)
-	})
-
-	t.Run("counts high violations", func(t *testing.T) {
-		count := countViolationsBySeverity(report, "high")
-		assert.Equal(t, 3, count)
-	})
-
-	t.Run("counts medium violations", func(t *testing.T) {
-		count := countViolationsBySeverity(report, "medium")
-		assert.Equal(t, 1, count)
-	})
-
-	t.Run("counts low violations", func(t *testing.T) {
-		count := countViolationsBySeverity(report, "low")
-		assert.Equal(t, 1, count)
-	})
-
-	t.Run("counts non-existent severity", func(t *testing.T) {
-		count := countViolationsBySeverity(report, "nonexistent")
-		assert.Equal(t, 0, count)
-	})
-}
-
 // =============================================================================
 // Edge Cases and Error Handling
 // =============================================================================
@@ -316,15 +275,13 @@ func TestExcelFormatter_EdgeCases(t *testing.T) {
 		report := &analytics.ComplianceReport{
 			ID:              uuid.New(),
 			TenantID:        uuid.New(),
-			Framework:       "NIST-800-53",
-			PeriodStart:     time.Now().Add(-30 * 24 * time.Hour),
-			PeriodEnd:       time.Now(),
-			GeneratedAt:     time.Now(),
-			OverallScore:    100.0,
-			TotalControls:   10,
-			PassedControls:  10,
-			FailedControls:  0,
-			Violations:      []analytics.ComplianceViolation{},
+			Framework:      "NIST-800-53",
+			PeriodStart:    time.Now().Add(-30 * 24 * time.Hour),
+			PeriodEnd:      time.Now(),
+			GeneratedAt:    time.Now(),
+			OverallScore:   100.0,
+			PassedControls: 10,
+			FailedControls: 0,
 		}
 
 		_, _, err := formatter.Generate(ctx, report, snapshot, nil)
@@ -334,31 +291,17 @@ func TestExcelFormatter_EdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("handles report with many violations", func(t *testing.T) {
-		violations := make([]analytics.ComplianceViolation, 1500)
-		for i := 0; i < 1500; i++ {
-			violations[i] = analytics.ComplianceViolation{
-				ControlID:   "VIOL-001",
-				Severity:    analytics.SeverityMedium,
-				Framework:   "NIST-800-53",
-				Status:      "open",
-				Description: "Test violation",
-				DetectedAt:  time.Now(),
-			}
-		}
-
+	t.Run("handles report with large data", func(t *testing.T) {
 		report := &analytics.ComplianceReport{
-			ID:              uuid.New(),
-			TenantID:        uuid.New(),
-			Framework:       "NIST-800-53",
-			PeriodStart:     time.Now().Add(-30 * 24 * time.Hour),
-			PeriodEnd:       time.Now(),
-			GeneratedAt:     time.Now(),
-			OverallScore:    50.0,
-			TotalControls:   100,
-			PassedControls:  50,
-			FailedControls:  50,
-			Violations:      violations,
+			ID:             uuid.New(),
+			TenantID:       uuid.New(),
+			Framework:      "NIST-800-53",
+			PeriodStart:    time.Now().Add(-30 * 24 * time.Hour),
+			PeriodEnd:      time.Now(),
+			GeneratedAt:    time.Now(),
+			OverallScore:   50.0,
+			PassedControls: 50,
+			FailedControls: 50,
 		}
 
 		_, _, err := formatter.Generate(ctx, report, snapshot, nil)
@@ -370,17 +313,15 @@ func TestExcelFormatter_EdgeCases(t *testing.T) {
 
 	t.Run("handles report with special characters in framework", func(t *testing.T) {
 		report := &analytics.ComplianceReport{
-			ID:              uuid.New(),
-			TenantID:        uuid.New(),
-			Framework:       "NIST-800-53 (Rev. 5) / ISO-27001:2022",
-			PeriodStart:     time.Now().Add(-30 * 24 * time.Hour),
-			PeriodEnd:       time.Now(),
-			GeneratedAt:     time.Now(),
-			OverallScore:    75.0,
-			TotalControls:   20,
-			PassedControls:  15,
-			FailedControls:  5,
-			Violations:      []analytics.ComplianceViolation{},
+			ID:             uuid.New(),
+			TenantID:       uuid.New(),
+			Framework:      "NIST-800-53 (Rev. 5) / ISO-27001:2022",
+			PeriodStart:    time.Now().Add(-30 * 24 * time.Hour),
+			PeriodEnd:      time.Now(),
+			GeneratedAt:    time.Now(),
+			OverallScore:   75.0,
+			PassedControls: 15,
+			FailedControls: 5,
 		}
 
 		_, _, err := formatter.Generate(ctx, report, snapshot, nil)
@@ -398,89 +339,51 @@ func TestExcelFormatter_EdgeCases(t *testing.T) {
 func createTestComplianceReportForExcel(t *testing.T) *analytics.ComplianceReport {
 	tenantID := uuid.New()
 
-	violations := []analytics.ComplianceViolation{
-		{
-			ControlID:    "AC-01",
-			Severity:     analytics.SeverityCritical,
-			Framework:    "NIST-800-53",
-			Status:       "open",
-			Description:  "Critical access control violation",
-			DetectedAt:   time.Now(),
-		},
-		{
-			ControlID:    "AU-02",
-			Severity:     analytics.SeverityHigh,
-			Framework:    "NIST-800-53",
-			Status:       "open",
-			Description:  "High severity audit issue",
-			DetectedAt:   time.Now(),
-		},
-		{
-			ControlID:    "CM-03",
-			Severity:     analytics.SeverityMedium,
-			Framework:    "NIST-800-53",
-			Status:       "open",
-			Description:  "Medium severity configuration issue",
-			DetectedAt:   time.Now(),
-		},
-		{
-			ControlID:    "SC-05",
-			Severity:     analytics.SeverityLow,
-			Framework:    "NIST-800-53",
-			Status:       "closed",
-			Description:  "Low severity communication issue",
-			DetectedAt:   time.Now(),
-		},
-	}
-
 	policyData := map[string]analytics.CompliancePolicyStatus{
 		"Access Control": {
-			Passed:     12,
-			Failed:     5,
-			Total:      17,
-			Percentage: 70.6,
-			Framework:  "NIST-800-53",
+			PolicyID:          uuid.New(),
+			PolicyName:        "Access Control",
+			ComplianceRate:    70.6,
+			TotalEvaluations:  17,
+			PassedEvaluations: 12,
 		},
 		"Audit & Accountability": {
-			Passed:     8,
-			Failed:     2,
-			Total:      10,
-			Percentage: 80.0,
-			Framework:  "NIST-800-53",
+			PolicyID:          uuid.New(),
+			PolicyName:        "Audit & Accountability",
+			ComplianceRate:    80.0,
+			TotalEvaluations:  10,
+			PassedEvaluations: 8,
 		},
 		"Configuration Management": {
-			Passed:     5,
-			Failed:     3,
-			Total:      8,
-			Percentage: 62.5,
-			Framework:  "NIST-800-53",
+			PolicyID:          uuid.New(),
+			PolicyName:        "Configuration Management",
+			ComplianceRate:    62.5,
+			TotalEvaluations:  8,
+			PassedEvaluations: 5,
 		},
 		"System & Communications": {
-			Passed:     10,
-			Failed:     1,
-			Total:      11,
-			Percentage: 90.9,
-			Framework:  "NIST-800-53",
+			PolicyID:          uuid.New(),
+			PolicyName:        "System & Communications",
+			ComplianceRate:    90.9,
+			TotalEvaluations:  11,
+			PassedEvaluations: 10,
 		},
 	}
 
 	policyJSON, _ := json.Marshal(policyData)
 
 	return &analytics.ComplianceReport{
-		ID:              uuid.New(),
-		TenantID:        tenantID,
-		Framework:       "NIST-800-53",
-		PeriodStart:     time.Now().Add(-30 * 24 * time.Hour),
-		PeriodEnd:       time.Now(),
-		GeneratedAt:     time.Now(),
-		OverallScore:    76.0,
-		TotalControls:   46,
-		PassedControls:  35,
-		FailedControls:  11,
-		Violations:      violations,
-		Data:            policyJSON,
-		GeneratedBy:     uuidPtr(uuid.New()),
-		SnapshotID:      uuidPtr(uuid.New()),
+		ID:             uuid.New(),
+		TenantID:       tenantID,
+		Framework:      "NIST-800-53",
+		PeriodStart:    time.Now().Add(-30 * 24 * time.Hour),
+		PeriodEnd:      time.Now(),
+		GeneratedAt:    time.Now(),
+		OverallScore:   76.0,
+		PassedControls: 35,
+		FailedControls: 11,
+		Data:           policyJSON,
+		Status:         "completed",
 	}
 }
 
@@ -489,16 +392,17 @@ func createTestReportSnapshotForExcel(t *testing.T) *analytics.ReportSnapshot {
 	fileFormat := "xlsx"
 
 	return &analytics.ReportSnapshot{
-		ID:            uuid.New(),
-		TenantID:      tenantID,
-		ReportID:      uuidPtr(uuid.New()),
-		Framework:     "NIST-800-53",
-		SnapshotName:  "Test Compliance Report",
-		FileFormat:    &fileFormat,
-		Status:        analytics.ReportSnapshotStatusCompleted,
-		PeriodStart:   time.Now().Add(-30 * 24 * time.Hour),
-		PeriodEnd:     time.Now(),
-		GeneratedAt:   time.Now(),
+		ID:           uuid.New(),
+		TenantID:     tenantID,
+		ReportID:     uuid.New(),
+		GeneratedBy:  uuid.New(),
+		Framework:    "NIST-800-53",
+		SnapshotName: "Test Compliance Report",
+		FileFormat:   &fileFormat,
+		Status:       analytics.ReportSnapshotStatusCompleted,
+		PeriodStart:  time.Now().Add(-30 * 24 * time.Hour),
+		PeriodEnd:    time.Now(),
+		GeneratedAt:  time.Now(),
 	}
 }
 

@@ -1,6 +1,7 @@
 package formatter
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -57,14 +58,14 @@ func (f *DedicatedPDFFormatter) Generate(ctx context.Context, report *analytics.
 	}
 
 	// Generate PDF bytes
-	var buf []byte
+	var buf bytes.Buffer
 	if err := pdf.Write(&buf); err != nil {
 		return "", 0, fmt.Errorf("generate pdf: %w", err)
 	}
 
 	// Store the report
 	filename := fmt.Sprintf("%s-%s.pdf", snapshot.Framework, snapshot.ID.String())
-	url, size, err := f.storage.Store(ctx, snapshot.TenantID, filename, buf, "application/pdf")
+	url, size, err := f.storage.Store(ctx, snapshot.TenantID, filename, buf.Bytes(), "application/pdf")
 	if err != nil {
 		return "", 0, fmt.Errorf("store pdf: %w", err)
 	}
@@ -118,9 +119,12 @@ func (f *DedicatedPDFFormatter) buildReport(pdf *gopdf.GoPdf, report *analytics.
 	}
 
 	// Add violations section
-	if opts.IncludeViolations && len(report.Violations) > 0 {
-		if err := f.addViolations(pdf, report, yPos); err != nil {
-			return err
+	if opts.IncludeViolations {
+		violations := getViolationsFromReport(report)
+		if len(violations) > 0 {
+			if err := f.addViolations(pdf, report, yPos, violations); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -180,8 +184,9 @@ func (f *DedicatedPDFFormatter) addSummary(pdf *gopdf.GoPdf, report *analytics.C
 	pdf.SetFont("Arial", "", 11)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
+	totalControls := report.PassedControls + report.FailedControls
 	pdf.Cell(nil, fmt.Sprintf("Passed: %d   Failed: %d   Total: %d",
-		report.PassedControls, report.FailedControls, report.TotalControls))
+		report.PassedControls, report.FailedControls, totalControls))
 	pdf.Br(12)
 
 	return yPos + 20
@@ -204,12 +209,12 @@ func (f *DedicatedPDFFormatter) addScoreVisualization(pdf *gopdf.GoPdf, report *
 
 	// Background bar (gray)
 	pdf.SetFillColor(200, 200, 200)
-	pdf.RectFromX(20, yPos, barWidth, barHeight, "F", 0, 0)
+	pdf.RectFromUpperLeftWithStyle(20, yPos, barWidth, barHeight, "F")
 
 	// Fill bar (colored)
 	fillColor := getPDFScoreColor(report.OverallScore)
-	pdf.SetFillColor(fillColor.R, fillColor.G, fillColor.B)
-	pdf.RectFromX(20, yPos, fillWidth, barHeight, "F", 0, 0)
+	pdf.SetFillColor(uint8(fillColor.R), uint8(fillColor.G), uint8(fillColor.B))
+	pdf.RectFromUpperLeftWithStyle(20, yPos, fillWidth, barHeight, "F")
 
 	// Reset fill
 	pdf.SetFillColor(0, 0, 0)
@@ -242,16 +247,16 @@ func (f *DedicatedPDFFormatter) addPolicyBreakdown(pdf *gopdf.GoPdf, report *ana
 
 	// Header row
 	headerY := yPos
-	pdf.CellWithOption(80, 10, "Policy", gopdf.CellOption{Align: gopdf.AlignLeft, Fill: true})
+	pdf.CellWithOption(&gopdf.Rect{W: 80, H: 10}, "Policy", gopdf.CellOption{Align: gopdf.Left})
 	pdf.SetX(100)
 	pdf.SetY(headerY)
-	pdf.CellWithOption(30, 10, "Passed", gopdf.CellOption{Align: gopdf.AlignCenter, Fill: true})
+	pdf.CellWithOption(&gopdf.Rect{W: 30, H: 10}, "Passed", gopdf.CellOption{Align: gopdf.Center})
 	pdf.SetX(130)
 	pdf.SetY(headerY)
-	pdf.CellWithOption(30, 10, "Failed", gopdf.CellOption{Align: gopdf.AlignCenter, Fill: true})
+	pdf.CellWithOption(&gopdf.Rect{W: 30, H: 10}, "Failed", gopdf.CellOption{Align: gopdf.Center})
 	pdf.SetX(160)
 	pdf.SetY(headerY)
-	pdf.CellWithOption(30, 10, "Score", gopdf.CellOption{Align: gopdf.AlignCenter, Fill: true})
+	pdf.CellWithOption(&gopdf.Rect{W: 30, H: 10}, "Score", gopdf.CellOption{Align: gopdf.Center})
 	pdf.Br(12)
 
 	yPos += 12
@@ -274,18 +279,20 @@ func (f *DedicatedPDFFormatter) addPolicyBreakdown(pdf *gopdf.GoPdf, report *ana
 			pdf.SetFillColor(255, 255, 255)
 		}
 
+		failed := policyStatus.TotalEvaluations - policyStatus.PassedEvaluations
+
 		pdf.SetX(20)
 		pdf.SetY(yPos)
-		pdf.CellWithOption(80, 9, policyName, gopdf.CellOption{Align: gopdf.AlignLeft, Fill: true})
+		pdf.CellWithOption(&gopdf.Rect{W: 80, H: 9}, policyName, gopdf.CellOption{Align: gopdf.Left})
 		pdf.SetX(100)
 		pdf.SetY(yPos)
-		pdf.CellWithOption(30, 9, fmt.Sprintf("%d", policyStatus.Passed), gopdf.CellOption{Align: gopdf.AlignCenter, Fill: true})
+		pdf.CellWithOption(&gopdf.Rect{W: 30, H: 9}, fmt.Sprintf("%d", policyStatus.PassedEvaluations), gopdf.CellOption{Align: gopdf.Center})
 		pdf.SetX(130)
 		pdf.SetY(yPos)
-		pdf.CellWithOption(30, 9, fmt.Sprintf("%d", policyStatus.Failed), gopdf.CellOption{Align: gopdf.AlignCenter, Fill: true})
+		pdf.CellWithOption(&gopdf.Rect{W: 30, H: 9}, fmt.Sprintf("%d", failed), gopdf.CellOption{Align: gopdf.Center})
 		pdf.SetX(160)
 		pdf.SetY(yPos)
-		pdf.CellWithOption(30, 9, fmt.Sprintf("%.1f%%", policyStatus.Percentage), gopdf.CellOption{Align: gopdf.AlignCenter, Fill: true})
+		pdf.CellWithOption(&gopdf.Rect{W: 30, H: 9}, fmt.Sprintf("%.1f%%", policyStatus.ComplianceRate), gopdf.CellOption{Align: gopdf.Center})
 		pdf.Br(9)
 
 		yPos += 9
@@ -303,7 +310,7 @@ func (f *DedicatedPDFFormatter) addPolicyBreakdown(pdf *gopdf.GoPdf, report *ana
 }
 
 // addViolations adds the violations section
-func (f *DedicatedPDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64) error {
+func (f *DedicatedPDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytics.ComplianceReport, yPos float64, violations []PDFViolation) error {
 	pdf.SetFont("Arial", "B", 14)
 	pdf.SetX(20)
 	pdf.SetY(yPos)
@@ -312,7 +319,7 @@ func (f *DedicatedPDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytic
 
 	yPos += 15
 
-	if len(report.Violations) == 0 {
+	if len(violations) == 0 {
 		pdf.SetFont("Arial", "", 10)
 		pdf.SetX(20)
 		pdf.SetY(yPos)
@@ -323,21 +330,21 @@ func (f *DedicatedPDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytic
 
 	// Limit to top 20 violations
 	maxViolations := 20
-	if len(report.Violations) < maxViolations {
-		maxViolations = len(report.Violations)
+	if len(violations) < maxViolations {
+		maxViolations = len(violations)
 	}
 
 	for i := 0; i < maxViolations; i++ {
-		violation := report.Violations[i]
+		violation := violations[i]
 
 		// Color code by severity
 		severityColor := getPDFSeverityColor(violation.Severity)
-		pdf.SetFillColor(severityColor.R, severityColor.G, severityColor.B)
+		pdf.SetFillColor(uint8(severityColor.R), uint8(severityColor.G), uint8(severityColor.B))
 
 		pdf.SetFont("Arial", "B", 11)
 		pdf.SetX(20)
 		pdf.SetY(yPos)
-		pdf.CellWithOption(170, 10, fmt.Sprintf("%d. %s", i+1, violation.ControlID), gopdf.CellOption{Fill: true})
+		pdf.CellWithOption(&gopdf.Rect{W: 170, H: 10}, fmt.Sprintf("%d. %s", i+1, violation.ControlID), gopdf.CellOption{})
 		pdf.Br(12)
 
 		yPos += 12
@@ -356,7 +363,7 @@ func (f *DedicatedPDFFormatter) addViolations(pdf *gopdf.GoPdf, report *analytic
 		if len(description) > 100 {
 			description = description[:100] + "..."
 		}
-		pdf.MultiCell(170, 8, description, "", gopdf.AlignLeft, false)
+		pdf.MultiCell(&gopdf.Rect{W: 170, H: 8}, description)
 		pdf.Br(5)
 		yPos += 5
 
@@ -414,6 +421,27 @@ func getPDFSeverityColor(severity analytics.Severity) PDFColor {
 	default:
 		return PDFColor{200, 200, 200} // Gray
 	}
+}
+
+// PDFViolation represents a compliance violation for PDF rendering
+type PDFViolation struct {
+	ControlID   string                `json:"control_id"`
+	Severity    analytics.Severity    `json:"severity"`
+	Framework   string                `json:"framework"`
+	Description string                `json:"description"`
+}
+
+func getViolationsFromReport(report *analytics.ComplianceReport) []PDFViolation {
+	var violations []PDFViolation
+	if len(report.Data) > 0 {
+		var data struct {
+			Violations []PDFViolation `json:"violations"`
+		}
+		if err := json.Unmarshal(report.Data, &data); err == nil {
+			violations = data.Violations
+		}
+	}
+	return violations
 }
 
 // StoreReport stores the PDF report data
