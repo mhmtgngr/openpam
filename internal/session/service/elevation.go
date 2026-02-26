@@ -155,9 +155,10 @@ func (s *ElevationService) ApproveElevation(ctx context.Context, id, approverID 
 
 	// Update request
 	now := time.Now()
+	expiresAt := now.Add(time.Duration(req.Duration) * time.Second)
 	req.Status = "active"
 	req.ElevatedAt = &now
-	req.ExpiresAt = &now.Add(time.Duration(req.Duration) * time.Second)
+	req.ExpiresAt = &expiresAt
 	req.ApprovedBy = &approverID
 	req.ApprovedAt = &now
 	req.ApprovalMethod = method

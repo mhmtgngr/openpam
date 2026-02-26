@@ -34,11 +34,14 @@ type ReportTemplate struct {
 	Framework   analytics.ComplianceFramework `db:"framework" json:"framework"`
 	Version     string                 `db:"version" json:"version"`
 	Description string                 `db:"description" json:"description"`
-	TemplateData map[string]interface{} `json:"template_data"`
-	Sections    []TemplateSection       `json:"sections"`
-	IsPublic    bool                   `db:"is_public" json:"is_public"`
-	CreatedBy   uuid.UUID              `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time              `db:"created_at" json:"created_at"`
+	// JSONB fields - stored as bytes in DB, unmarshaled for use
+	templateDataBytes   []byte            `db:"template_data"`
+	sectionsBytes       []byte            `db:"sections"`
+	TemplateData        map[string]interface{} `json:"template_data"`
+	Sections            []TemplateSection       `json:"sections"`
+	IsPublic            bool                   `db:"is_public" json:"is_public"`
+	CreatedBy           uuid.UUID              `db:"created_by" json:"created_by"`
+	CreatedAt           time.Time              `db:"created_at" json:"created_at"`
 }
 
 // TemplateSection represents a section in a report template
@@ -46,7 +49,7 @@ type TemplateSection struct {
 	ID          string                 `json:"id"`
 	Title       string                 `json:"title"`
 	Description string                 `json:"description"`
-	Type        string                 `json:"type"` -- summary, controls, findings, recommendations
+	Type        string                 `json:"type"` // summary, controls, findings, recommendations
 	Order       int                    `json:"order"`
 	Content     map[string]interface{} `json:"content"`
 }
@@ -64,13 +67,16 @@ func (m *TemplateManager) GetTemplate(ctx context.Context, id uuid.UUID) (*Repor
 		return nil, fmt.Errorf("template_manager.GetTemplate: %w", err)
 	}
 
-	// Unmarshal JSON fields
-	if err := json.Unmarshal(template.TemplateData, &template.TemplateData); err != nil {
-		return nil, err
+	// Unmarshal JSON fields from byte arrays
+	if len(template.templateDataBytes) > 0 {
+		if err := json.Unmarshal(template.templateDataBytes, &template.TemplateData); err != nil {
+			return nil, err
+		}
 	}
-
-	if err := json.Unmarshal(template.Sections, &template.Sections); err != nil {
-		return nil, err
+	if len(template.sectionsBytes) > 0 {
+		if err := json.Unmarshal(template.sectionsBytes, &template.Sections); err != nil {
+			return nil, err
+		}
 	}
 
 	return &template, nil
@@ -104,10 +110,14 @@ func (m *TemplateManager) ListTemplates(ctx context.Context, tenantID *uuid.UUID
 		return nil, fmt.Errorf("template_manager.ListTemplates: %w", err)
 	}
 
-	// Unmarshal JSON fields
+	// Unmarshal JSON fields from byte arrays
 	for i := range templates {
-		json.Unmarshal(templates[i].TemplateData, &templates[i].TemplateData)
-		json.Unmarshal(templates[i].Sections, &templates[i].Sections)
+		if len(templates[i].templateDataBytes) > 0 {
+			json.Unmarshal(templates[i].templateDataBytes, &templates[i].TemplateData)
+		}
+		if len(templates[i].sectionsBytes) > 0 {
+			json.Unmarshal(templates[i].sectionsBytes, &templates[i].Sections)
+		}
 	}
 
 	return templates, nil

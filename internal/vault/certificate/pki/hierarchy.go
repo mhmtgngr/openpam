@@ -3,12 +3,15 @@ package pki
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"time"
 
 	"github.com/google/uuid"
@@ -90,11 +93,11 @@ func (h *Hierarchy) InitializeRootCA(ctx context.Context, tenantID uuid.UUID, su
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:         subject.CommonName,
-			Organization:       subject.Organization,
-			OrganizationalUnit: subject.OrganizationalUnit,
-			Country:            subject.Country,
-			Locality:           subject.Locality,
-			Province:           subject.Province,
+			Organization:       []string{subject.Organization},
+			OrganizationalUnit: []string{subject.OrganizationalUnit},
+			Country:            []string{subject.Country},
+			Locality:           []string{subject.Locality},
+			Province:           []string{subject.Province},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(h.config.RootCADuration),
@@ -150,13 +153,13 @@ func (h *Hierarchy) InitializeRootCA(ctx context.Context, tenantID uuid.UUID, su
 }
 
 // IssueIntermediateCA issues an intermediate CA certificate
-func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *cert.Certificate, subject cert.CertificateSubject, issuerID *uuid.UUID) error {
+func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, crt *cert.Certificate, subject cert.CertificateSubject, issuerID *uuid.UUID) error {
 	var issuerCert *cert.Certificate
 	var err error
 
 	if issuerID == nil {
 		// Get root CA
-		issuerCert, err = h.repo.GetRootCA(ctx, cert.TenantID)
+		issuerCert, err = h.repo.GetRootCA(ctx, crt.TenantID)
 		if err != nil {
 			return fmt.Errorf("pki: failed to get root CA: %w", err)
 		}
@@ -189,11 +192,11 @@ func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *cert.Certific
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:         subject.CommonName,
-			Organization:       subject.Organization,
-			OrganizationalUnit: subject.OrganizationalUnit,
-			Country:            subject.Country,
-			Locality:           subject.Locality,
-			Province:           subject.Province,
+			Organization:       []string{subject.Organization},
+			OrganizationalUnit: []string{subject.OrganizationalUnit},
+			Country:            []string{subject.Country},
+			Locality:           []string{subject.Locality},
+			Province:           []string{subject.Province},
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(h.config.IntermediateCADuration),
@@ -219,23 +222,23 @@ func (h *Hierarchy) IssueIntermediateCA(ctx context.Context, cert *cert.Certific
 	}
 
 	// Update certificate record
-	cert.Type = cert.TypeIntermediateCA
-	cert.Status = cert.StatusActive
-	cert.PEMCertificate = certPEM
-	cert.PEMPrivateKey = keyPEM
-	cert.SerialNumber = serialNumber.String()
-	cert.Subject = subject.CommonName
-	cert.NotBefore = template.NotBefore
-	cert.NotAfter = template.NotAfter
-	cert.IssuerID = &issuerCert.ID
-	cert.KeyUsage = []string{"cert_sign", "crl_sign"}
-	cert.ExtKeyUsage = []string{"server_auth", "client_auth"}
+	crt.Type = cert.TypeIntermediateCA
+	crt.Status = cert.StatusActive
+	crt.PEMCertificate = certPEM
+	crt.PEMPrivateKey = keyPEM
+	crt.SerialNumber = serialNumber.String()
+	crt.Subject = subject.CommonName
+	crt.NotBefore = template.NotBefore
+	crt.NotAfter = template.NotAfter
+	crt.IssuerID = &issuerCert.ID
+	crt.KeyUsage = []string{"cert_sign", "crl_sign"}
+	crt.ExtKeyUsage = []string{"server_auth", "client_auth"}
 
 	return nil
 }
 
 // IssueLeaf issues a leaf certificate
-func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *cert.Certificate, subject cert.CertificateSubject, issuerID uuid.UUID) error {
+func (h *Hierarchy) IssueLeaf(ctx context.Context, leafCert *cert.Certificate, subject cert.CertificateSubject, issuerID uuid.UUID) error {
 	// Get issuer certificate
 	issuerCert, err := h.repo.GetByID(ctx, issuerID)
 	if err != nil {
@@ -261,16 +264,28 @@ func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *cert.Certificate, subje
 	}
 
 	// Parse key usage and extended key usage
-	keyUsage := h.parseKeyUsage(cert.KeyUsage)
-	extKeyUsage := h.parseExtKeyUsage(cert.ExtKeyUsage)
+	keyUsage := h.parseKeyUsage(leafCert.KeyUsage)
+	extKeyUsage := h.parseExtKeyUsage(leafCert.ExtKeyUsage)
+
+	// Build subject name with slices
+	var org, ou, country []string
+	if subject.Organization != "" {
+		org = []string{subject.Organization}
+	}
+	if subject.OrganizationalUnit != "" {
+		ou = []string{subject.OrganizationalUnit}
+	}
+	if subject.Country != "" {
+		country = []string{subject.Country}
+	}
 
 	template := &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:         subject.CommonName,
-			Organization:       subject.Organization,
-			OrganizationalUnit: subject.OrganizationalUnit,
-			Country:            subject.Country,
+			Organization:       org,
+			OrganizationalUnit: ou,
+			Country:            country,
 		},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(h.config.LeafCertDuration),
@@ -278,8 +293,8 @@ func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *cert.Certificate, subje
 		ExtKeyUsage:           extKeyUsage,
 		BasicConstraintsValid: true,
 		IsCA:                  false,
-		DNSNames:              cert.DNSNames,
-		IPAddresses:           h.parseIPAddresses(cert.IPAddresses),
+		DNSNames:              leafCert.DNSNames,
+		IPAddresses:           h.parseIPAddresses(leafCert.IPAddresses),
 	}
 
 	// Sign with issuer
@@ -296,15 +311,15 @@ func (h *Hierarchy) IssueLeaf(ctx context.Context, cert *cert.Certificate, subje
 	}
 
 	// Update certificate record
-	cert.Type = cert.TypeLeaf
-	cert.Status = cert.StatusActive
-	cert.PEMCertificate = certPEM
-	cert.PEMPrivateKey = keyPEM
-	cert.SerialNumber = serialNumber.String()
-	cert.Subject = subject.CommonName
-	cert.NotBefore = template.NotBefore
-	cert.NotAfter = template.NotAfter
-	cert.IssuerID = &issuerCert.ID
+	leafCert.Type = cert.TypeLeaf
+	leafCert.Status = cert.StatusActive
+	leafCert.PEMCertificate = certPEM
+	leafCert.PEMPrivateKey = keyPEM
+	leafCert.SerialNumber = serialNumber.String()
+	leafCert.Subject = subject.CommonName
+	leafCert.NotBefore = template.NotBefore
+	leafCert.NotAfter = template.NotAfter
+	leafCert.IssuerID = &issuerCert.ID
 
 	return nil
 }
@@ -513,9 +528,15 @@ func (h *Hierarchy) parseExtKeyUsage(usages []string) []x509.ExtKeyUsage {
 }
 
 // parseIPAddresses parses IP addresses from strings
-func (h *Hierarchy) parseIPAddresses(ips []string) []string {
-	// In production, this would validate and parse IP addresses
-	return ips
+func (h *Hierarchy) parseIPAddresses(ips []string) []net.IP {
+	var result []net.IP
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip != nil {
+			result = append(result, ip)
+		}
+	}
+	return result
 }
 
 // ecdsaGenerateKey generates an ECDSA key pair

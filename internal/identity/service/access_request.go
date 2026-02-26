@@ -59,7 +59,7 @@ type AccessRequestService struct {
 	workflowRepo   *repository.WorkflowRepository
 	approvalRepo   *repository.ApprovalRepository
 	userRepo       *repository.UserRepository
-	cache          *cache.RedisCache
+	cache          *cache.Cache
 	itsmClients    []ITSMClient
 	logger         *zerolog.Logger
 }
@@ -70,7 +70,7 @@ func NewAccessRequestService(
 	workflowRepo *repository.WorkflowRepository,
 	approvalRepo *repository.ApprovalRepository,
 	userRepo *repository.UserRepository,
-	cache *cache.RedisCache,
+	cache *cache.Cache,
 	itsmClients []ITSMClient,
 	logger *zerolog.Logger,
 ) *AccessRequestService {
@@ -392,8 +392,9 @@ func (s *AccessRequestService) RevokeRequest(ctx context.Context, requestID uuid
 
 // SyncITSMStatus syncs the status of requests with ITSM systems
 func (s *AccessRequestService) SyncITSMStatus(ctx context.Context, client ITSMClient) error {
+	status := repository.RequestStatusPending
 	requests, err := s.repo.List(ctx, repository.AccessRequestFilter{
-		Status:   repository.AsPtr(repository.RequestStatusPending),
+		Status:   &status,
 		Limit:    100,
 	})
 	if err != nil {
@@ -578,8 +579,4 @@ func (s *AccessRequestService) notifyRequester(ctx context.Context, req *reposit
 		Str("request_id", req.ID.String()).
 		Str("status", status).
 		Msg("Notification sent to requester")
-}
-
-func AsPtr[T any](v T) *T {
-	return &v
 }

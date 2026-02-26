@@ -19,9 +19,11 @@ import (
 
 // Client handles ACME protocol operations (e.g., Let's Encrypt)
 type Client struct {
-	client *acme.Client
-	config Config
-	logger zerolog.Logger
+	client      *acme.Client
+	config      Config
+	logger      zerolog.Logger
+	accountKey  crypto.Signer
+	accountURL  string
 }
 
 // Config holds ACME client configuration
@@ -29,7 +31,6 @@ type Config struct {
 	DirectoryURL string
 	AccountEmail string
 	PrivateKey   []byte
-	Cached       bool // Use cached directory
 }
 
 // Account represents an ACME account
@@ -63,12 +64,25 @@ func (c *Client) initClient() error {
 		return nil
 	}
 
-	acmeClient, err := acme.NewClient(c.config.DirectoryURL, &acme.Account{}, acme.WithRetries(3))
-	if err != nil {
-		return fmt.Errorf("acme: failed to create client: %w", err)
+	c.client = &acme.Client{
+		DirectoryURL: c.config.DirectoryURL,
+	}
+	return nil
+}
+
+// initAccountKey initializes or loads the account key
+func (c *Client) initAccountKey() error {
+	if c.accountKey != nil {
+		return nil
 	}
 
-	c.client = acmeClient
+	// Generate account key
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return fmt.Errorf("acme: failed to generate account key: %w", err)
+	}
+
+	c.accountKey = privateKey
 	return nil
 }
 
@@ -77,11 +91,8 @@ func (c *Client) RegisterAccount(ctx context.Context, email string) (*Account, e
 	if err := c.initClient(); err != nil {
 		return nil, err
 	}
-
-	// Generate account key
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("acme: failed to generate account key: %w", err)
+	if err := c.initAccountKey(); err != nil {
+		return nil, err
 	}
 
 	// Create account
@@ -90,33 +101,36 @@ func (c *Client) RegisterAccount(ctx context.Context, email string) (*Account, e
 	}
 
 	// Register with ACME server
-	var accountURL string
-	if c.config.Cached {
-		accountURL, err = c.client.Register(ctx, account, acme.AcceptTOS)
-	} else {
-		accountURL, err = c.client.Register(ctx, account, acme.AcceptTOS)
-	}
+	acc, err := c.client.Register(ctx, account, acme.AcceptTOS)
 	if err != nil {
 		return nil, fmt.Errorf("acme: failed to register account: %w", err)
 	}
 
+	// Note: Account key is already associated with the client through the context
+	// The acc.URI contains the account URL for future operations
+
 	// Encode private key
-	privKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	privKeyBytes, err := x509.MarshalECPrivateKey(c.accountKey.(*ecdsa.PrivateKey))
 	if err != nil {
 		return nil, fmt.Errorf("acme: failed to marshal private key: %w", err)
 	}
 
+	c.accountURL = acc.URI
+
 	return &Account{
-		URL:        accountURL,
-		PrivateKey: privKeyBytes,
+		URL:           acc.URI,
+		PrivateKey:    privKeyBytes,
 		ContactEmails: []string{email},
-		Status:     "valid",
+		Status:        "valid",
 	}, nil
 }
 
 // ObtainCertificate obtains a certificate from the ACME server
 func (c *Client) ObtainCertificate(ctx context.Context, domain string, challengeType ChallengeType) ([]byte, crypto.PrivateKey, error) {
 	if err := c.initClient(); err != nil {
+		return nil, nil, err
+	}
+	if err := c.initAccountKey(); err != nil {
 		return nil, nil, err
 	}
 
@@ -142,17 +156,36 @@ func (c *Client) ObtainCertificate(ctx context.Context, domain string, challenge
 		return nil, nil, fmt.Errorf("acme: failed to authorize domain: %w", err)
 	}
 
-	// Find and complete challenge
+	// Find the matching challenge
 	var chal *acme.Challenge
 	switch challengeType {
 	case ChallengeHTTP01:
-		chal = auth.HTTP01Challenge()
+		for _, c := range auth.Challenges {
+			if c.Type == "http-01" {
+				chal = c
+				break
+			}
+		}
 	case ChallengeTLSALPN01:
-		chal = auth.TLSALPN01Challenge()
+		for _, c := range auth.Challenges {
+			if c.Type == "tls-alpn-01" {
+				chal = c
+				break
+			}
+		}
 	case ChallengeDNS01:
-		chal = auth.DNS01Challenge()
+		for _, c := range auth.Challenges {
+			if c.Type == "dns-01" {
+				chal = c
+				break
+			}
+		}
 	default:
 		return nil, nil, fmt.Errorf("acme: unsupported challenge type: %s", challengeType)
+	}
+
+	if chal == nil {
+		return nil, nil, fmt.Errorf("acme: no matching challenge found")
 	}
 
 	// Prepare challenge response
@@ -179,7 +212,7 @@ func (c *Client) ObtainCertificate(ctx context.Context, domain string, challenge
 	// Wait for authorization to complete
 	// In production, you'd poll auth.Status
 
-	// Request certificate
+	// Request certificate - 0 means default validity, true for must staple
 	certDER, _, err := c.client.CreateCert(ctx, csrBytes, 0, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("acme: failed to create certificate: %w", err)
@@ -206,31 +239,31 @@ func (c *Client) RenewCertificate(ctx context.Context, oldCert []byte) ([]byte, 
 		return nil, nil, fmt.Errorf("acme: failed to decode certificate")
 	}
 
-	cert, err := x509.ParseCertificate(block.Bytes)
+	x509Cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("acme: failed to parse certificate: %w", err)
 	}
 
-	if len(cert.DNSNames) == 0 {
+	if len(x509Cert.DNSNames) == 0 {
 		return nil, nil, fmt.Errorf("acme: certificate has no DNS names")
 	}
 
 	// Obtain new certificate for the same domain
-	return c.ObtainCertificate(ctx, cert.DNSNames[0], ChallengeHTTP01)
+	return c.ObtainCertificate(ctx, x509Cert.DNSNames[0], ChallengeHTTP01)
 }
 
 // RevokeCertificate revokes a certificate at the ACME server
-func (c *Client) RevokeCertificate(ctx context.Context, cert []byte) error {
+func (c *Client) RevokeCertificate(ctx context.Context, certPEM []byte, key crypto.Signer) error {
 	if err := c.initClient(); err != nil {
 		return err
 	}
 
-	block, _ := pem.Decode(cert)
+	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		return fmt.Errorf("acme: failed to decode certificate")
 	}
 
-	if err := c.client.RevokeCert(ctx, block.Bytes, acme.CRLReasonCessationOfOperation); err != nil {
+	if err := c.client.RevokeCert(ctx, key, block.Bytes, acme.CRLReasonCessationOfOperation); err != nil {
 		return fmt.Errorf("acme: failed to revoke certificate: %w", err)
 	}
 
@@ -242,13 +275,26 @@ func (c *Client) GetChallengeToken(ctx context.Context, domain string) (token, r
 	if err := c.initClient(); err != nil {
 		return "", "", err
 	}
+	if err := c.initAccountKey(); err != nil {
+		return "", "", err
+	}
 
 	auth, err := c.client.Authorize(ctx, domain)
 	if err != nil {
 		return "", "", fmt.Errorf("acme: failed to authorize: %w", err)
 	}
 
-	chal := auth.HTTP01Challenge()
+	var chal *acme.Challenge
+	for _, c := range auth.Challenges {
+		if c.Type == "http-01" {
+			chal = c
+			break
+		}
+	}
+
+	if chal == nil {
+		return "", "", fmt.Errorf("acme: http-01 challenge not found")
+	}
 
 	response, err = c.client.HTTP01ChallengeResponse(chal.Token)
 	if err != nil {

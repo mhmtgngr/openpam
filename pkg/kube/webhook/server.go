@@ -21,12 +21,12 @@ import (
 
 // WebhookServer handles Kubernetes admission webhooks
 type WebhookServer struct {
-	server      *http.Server
+	server       *http.Server
 	rbacHandlers *rbac.HandlerManager
-	config      WebhookConfig
-	logger      zerolog.Logger
-	serializer  runtime.Serializer
-	codecFactory runtime.SerializerFactory
+	config       WebhookConfig
+	logger       zerolog.Logger
+	serializer   runtime.Serializer
+	codecFactory serializer.CodecFactory
 }
 
 // WebhookConfig holds webhook configuration
@@ -59,10 +59,10 @@ func NewWebhookServer(port int, rbacHandlers *rbac.HandlerManager, logger zerolo
 			Port:      port,
 			EnableTLS: false, // Default to HTTP for local dev
 		},
-		logger:     logger,
-		serializer: codecs.LegacyCodec(),
+		logger:       logger,
+		serializer:   codecs.LegacyCodec(),
 		codecFactory: codecs,
-	}
+	}, nil
 }
 
 // Start starts the webhook server
@@ -117,8 +117,8 @@ func (w *WebhookServer) Start(ctx context.Context) error {
 
 // serveReady handles readiness probes
 func (w *WebhookServer) serveReady(wr http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	wr.WriteHeader(http.StatusOK)
+	wr.Write([]byte("OK"))
 }
 
 // serveValidate handles validation webhook requests
@@ -154,7 +154,7 @@ func (w *WebhookServer) serveValidate(wr http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate the request
-	allowed, reason := w.validateAdmission(r, &ar.Request)
+	allowed, reason := w.validateAdmission(r, ar.Request)
 
 	response.Response.Allowed = allowed
 	if !allowed {
@@ -171,9 +171,9 @@ func (w *WebhookServer) serveValidate(wr http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
+	wr.Header().Set("Content-Type", "application/json")
+	wr.WriteHeader(http.StatusOK)
+	wr.Write(respBytes)
 
 	w.logger.Debug().
 		Bool("allowed", allowed).
@@ -214,7 +214,7 @@ func (w *WebhookServer) serveMutate(wr http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mutate the request if needed
-	patch := w.mutateAdmission(r, &ar.Request)
+	patch := w.mutateAdmission(r, ar.Request)
 
 	if patch != nil {
 		response.Response.Allowed = true
@@ -233,9 +233,9 @@ func (w *WebhookServer) serveMutate(wr http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(respBytes)
+	wr.Header().Set("Content-Type", "application/json")
+	wr.WriteHeader(http.StatusOK)
+	wr.Write(respBytes)
 }
 
 // validateAdmission validates an admission request

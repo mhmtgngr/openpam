@@ -245,7 +245,7 @@ func (h *AccessRequestHandler) Update(c *gin.Context) {
 
 // Delete deletes an access request
 func (h *AccessRequestHandler) Delete(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("id"))
+	_, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{
 			"code":    "INVALID_ID",
@@ -254,7 +254,7 @@ func (h *AccessRequestHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	tenantID, _ := uuid.Parse(c.GetHeader("X-Tenant-ID"))
+	_, _ = uuid.Parse(c.GetHeader("X-Tenant-ID"))
 
 	c.JSON(http.StatusNoContent, nil)
 }

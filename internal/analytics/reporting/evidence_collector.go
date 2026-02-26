@@ -38,10 +38,11 @@ type Evidence struct {
 	Title            string                 `db:"title" json:"title"`
 	Description      string                 `db:"description" json:"description"`
 
-	// Evidence data
-	EvidenceData     map[string]interface{} `db:"evidence_data" json:"evidence_data"`
-	FilePath         string                 `db:"file_path" json:"file_path,omitempty"`
-	FileHash         string                 `db:"file_hash" json:"file_hash,omitempty"`
+	// Evidence data - stored as JSONB in DB
+	evidenceDataBytes []byte                 `db:"evidence_data"`
+	EvidenceData      map[string]interface{} `db:"evidence_data" json:"evidence_data"`
+	FilePath          string                 `db:"file_path" json:"file_path,omitempty"`
+	FileHash          string                 `db:"file_hash" json:"file_hash,omitempty"`
 
 	// Period validity
 	ApplicableFrom   time.Time              `db:"applicable_from" json:"applicable_from"`
@@ -56,7 +57,9 @@ type Evidence struct {
 	VerifiedBy       *uuid.UUID             `db:"verified_by" json:"verified_by,omitempty"`
 	VerifiedAt       *time.Time             `db:"verified_at" json:"verified_at,omitempty"`
 
-	// Tags and metadata
+	// Tags and metadata - stored as JSONB in DB
+	tagsBytes        []byte                 `db:"tags"`
+	metadataBytes    []byte                 `db:"metadata"`
 	Tags             []string               `db:"tags" json:"tags,omitempty"`
 	Metadata         map[string]interface{} `db:"metadata" json:"metadata,omitempty"`
 
@@ -158,9 +161,17 @@ func (c *EvidenceCollector) getAccessRequestEvidence(ctx context.Context, tenant
 			Msg("Failed to get access request evidence")
 	}
 
-	// Unmarshal JSON
+	// Unmarshal JSON from byte fields
 	for i := range evidence {
-		json.Unmarshal([]byte(evidence[i].EvidenceData), &evidence[i].EvidenceData)
+		if len(evidence[i].evidenceDataBytes) > 0 {
+			json.Unmarshal(evidence[i].evidenceDataBytes, &evidence[i].EvidenceData)
+		}
+		if len(evidence[i].metadataBytes) > 0 {
+			json.Unmarshal(evidence[i].metadataBytes, &evidence[i].Metadata)
+		}
+		if len(evidence[i].tagsBytes) > 0 {
+			json.Unmarshal(evidence[i].tagsBytes, &evidence[i].Tags)
+		}
 	}
 
 	return evidence
@@ -208,9 +219,17 @@ func (c *EvidenceCollector) getApprovalEvidence(ctx context.Context, tenantID uu
 			Msg("Failed to get approval evidence")
 	}
 
-	// Unmarshal JSON
+	// Unmarshal JSON from byte fields
 	for i := range evidence {
-		json.Unmarshal([]byte(evidence[i].EvidenceData), &evidence[i].EvidenceData)
+		if len(evidence[i].evidenceDataBytes) > 0 {
+			json.Unmarshal(evidence[i].evidenceDataBytes, &evidence[i].EvidenceData)
+		}
+		if len(evidence[i].metadataBytes) > 0 {
+			json.Unmarshal(evidence[i].metadataBytes, &evidence[i].Metadata)
+		}
+		if len(evidence[i].tagsBytes) > 0 {
+			json.Unmarshal(evidence[i].tagsBytes, &evidence[i].Tags)
+		}
 	}
 
 	return evidence
@@ -263,9 +282,17 @@ func (c *EvidenceCollector) getSessionAnalyticsEvidence(ctx context.Context, ten
 			Msg("Failed to get session analytics evidence")
 	}
 
-	// Unmarshal JSON
+	// Unmarshal JSON from byte fields
 	for i := range evidence {
-		json.Unmarshal([]byte(evidence[i].EvidenceData), &evidence[i].EvidenceData)
+		if len(evidence[i].evidenceDataBytes) > 0 {
+			json.Unmarshal(evidence[i].evidenceDataBytes, &evidence[i].EvidenceData)
+		}
+		if len(evidence[i].metadataBytes) > 0 {
+			json.Unmarshal(evidence[i].metadataBytes, &evidence[i].Metadata)
+		}
+		if len(evidence[i].tagsBytes) > 0 {
+			json.Unmarshal(evidence[i].tagsBytes, &evidence[i].Tags)
+		}
 	}
 
 	return evidence
@@ -389,9 +416,16 @@ func (c *EvidenceCollector) GetEvidence(ctx context.Context, id uuid.UUID) (*Evi
 		return nil, fmt.Errorf("evidence_collector.GetEvidence: %w", err)
 	}
 
-	// Unmarshal JSON fields
-	json.Unmarshal([]byte(evidence.EvidenceData), &evidence.EvidenceData)
-	json.Unmarshal([]byte(evidence.Metadata), &evidence.Metadata)
+	// Unmarshal JSON fields from byte fields
+	if len(evidence.evidenceDataBytes) > 0 {
+		json.Unmarshal(evidence.evidenceDataBytes, &evidence.EvidenceData)
+	}
+	if len(evidence.metadataBytes) > 0 {
+		json.Unmarshal(evidence.metadataBytes, &evidence.Metadata)
+	}
+	if len(evidence.tagsBytes) > 0 {
+		json.Unmarshal(evidence.tagsBytes, &evidence.Tags)
+	}
 
 	return &evidence, nil
 }
@@ -414,10 +448,17 @@ func (c *EvidenceCollector) GetEvidenceForControl(ctx context.Context, tenantID 
 		return nil, fmt.Errorf("evidence_collector.GetEvidenceForControl: %w", err)
 	}
 
-	// Unmarshal JSON fields
+	// Unmarshal JSON fields from byte fields
 	for i := range evidence {
-		json.Unmarshal([]byte(evidence.EvidenceData), &evidence[i].EvidenceData)
-		json.Unmarshal([]byte(evidence[i].Metadata), &evidence[i].Metadata)
+		if len(evidence[i].evidenceDataBytes) > 0 {
+			json.Unmarshal(evidence[i].evidenceDataBytes, &evidence[i].EvidenceData)
+		}
+		if len(evidence[i].metadataBytes) > 0 {
+			json.Unmarshal(evidence[i].metadataBytes, &evidence[i].Metadata)
+		}
+		if len(evidence[i].tagsBytes) > 0 {
+			json.Unmarshal(evidence[i].tagsBytes, &evidence[i].Tags)
+		}
 	}
 
 	return evidence, nil

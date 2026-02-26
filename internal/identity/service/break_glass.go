@@ -28,7 +28,7 @@ type BreakGlassService struct {
 	repo     *repository.AccessRequestRepository
 	approvalRepo *repository.ApprovalRepository
 	userRepo  *repository.UserRepository
-	cache     *cache.RedisCache
+	cache     *cache.Cache
 	logger    *zerolog.Logger
 
 	// Configuration
@@ -43,7 +43,7 @@ func NewBreakGlassService(
 	repo *repository.AccessRequestRepository,
 	approvalRepo *repository.ApprovalRepository,
 	userRepo *repository.UserRepository,
-	cache *cache.RedisCache,
+	cache *cache.Cache,
 	logger *zerolog.Logger,
 ) *BreakGlassService {
 	return &BreakGlassService{
@@ -360,9 +360,10 @@ func (s *BreakGlassService) RevokeBreakGlass(ctx context.Context, requestID uuid
 
 // ListBreakGlassRequests lists break glass requests for a tenant
 func (s *BreakGlassService) ListBreakGlassRequests(ctx context.Context, tenantID uuid.UUID, status *string, limit int) ([]BreakGlassRequest, error) {
+	requestType := repository.RequestTypeBreakGlass
 	filter := repository.AccessRequestFilter{
 		TenantID: &tenantID,
-		Type:     repository.AsPtr(repository.RequestTypeBreakGlass),
+		Type:     &requestType,
 		Limit:    limit,
 	}
 
@@ -460,10 +461,7 @@ func (s *BreakGlassService) GetAuditLog(ctx context.Context, requestID uuid.UUID
 // IsActiveSession checks if a user has an active break glass session
 func (s *BreakGlassService) IsActiveSession(ctx context.Context, tenantID uuid.UUID, userID uuid.UUID) (bool, error) {
 	cacheKey := fmt.Sprintf("break_glass:active:%s:%s", tenantID, userID)
-	exists, err := s.cache.Exists(ctx, cacheKey)
-	if err != nil {
-		return false, fmt.Errorf("check cache: %w", err)
-	}
+	exists := s.cache.Exists(ctx, cacheKey)
 	return exists, nil
 }
 

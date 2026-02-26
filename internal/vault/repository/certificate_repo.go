@@ -285,20 +285,21 @@ func (r *CertificateRepository) ListByIssuer(ctx context.Context, issuerID uuid.
 
 // GetChainIssuers returns the issuer chain for a certificate
 func (r *CertificateRepository) GetChainIssuers(ctx context.Context, certID uuid.UUID) ([]*cert.Certificate, error) {
-	cert, err := r.GetByID(ctx, certID)
+	crt, err := r.GetByID(ctx, certID)
 	if err != nil {
 		return nil, err
 	}
 
 	var chain []*cert.Certificate
+	currentCert := crt
 
-	for cert.IssuerID != nil {
-		issuer, err := r.GetByID(ctx, *cert.IssuerID)
+	for currentCert.IssuerID != nil {
+		issuer, err := r.GetByID(ctx, *currentCert.IssuerID)
 		if err != nil {
 			break
 		}
 		chain = append(chain, issuer)
-		cert = issuer
+		currentCert = issuer
 	}
 
 	return chain, nil
