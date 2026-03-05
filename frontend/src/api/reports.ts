@@ -369,20 +369,17 @@ export const complianceExceptionsApi = {
     api.get<PaginatedResponse<ComplianceException>>(`/compliance/exceptions/expiring`, { days, ...params }),
 
   // Upload exception document
+  // SECURITY FIX: Use centralized axios client instead of raw fetch
+  // This ensures proper token refresh, error handling, and X-Request-ID correlation
   uploadDocument: (exceptionId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const API_BASE = (import.meta as unknown as { env: { VITE_API_URL?: string } }).env.VITE_API_URL || 'http://localhost:8500/api/v1';
-    const token = localStorage.getItem('access_token');
-
-    return fetch(`${API_BASE}/compliance/exceptions/${exceptionId}/documents`, {
-      method: 'POST',
+    return api.post(`/compliance/exceptions/${exceptionId}/documents`, formData, {
       headers: {
-        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
       },
-      body: formData,
-    }).then((res) => res.json());
+    }).then((res) => res.data);
   },
 
   // Delete exception document

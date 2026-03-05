@@ -75,8 +75,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(response.user);
       setMfaRequired(false);
 
-      const redirectTo = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-      navigate(redirectTo, { replace: true });
+      // SECURITY: Validate redirect path to prevent open redirect attacks
+      // Only allow relative paths starting with '/' and no protocol/host
+      const rawRedirect = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+      const safeRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') && !rawRedirect.includes('://') ? rawRedirect : '/dashboard';
+      navigate(safeRedirect, { replace: true });
     } catch (error) {
       throw error;
     }

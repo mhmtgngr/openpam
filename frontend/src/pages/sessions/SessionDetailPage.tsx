@@ -123,10 +123,13 @@ export const SessionDetailPage: React.FC = () => {
   const startMonitoring = () => {
     if (!session?.id || !terminalInstance.current) return;
 
-    const wsUrl = (session as any)?.monitoring_url || `ws://localhost:8501/ws/sessions/${session.id}/monitor`;
+    // SECURITY: Use WSS protocol and pass token via subprotocol instead of URL query params
+    // Tokens in URLs are logged in server logs, browser history, and intermediaries
+    const baseWsUrl = (session as Record<string, string>)?.monitoring_url || `ws://localhost:8501/ws/sessions/${session.id}/monitor`;
+    const secureWsUrl = baseWsUrl.replace(/^ws:\/\//, 'wss://').replace(/^http:\/\//, 'wss://');
     const token = localStorage.getItem('access_token');
 
-    const ws = new WebSocket(`${wsUrl}?token=${token}`);
+    const ws = new WebSocket(secureWsUrl, [`access_token.${token}`]);
 
     ws.onopen = () => {
       toast.success('Connected to session');
