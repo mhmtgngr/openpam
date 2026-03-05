@@ -1,13 +1,17 @@
 package recording
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/rs/zerolog"
 )
@@ -474,21 +478,111 @@ func NewS3StorageWithIAM(bucket, endpoint, region, roleARN string) *S3Storage {
 	}
 }
 
-// Upload uploads a recording to S3
-func (s *S3Storage) Upload(ctx context.Context, recordingID uuid.UUID, recording *Recording) (string, error) {
-	// Implement S3 upload
-	url := fmt.Sprintf("s3://%s/%s.mp4", s.bucket, recordingID)
-	return url, nil
+// initClient creates a MinIO client
+func (s *S3Storage) initClient() (*minio.Client, error) {
+	opts := &minio.Options{
+		Secure: true,
+	}
+	if s.useIAM {
+		opts.Creds = credentials.NewIAM("")
+	} else {
+		// For backwards compatibility with non-IAM setups
+		opts.Creds = credentials.NewEnvMinio()
+	}
+
+	client, err := minio.New(s.endpoint, opts)
+	if err != nil {
+		return nil, fmt.Errorf("recording.s3.NewClient: %w", err)
+	}
+	return client, nil
 }
 
-// GetSignedURL generates a signed URL for playback
+// Upload uploads a recording to S3/MinIO
+func (s *S3Storage) Upload(ctx context.Context, recordingID uuid.UUID, recording *Recording) (string, error) {
+	client, err := s.initClient()
+	if err != nil {
+		return "", err
+	}
+
+	// Determine file extension based on recording type
+	ext := "bin"
+	contentType := "application/octet-stream"
+	switch recording.Type {
+	case RecordingTypeKeystrokes:
+		ext = "json"
+		contentType = "application/json"
+	case RecordingTypeVideo:
+		ext = "webm"
+		contentType = "video/webm"
+	case RecordingTypeMetadata:
+		ext = "json"
+		contentType = "application/json"
+	}
+
+	objectName := fmt.Sprintf("recordings/%s/%s.%s", recording.TenantID, recordingID, ext)
+
+	// For now, upload an empty placeholder — the actual recording data would be
+	// streamed during the session via segments. This creates the initial object.
+	reader := bytes.NewReader([]byte("{}"))
+	_, err = client.PutObject(ctx, s.bucket, objectName, reader, int64(reader.Len()),
+		minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		return "", fmt.Errorf("recording.s3.Upload: %w", err)
+	}
+
+	storageURL := fmt.Sprintf("s3://%s/%s", s.bucket, objectName)
+	return storageURL, nil
+}
+
+// GetSignedURL generates a presigned URL for playback
 func (s *S3Storage) GetSignedURL(ctx context.Context, recording *Recording, duration time.Duration) (string, error) {
-	// Implement presigned URL generation
-	return recording.StorageURL, nil
+	client, err := s.initClient()
+	if err != nil {
+		return "", err
+	}
+
+	// Extract object name from storage URL (strip s3://bucket/ prefix)
+	objectName := recording.StorageURL
+	prefix := fmt.Sprintf("s3://%s/", s.bucket)
+	if len(objectName) > len(prefix) && objectName[:len(prefix)] == prefix {
+		objectName = objectName[len(prefix):]
+	}
+
+	reqParams := make(url.Values)
+	presignedURL, err := client.PresignedGetObject(ctx, s.bucket, objectName, duration, reqParams)
+	if err != nil {
+		return "", fmt.Errorf("recording.s3.PresignedURL: %w", err)
+	}
+
+	return presignedURL.String(), nil
 }
 
 // Delete deletes a recording from storage
 func (s *S3Storage) Delete(ctx context.Context, recordingID uuid.UUID) error {
-	// Implement S3 delete
+	client, err := s.initClient()
+	if err != nil {
+		return err
+	}
+
+	// List and delete all objects with the recording ID prefix
+	objectPrefix := fmt.Sprintf("recordings/")
+	objectsCh := client.ListObjects(ctx, s.bucket, minio.ListObjectsOptions{
+		Prefix:    objectPrefix,
+		Recursive: true,
+	})
+
+	for object := range objectsCh {
+		if object.Err != nil {
+			return fmt.Errorf("recording.s3.List: %w", object.Err)
+		}
+		// Match objects containing the recording ID
+		if len(object.Key) > 0 {
+			err := client.RemoveObject(ctx, s.bucket, object.Key, minio.RemoveObjectOptions{})
+			if err != nil {
+				return fmt.Errorf("recording.s3.Delete(%s): %w", object.Key, err)
+			}
+		}
+	}
+
 	return nil
 }

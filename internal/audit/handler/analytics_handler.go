@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -1124,7 +1125,8 @@ func (h *AnalyticsHandler) ExportComplianceReport(c *gin.Context) {
 		c.JSON(http.StatusOK, report)
 	case "csv":
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=compliance_report_%s.csv", reportID))
-		c.Data(http.StatusOK, "text/csv", []byte("CSV export not implemented"))
+		csv := complianceReportToCSV(report)
+		c.Data(http.StatusOK, "text/csv", []byte(csv))
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": gin.H{"code": "INVALID_FORMAT", "message": "Invalid export format"}})
 	}
@@ -1795,4 +1797,49 @@ func getIntQuery(c *gin.Context, key string, defaultVal int) int {
 		return intVal
 	}
 	return defaultVal
+}
+
+// complianceReportToCSV converts a compliance report to CSV format
+func complianceReportToCSV(report *model.ComplianceReport) string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString("Report ID,Report Name,Framework,Version,Status,Overall Score,Total Controls,Passed,Failed,Skipped,Period Start,Period End,Generated At\n")
+
+	// Report summary row
+	score := ""
+	if report.OverallScore != nil {
+		score = fmt.Sprintf("%.2f", *report.OverallScore)
+	}
+	summary := ""
+	if report.Summary != nil {
+		summary = csvEscape(*report.Summary)
+	}
+	_ = summary
+
+	b.WriteString(fmt.Sprintf("%s,%s,%s,%s,%s,%s,%d,%d,%d,%d,%s,%s,%s\n",
+		report.ID,
+		csvEscape(report.ReportName),
+		csvEscape(report.Framework),
+		csvEscape(report.Version),
+		csvEscape(report.Status),
+		score,
+		report.TotalControls,
+		report.PassedControls,
+		report.FailedControls,
+		report.SkippedControls,
+		report.PeriodStart.Format(time.RFC3339),
+		report.PeriodEnd.Format(time.RFC3339),
+		report.GeneratedAt.Format(time.RFC3339),
+	))
+
+	return b.String()
+}
+
+// csvEscape escapes a string for CSV output
+func csvEscape(s string) string {
+	if strings.ContainsAny(s, ",\"\n\r") {
+		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
+	}
+	return s
 }

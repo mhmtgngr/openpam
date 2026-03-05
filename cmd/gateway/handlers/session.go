@@ -283,12 +283,30 @@ func (h *SessionHandler) GetStats(c *gin.Context) {
 // GetActive returns active sessions for the current user
 func (h *SessionHandler) GetActive(c *gin.Context) {
 	userID, _ := c.Get("user_id")
-	_ = userID // Will be used when implementing active sessions query
+	userIDUUID, _ := uuid.Parse(userID.(string))
+	tenantID, _ := c.Get("tenant_id")
+	tenantIDUUID, _ := uuid.Parse(tenantID.(string))
 
-	// Use repository to get active sessions for user
-	// For now, return empty list as this requires direct repo access
+	activeStatus := session.SessionStatusActive
+	filter := session.SessionFilter{
+		UserID: &userIDUUID,
+		Status: &activeStatus,
+	}
+
+	sessions, total, err := h.service.ListSessions(c.Request.Context(), tenantIDUUID, filter, 100, 0)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get active sessions")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{
+				"code":    "GET_ACTIVE_SESSIONS_FAILED",
+				"message": "Failed to get active sessions",
+			},
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"sessions": []interface{}{},
-		"total":    0,
+		"sessions": sessions,
+		"total":    total,
 	})
 }

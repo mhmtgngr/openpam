@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -174,10 +178,17 @@ func (h *ReportsHandler) DownloadReportSnapshot(c *gin.Context) {
 	}
 
 	// Generate signed URL for download (15 minute expiry)
-	// TODO: Implement signed URL generation
+	expiry := time.Now().Add(15 * time.Minute)
+	signedURL, err := generateSignedDownloadURL(*snapshot.FileURL, snapshotID, tenantID, expiry)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to generate signed URL")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": gin.H{"code": "INTERNAL_ERROR", "message": "Failed to generate download URL"}})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"download_url": *snapshot.FileURL,
-		"expires_at":   time.Now().Add(15 * time.Minute).Format(time.RFC3339),
+		"download_url": signedURL,
+		"expires_at":   expiry.Format(time.RFC3339),
 		"filename":     fmt.Sprintf("%s.%s", snapshot.SnapshotName, *snapshot.FileFormat),
 	})
 }
@@ -539,6 +550,45 @@ func parseIntQuery(c *gin.Context, key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// generateSignedDownloadURL generates an HMAC-signed URL for secure report downloads.
+// The URL includes the original file URL, snapshot ID, tenant ID, and expiry timestamp,
+// all protected by an HMAC-SHA256 signature using the REPORT_SIGNING_KEY.
+func generateSignedDownloadURL(fileURL string, snapshotID, tenantID uuid.UUID, expiry time.Time) (string, error) {
+	signingKey := os.Getenv("REPORT_SIGNING_KEY")
+	if signingKey == "" {
+		signingKey = os.Getenv("EVENT_SIGNING_KEY")
+	}
+	if signingKey == "" {
+		// In development, fall back to the raw URL
+		return fileURL, nil
+	}
+
+	expiryUnix := fmt.Sprintf("%d", expiry.Unix())
+
+	// Build the message to sign: fileURL|snapshotID|tenantID|expiry
+	message := fmt.Sprintf("%s|%s|%s|%s", fileURL, snapshotID, tenantID, expiryUnix)
+
+	mac := hmac.New(sha256.New, []byte(signingKey))
+	mac.Write([]byte(message))
+	signature := hex.EncodeToString(mac.Sum(nil))
+
+	// Append signature parameters to the URL
+	separator := "?"
+	if len(fileURL) > 0 {
+		for _, c := range fileURL {
+			if c == '?' {
+				separator = "&"
+				break
+			}
+		}
+	}
+
+	signedURL := fmt.Sprintf("%s%ssnapshot_id=%s&tenant_id=%s&expires=%s&signature=%s",
+		fileURL, separator, snapshotID, tenantID, expiryUnix, signature)
+
+	return signedURL, nil
 }
 
 func reportsGetTenantID(c *gin.Context) (uuid.UUID, error) {

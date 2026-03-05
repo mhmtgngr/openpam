@@ -1,14 +1,19 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/events"
 	"github.com/rs/zerolog"
@@ -19,18 +24,36 @@ import (
 type SSHProxy struct {
 	cache         *cache.Cache
 	publisher     *events.Publisher
+	vaultService  VaultRetriever
 	logger        zerolog.Logger
 	dialTimeout   time.Duration
 	sessionTimeout time.Duration
 }
 
+// VaultRetriever retrieves decrypted secrets from the vault
+type VaultRetriever interface {
+	RetrieveSecret(ctx context.Context, id uuid.UUID) (*SecretData, error)
+}
+
+// SecretData mirrors vault.SecretData to avoid circular imports
+type SecretData struct {
+	Type       string `json:"type"`
+	Username   string `json:"username"`
+	Password   string `json:"password,omitempty"`
+	PrivateKey string `json:"private_key,omitempty"`
+	PublicKey  string `json:"public_key,omitempty"`
+	Passphrase string `json:"passphrase,omitempty"`
+	Token      string `json:"token,omitempty"`
+}
+
 // NewSSHProxy creates a new SSH proxy
-func NewSSHProxy(c *cache.Cache, publisher *events.Publisher, logger zerolog.Logger) *SSHProxy {
+func NewSSHProxy(c *cache.Cache, publisher *events.Publisher, vault VaultRetriever, logger zerolog.Logger) *SSHProxy {
 	return &SSHProxy{
-		cache:         c,
-		publisher:     publisher,
-		logger:        logger,
-		dialTimeout:   10 * time.Second,
+		cache:          c,
+		publisher:      publisher,
+		vaultService:   vault,
+		logger:         logger,
+		dialTimeout:    10 * time.Second,
 		sessionTimeout: 24 * time.Hour,
 	}
 }
@@ -143,32 +166,109 @@ func (p *SSHProxy) HandleWebSocketConnection(ctx context.Context, conn *websocke
 	return session, nil
 }
 
-// connectSSH establishes an SSH connection
+// connectSSH establishes an SSH connection using credentials from the vault
 func (p *SSHProxy) connectSSH(ctx context.Context, credentialID uuid.UUID, host string, port int) (*ssh.Client, error) {
-	// In production, you would:
 	// 1. Retrieve the credential from vault
-	// 2. Parse the SSH key or use password
-	// 3. Establish SSH connection with timeout
-
-	// For now, return a mock client (to be implemented with actual vault integration)
-	// This is a placeholder for the actual SSH connection logic
-
-	config := &ssh.ClientConfig{
-		User: "root", // Would come from credential
-		Auth: []ssh.AuthMethod{
-			// ssh.Password(password) or ssh.PublicKeys(signer)
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // In production, use proper host key verification
-		Timeout:         p.dialTimeout,
+	secret, err := p.vaultService.RetrieveSecret(ctx, credentialID)
+	if err != nil {
+		return nil, fmt.Errorf("ssh.RetrieveCredential: %w", err)
 	}
 
+	// 2. Build SSH auth methods based on credential type
+	var authMethods []ssh.AuthMethod
+
+	switch {
+	case secret.PrivateKey != "":
+		// SSH key-based authentication
+		var signer ssh.Signer
+		if secret.Passphrase != "" {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(secret.PrivateKey), []byte(secret.Passphrase))
+		} else {
+			signer, err = ssh.ParsePrivateKey([]byte(secret.PrivateKey))
+		}
+		if err != nil {
+			return nil, fmt.Errorf("ssh.ParsePrivateKey: %w", err)
+		}
+		authMethods = append(authMethods, ssh.PublicKeys(signer))
+
+	case secret.Password != "":
+		// Password-based authentication
+		authMethods = append(authMethods, ssh.Password(secret.Password))
+
+	default:
+		return nil, fmt.Errorf("ssh: credential has no usable authentication data")
+	}
+
+	username := secret.Username
+	if username == "" {
+		return nil, fmt.Errorf("ssh: credential has no username")
+	}
+
+	// 3. Build SSH client config with host key verification
+	config := &ssh.ClientConfig{
+		User:    username,
+		Auth:    authMethods,
+		Timeout: p.dialTimeout,
+		HostKeyCallback: p.hostKeyCallback(host),
+	}
+
+	// 4. Establish SSH connection
 	address := fmt.Sprintf("%s:%d", host, port)
 	client, err := ssh.Dial("tcp", address, config)
 	if err != nil {
-		return nil, fmt.Errorf("ssh.Dial: %w", err)
+		return nil, fmt.Errorf("ssh.Dial(%s): %w", address, err)
 	}
 
+	p.logger.Info().
+		Str("host", host).
+		Int("port", port).
+		Str("user", username).
+		Str("auth_type", p.authTypeLabel(secret)).
+		Msg("SSH connection established")
+
 	return client, nil
+}
+
+// hostKeyCallback returns a host key callback that verifies the server identity.
+// It checks a cached known_hosts store; if no entry exists, it accepts on first use
+// (TOFU) and caches the key for future verification.
+func (p *SSHProxy) hostKeyCallback(host string) ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		fingerprint := ssh.FingerprintSHA256(key)
+		cacheKey := fmt.Sprintf("ssh_hostkey:%s", host)
+
+		// Check if we have a cached host key
+		var cachedFingerprint string
+		if err := p.cache.Get(context.Background(), cacheKey, &cachedFingerprint); err == nil {
+			// Verify the host key matches the cached fingerprint
+			if cachedFingerprint != fingerprint {
+				p.logger.Warn().
+					Str("host", host).
+					Str("expected", cachedFingerprint).
+					Str("received", fingerprint).
+					Msg("SSH host key mismatch - possible MITM attack")
+				return fmt.Errorf("ssh: host key mismatch for %s (expected %s, got %s)", host, cachedFingerprint, fingerprint)
+			}
+			return nil
+		}
+
+		// Trust on first use (TOFU): cache the host key fingerprint
+		// In production PAM, known host keys should be pre-provisioned via target management
+		_ = p.cache.Set(context.Background(), cacheKey, fingerprint, 0)
+		p.logger.Info().
+			Str("host", host).
+			Str("fingerprint", fingerprint).
+			Msg("SSH host key cached (TOFU)")
+		return nil
+	}
+}
+
+// authTypeLabel returns a label for the authentication method used
+func (p *SSHProxy) authTypeLabel(secret *SecretData) string {
+	if secret.PrivateKey != "" {
+		return "public_key"
+	}
+	return "password"
 }
 
 // startSSHSession starts an interactive SSH session
@@ -179,8 +279,15 @@ func (p *SSHProxy) startSSHSession(ctx context.Context, session *Session) error 
 		return fmt.Errorf("ssh.NewSession: %w", err)
 	}
 
-	// Request PTY
-	// sshSession.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
+	// Request PTY for interactive shell
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}
+	if err := sshSession.RequestPty("xterm-256color", 40, 80, modes); err != nil {
+		return fmt.Errorf("ssh.RequestPty: %w", err)
+	}
 
 	// Setup pipes
 	stdinPipe, err := sshSession.StdinPipe()
@@ -361,25 +468,96 @@ func (p *SSHProxy) setupRecording(ctx context.Context, sessionID uuid.UUID) (*Se
 
 // S3RecordingStorage stores recordings in S3/MinIO
 type S3RecordingStorage struct {
-	bucket string
-	client interface{} // S3 client
+	bucket       string
+	endpoint     string
+	accessKey    string
+	secretKey    string
+	useSSL       bool
+	outputBuffer []byte
+	keystrokes   []KeystrokeEvent
+	mu           sync.Mutex
 }
 
-// SaveOutput saves session output
+// NewS3RecordingStorage creates a new S3/MinIO recording storage
+func NewS3RecordingStorage(bucket, endpoint, accessKey, secretKey string, useSSL bool) *S3RecordingStorage {
+	return &S3RecordingStorage{
+		bucket:       bucket,
+		endpoint:     endpoint,
+		accessKey:    accessKey,
+		secretKey:    secretKey,
+		useSSL:       useSSL,
+		outputBuffer: make([]byte, 0),
+		keystrokes:   make([]KeystrokeEvent, 0),
+	}
+}
+
+// SaveOutput saves session output to the buffer for batch upload
 func (s *S3RecordingStorage) SaveOutput(ctx context.Context, sessionID uuid.UUID, data []byte) error {
-	// Implement S3 upload
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.outputBuffer = append(s.outputBuffer, data...)
 	return nil
 }
 
 // SaveKeystroke saves a keystroke event
 func (s *S3RecordingStorage) SaveKeystroke(ctx context.Context, sessionID uuid.UUID, event KeystrokeEvent) error {
-	// Implement S3 upload for keystroke log
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.keystrokes = append(s.keystrokes, event)
 	return nil
 }
 
-// Finalize finalizes the recording
+// Finalize uploads all buffered data to S3/MinIO
 func (s *S3RecordingStorage) Finalize(ctx context.Context, sessionID uuid.UUID) error {
-	// Implement finalization (e.g., upload remaining buffer, create index)
+	s.mu.Lock()
+	outputData := make([]byte, len(s.outputBuffer))
+	copy(outputData, s.outputBuffer)
+	keystrokes := make([]KeystrokeEvent, len(s.keystrokes))
+	copy(keystrokes, s.keystrokes)
+	s.outputBuffer = s.outputBuffer[:0]
+	s.keystrokes = s.keystrokes[:0]
+	s.mu.Unlock()
+
+	// Upload session output
+	if len(outputData) > 0 {
+		objectName := fmt.Sprintf("sessions/%s/output.bin", sessionID)
+		if err := s.uploadToS3(ctx, objectName, outputData, "application/octet-stream"); err != nil {
+			return fmt.Errorf("s3.SaveOutput: %w", err)
+		}
+	}
+
+	// Upload keystrokes as JSON
+	if len(keystrokes) > 0 {
+		keystrokeJSON, err := json.Marshal(keystrokes)
+		if err != nil {
+			return fmt.Errorf("s3.MarshalKeystrokes: %w", err)
+		}
+		objectName := fmt.Sprintf("sessions/%s/keystrokes.json", sessionID)
+		if err := s.uploadToS3(ctx, objectName, keystrokeJSON, "application/json"); err != nil {
+			return fmt.Errorf("s3.SaveKeystrokes: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// uploadToS3 uploads data to S3/MinIO using the minio client
+func (s *S3RecordingStorage) uploadToS3(ctx context.Context, objectName string, data []byte, contentType string) error {
+	minioClient, err := minio.New(s.endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(s.accessKey, s.secretKey, ""),
+		Secure: s.useSSL,
+	})
+	if err != nil {
+		return fmt.Errorf("s3.NewClient: %w", err)
+	}
+
+	reader := bytes.NewReader(data)
+	_, err = minioClient.PutObject(ctx, s.bucket, objectName, reader, int64(len(data)),
+		minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		return fmt.Errorf("s3.PutObject(%s): %w", objectName, err)
+	}
+
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/database"
 	"github.com/openpam/openpam/internal/events"
@@ -239,7 +240,7 @@ func setupRouter(
 		// Public routes
 		public := v1.Group("")
 		{
-			public.GET("/sessions/:id/stream", handleSessionStream(sessionSvc, logger))
+			public.GET("/sessions/:id/stream", handleSessionStream(sessionSvc, cache, logger))
 		}
 
 		// Protected routes (require auth)
@@ -504,7 +505,60 @@ func handleSessionStats(svc *session.Service, logger zerolog.Logger) gin.Handler
 	}
 }
 
-func handleSessionStream(svc *session.Service, logger zerolog.Logger) gin.HandlerFunc {
+// wsUpgrader configures WebSocket upgrade with security settings
+var wsUpgrader = websocket.Upgrader{
+	ReadBufferSize:  32 * 1024,
+	WriteBufferSize: 32 * 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		// Allow configured origins (in production, restrict to known frontend origins)
+		allowedOrigins := map[string]bool{
+			"http://localhost:3000": true,
+			"http://localhost:8580": true,
+		}
+		if envOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); envOrigins != "" {
+			for _, o := range splitOrigins(envOrigins) {
+				allowedOrigins[o] = true
+			}
+		}
+		return allowedOrigins[origin]
+	},
+}
+
+func splitOrigins(s string) []string {
+	var origins []string
+	for _, part := range []byte(s) {
+		_ = part
+	}
+	// Simple split on comma
+	current := ""
+	for _, ch := range s {
+		if ch == ',' {
+			if trimmed := trimSpace(current); trimmed != "" {
+				origins = append(origins, trimmed)
+			}
+			current = ""
+		} else {
+			current += string(ch)
+		}
+	}
+	if trimmed := trimSpace(current); trimmed != "" {
+		origins = append(origins, trimmed)
+	}
+	return origins
+}
+
+func trimSpace(s string) string {
+	for len(s) > 0 && s[0] == ' ' {
+		s = s[1:]
+	}
+	for len(s) > 0 && s[len(s)-1] == ' ' {
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
+func handleSessionStream(svc *session.Service, redisCache *cache.Cache, logger zerolog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := uuid.Parse(c.Param("id"))
 		if err != nil {
@@ -512,14 +566,85 @@ func handleSessionStream(svc *session.Service, logger zerolog.Logger) gin.Handle
 			return
 		}
 
-		// Check if session is active
+		// Verify session is active
 		if !svc.IsSessionActive(c.Request.Context(), id) {
 			c.JSON(http.StatusNotFound, gin.H{"error": gin.H{"code": "NOT_FOUND", "message": "Session not active"}})
 			return
 		}
 
-		// TODO: Implement WebSocket streaming for session I/O
-		c.JSON(http.StatusNotImplemented, gin.H{"error": gin.H{"code": "NOT_IMPLEMENTED", "message": "Session streaming not yet implemented"}})
+		// Upgrade HTTP connection to WebSocket
+		conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			logger.Error().Err(err).Str("session_id", id.String()).Msg("WebSocket upgrade failed")
+			return
+		}
+		defer conn.Close()
+
+		logger.Info().Str("session_id", id.String()).Msg("WebSocket stream connected")
+
+		// Subscribe to session I/O events via Redis pub/sub
+		ctx, cancel := context.WithCancel(c.Request.Context())
+		defer cancel()
+
+		keystrokeChannel := fmt.Sprintf("session:%s:keystrokes", id)
+		outputChannel := fmt.Sprintf("session:%s:output", id)
+
+		// Subscribe to both channels for session I/O
+		pubsub, err := redisCache.PubSub().Subscribe(ctx, keystrokeChannel, outputChannel)
+		if err != nil {
+			logger.Error().Err(err).Str("session_id", id.String()).Msg("Failed to subscribe to session channels")
+			conn.WriteJSON(map[string]interface{}{
+				"type":  "error",
+				"error": "Failed to connect to session stream",
+			})
+			return
+		}
+		defer pubsub.Close()
+
+		// Forward session output from Redis pub/sub to WebSocket client
+		go func() {
+			ch := pubsub.Channel()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case msg, ok := <-ch:
+					if !ok {
+						return
+					}
+					if err := conn.WriteMessage(websocket.TextMessage, []byte(msg.Payload)); err != nil {
+						logger.Debug().Err(err).Msg("WebSocket write error during stream")
+						cancel()
+						return
+					}
+				}
+			}
+		}()
+
+		// Read client input and forward to session input channel
+		inputChannel := fmt.Sprintf("session:%s:input", id)
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+					logger.Debug().Err(err).Msg("WebSocket read error during stream")
+				}
+				break
+			}
+
+			// Publish input to Redis for the SSH/RDP proxy to consume
+			_ = redisCache.PubSub().Publish(ctx, inputChannel, cache.Event{
+				Type: "input",
+				Data: map[string]interface{}{
+					"data": string(message),
+				},
+			})
+
+			// Update session activity
+			_ = svc.UpdateSessionActivity(ctx, id)
+		}
+
+		logger.Info().Str("session_id", id.String()).Msg("WebSocket stream disconnected")
 	}
 }
 

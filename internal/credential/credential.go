@@ -2,7 +2,9 @@ package credential
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +14,7 @@ import (
 	"github.com/openpam/openpam/internal/pam/vault"
 	"github.com/openpam/openpam/internal/pam/rotation"
 	"github.com/rs/zerolog"
+	"golang.org/x/crypto/ssh"
 )
 
 // Service handles credential business operations
@@ -173,14 +176,124 @@ func (s *Service) validateSecret(secret *vault.Secret) error {
 	return nil
 }
 
-// testCredentialConnection tests if a credential works
+// testCredentialConnection tests if a credential works by attempting a connection
 func (s *Service) testCredentialConnection(ctx context.Context, secret *vault.Secret) error {
-	// Implement connection testing based on credential type
-	// For SSH: try SSH connection
-	// For database: try database connection
-	// For API: try API call
+	// Retrieve decrypted secret data
+	secretData, err := s.vault.RetrieveSecret(ctx, secret.ID)
+	if err != nil {
+		return fmt.Errorf("credential.TestConnection.RetrieveSecret: %w", err)
+	}
 
-	return fmt.Errorf("credential: connection testing not implemented")
+	switch secret.Type {
+	case vault.SecretTypePassword, vault.SecretTypeSSHKey:
+		return s.testSSHConnection(ctx, secret, secretData)
+
+	case vault.SecretTypeDatabase:
+		return s.testDatabaseConnection(ctx, secret, secretData)
+
+	case vault.SecretTypeAPIToken, vault.SecretTypeAWSKey, vault.SecretTypeAzureKey:
+		return s.testAPIConnectivity(ctx, secret)
+
+	default:
+		// For unknown types, just verify the target host is reachable
+		return s.testTCPConnectivity(secret.Host, secret.Port)
+	}
+}
+
+// testSSHConnection tests SSH connectivity with the given credentials
+func (s *Service) testSSHConnection(ctx context.Context, secret *vault.Secret, data *vault.SecretData) error {
+	var authMethods []ssh.AuthMethod
+
+	if data.PrivateKey != "" {
+		var signer ssh.Signer
+		var err error
+		if data.Passphrase != "" {
+			signer, err = ssh.ParsePrivateKeyWithPassphrase([]byte(data.PrivateKey), []byte(data.Passphrase))
+		} else {
+			signer, err = ssh.ParsePrivateKey([]byte(data.PrivateKey))
+		}
+		if err != nil {
+			return fmt.Errorf("credential.TestSSH.ParseKey: %w", err)
+		}
+		authMethods = append(authMethods, ssh.PublicKeys(signer))
+	}
+
+	if data.Password != "" {
+		authMethods = append(authMethods, ssh.Password(data.Password))
+	}
+
+	if len(authMethods) == 0 {
+		return fmt.Errorf("credential: no SSH authentication method available")
+	}
+
+	config := &ssh.ClientConfig{
+		User:            data.Username,
+		Auth:            authMethods,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         10 * time.Second,
+	}
+
+	address := fmt.Sprintf("%s:%d", secret.Host, secret.Port)
+	client, err := ssh.Dial("tcp", address, config)
+	if err != nil {
+		return fmt.Errorf("credential.TestSSH.Dial(%s): %w", address, err)
+	}
+	client.Close()
+
+	s.logger.Info().
+		Str("credential_id", secret.ID.String()).
+		Str("host", secret.Host).
+		Msg("SSH connection test passed")
+	return nil
+}
+
+// testDatabaseConnection tests database connectivity
+func (s *Service) testDatabaseConnection(ctx context.Context, secret *vault.Secret, data *vault.SecretData) error {
+	dbName := "postgres"
+	if data.Extra != nil {
+		if db, ok := data.Extra["database"]; ok {
+			dbName = db
+		}
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=require connect_timeout=10",
+		secret.Host, secret.Port, data.Username, data.Password, dbName)
+
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return fmt.Errorf("credential.TestDB.Open: %w", err)
+	}
+	defer db.Close()
+
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("credential.TestDB.Ping(%s:%d): %w", secret.Host, secret.Port, err)
+	}
+
+	s.logger.Info().
+		Str("credential_id", secret.ID.String()).
+		Str("host", secret.Host).
+		Msg("Database connection test passed")
+	return nil
+}
+
+// testAPIConnectivity tests that the API endpoint is reachable via HTTPS
+func (s *Service) testAPIConnectivity(ctx context.Context, secret *vault.Secret) error {
+	port := secret.Port
+	if port == 0 {
+		port = 443
+	}
+	return s.testTCPConnectivity(secret.Host, port)
+}
+
+// testTCPConnectivity tests basic TCP connectivity
+func (s *Service) testTCPConnectivity(host string, port int) error {
+	address := fmt.Sprintf("%s:%d", host, port)
+	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
+	if err != nil {
+		return fmt.Errorf("credential.TestTCP(%s): %w", address, err)
+	}
+	conn.Close()
+	return nil
 }
 
 // GetCredentialsRequiringRotation returns credentials that need rotation
@@ -316,8 +429,41 @@ func (s *Service) SyncCredential(ctx context.Context, credentialID uuid.UUID, ta
 }
 
 func (s *Service) applyCredentialToTarget(ctx context.Context, secret *vault.Secret, targetID uuid.UUID) error {
-	// Implement platform-specific credential application
-	return fmt.Errorf("credential: target sync not implemented")
+	// Retrieve the decrypted credential
+	secretData, err := s.vault.RetrieveSecret(ctx, secret.ID)
+	if err != nil {
+		return fmt.Errorf("credential.Sync.RetrieveSecret: %w", err)
+	}
+
+	// Get target info to determine platform type
+	var targetType string
+	query := `SELECT type FROM targets WHERE id = $1 AND deleted_at IS NULL`
+	if err := s.db.GetContext(ctx, &targetType, query, targetID); err != nil {
+		return fmt.Errorf("credential.Sync.GetTarget: %w", err)
+	}
+
+	// Use the rotation service connectors to apply the credential
+	if s.rotation == nil {
+		return fmt.Errorf("credential: rotation service not available for sync")
+	}
+
+	// Create a placeholder "old" credential (sync deploys new creds without needing old ones on the target)
+	dummyOld := &vault.SecretData{
+		Type:     secretData.Type,
+		Username: secretData.Username,
+	}
+
+	if err := s.rotation.RotateOnTarget(ctx, targetID, dummyOld, secretData); err != nil {
+		return fmt.Errorf("credential.Sync.ApplyToTarget: %w", err)
+	}
+
+	s.logger.Info().
+		Str("credential_id", secret.ID.String()).
+		Str("target_id", targetID.String()).
+		Str("target_type", targetType).
+		Msg("Credential synced to target")
+
+	return nil
 }
 
 // CredentialQuarantineEntry represents a quarantined credential
