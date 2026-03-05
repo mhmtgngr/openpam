@@ -16,16 +16,21 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/openpam/openpam/cmd/gateway/handlers"
+	"github.com/openpam/openpam/internal/admin"
 	"github.com/openpam/openpam/internal/auth"
 	"github.com/openpam/openpam/internal/audit"
 	"github.com/openpam/openpam/internal/cache"
 	"github.com/openpam/openpam/internal/database"
+	"github.com/openpam/openpam/internal/discovery"
 	"github.com/openpam/openpam/internal/events"
 	middleware2 "github.com/openpam/openpam/internal/middleware"
 	"github.com/openpam/openpam/internal/pam/approval"
+	"github.com/openpam/openpam/internal/pam/checkout"
 	"github.com/openpam/openpam/internal/pam/target"
 	"github.com/openpam/openpam/internal/pam/vault"
 	"github.com/openpam/openpam/internal/session"
+	"github.com/openpam/openpam/pkg/circuitbreaker"
+	"github.com/openpam/openpam/pkg/registry"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -186,9 +191,31 @@ func main() {
 	approvalRepo := approval.NewRepository(db.DB, redisCache, logger)
 	approvalService := approval.NewWorkflowService(approvalRepo, eventPublisher, redisCache, logger)
 
+	// Initialize checkout service (previously placeholder)
+	checkoutRepo := checkout.NewRepository(db.DB, redisCache, logger)
+	checkoutService := checkout.NewService(checkoutRepo, vaultService, eventPublisher, redisCache, logger)
+
+	// Initialize discovery service (previously placeholder)
+	discoveryRepo := discovery.NewRepository(db.DB, redisCache, logger)
+	discoveryService := discovery.NewService(discoveryRepo, targetService, redisCache, logger)
+
+	// Initialize admin service (previously placeholder)
+	adminService := admin.NewService(db.DB, redisCache, logger)
+
+	// --- Design Pattern: Service Registry ---
+	// Centralized service discovery with health aggregation
+	serviceRegistry := registry.New(logger)
+	serviceRegistry.Register("gateway", fmt.Sprintf("http://localhost:%s", config.Port), 0, nil)
+	serviceRegistry.Register("analytics-service", fmt.Sprintf("http://%s:%s", config.AnalyticsServiceHost, config.AnalyticsServicePort), 0, nil)
+	serviceRegistry.StartHealthChecks(context.Background(), 30*time.Second)
+
+	// --- Design Pattern: Circuit Breaker ---
+	// Resilient inter-service communication
+	cbManager := circuitbreaker.NewManager(circuitbreaker.DefaultConfig(), logger)
+
 	// Setup router
 	analyticsServiceURL := fmt.Sprintf("http://%s:%s", config.AnalyticsServiceHost, config.AnalyticsServicePort)
-	router := setupRouter(config, db, redisCache, jwtManager, mfaManager, eventPublisher, authService, targetService, vaultService, sessionService, auditService, approvalService, analyticsServiceURL, logger)
+	router := setupRouter(config, db, redisCache, jwtManager, mfaManager, eventPublisher, authService, targetService, vaultService, sessionService, auditService, approvalService, checkoutService, discoveryService, adminService, serviceRegistry, cbManager, analyticsServiceURL, logger)
 
 	// Start server
 	srv := &http.Server{
@@ -329,6 +356,11 @@ func setupRouter(
 	sessionService *session.Service,
 	auditService *audit.Service,
 	approvalService *approval.WorkflowService,
+	checkoutService *checkout.Service,
+	discoveryService *discovery.Service,
+	adminService *admin.Service,
+	serviceRegistry *registry.Registry,
+	cbManager *circuitbreaker.BreakerManager,
 	analyticsServiceURL string,
 	logger zerolog.Logger,
 ) *gin.Engine {
@@ -362,9 +394,15 @@ func setupRouter(
 	}))
 	r.Use(middleware2.RequestID())
 
-	// Health endpoints
+	// Health endpoints (integrated with Service Registry pattern)
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "up", "service": "gateway"})
+	})
+	r.GET("/health/services", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"services":         serviceRegistry.ListServices(),
+			"circuit_breakers": cbManager.Summary(),
+		})
 	})
 	r.GET("/ready", func(c *gin.Context) {
 		// Check dependencies
@@ -402,6 +440,9 @@ func setupRouter(
 	sessionHandler := handlers.NewSessionHandler(sessionService, logger)
 	auditHandler := handlers.NewAuditHandler(auditService, logger)
 	approvalHandler := handlers.NewApprovalHandler(approvalService, logger)
+	checkoutHandler := handlers.NewCheckoutHandler(checkoutService, logger)
+	discoveryHandler := handlers.NewDiscoveryHandler(discoveryService, logger)
+	adminHandler := handlers.NewAdminHandler(adminService, logger)
 
 	// API v1 routes
 	v1 := r.Group("/api/v1")
@@ -458,11 +499,11 @@ func setupRouter(
 			protected.POST("/credentials/:id/rotate", credentialHandler.Rotate)
 			protected.POST("/credentials/:id/compromised", credentialHandler.MarkCompromised)
 
-			// Checkouts (placeholder - to be implemented)
-			protected.GET("/checkouts", handleListCheckouts)
-			protected.POST("/checkouts", handleCreateCheckout)
-			protected.POST("/checkouts/:id/checkout", handleCheckoutCredential)
-			protected.POST("/checkouts/:id/checkin", handleCheckinCredential)
+			// Checkouts
+			protected.GET("/checkouts", checkoutHandler.List)
+			protected.POST("/checkouts", checkoutHandler.Create)
+			protected.POST("/checkouts/:id/checkout", checkoutHandler.Checkout)
+			protected.POST("/checkouts/:id/checkin", checkoutHandler.Checkin)
 
 			// Sessions
 			protected.GET("/sessions", sessionHandler.List)
@@ -491,10 +532,10 @@ func setupRouter(
 			protected.GET("/audit/stats", auditHandler.GetStats)
 
 			// Discovery
-			protected.GET("/discovery/scans", handleListDiscoveryScans)
-			protected.POST("/discovery/scans", handleCreateDiscoveryScan)
-			protected.POST("/discovery/scans/:id/run", handleRunDiscoveryScan)
-			protected.GET("/discovery/assets", handleListDiscoveredAssets)
+			protected.GET("/discovery/scans", discoveryHandler.ListScans)
+			protected.POST("/discovery/scans", middleware2.RequireRole("admin", "super_admin"), discoveryHandler.CreateScan)
+			protected.POST("/discovery/scans/:id/run", middleware2.RequireRole("admin", "super_admin"), discoveryHandler.RunScan)
+			protected.GET("/discovery/assets", discoveryHandler.ListAssets)
 
 			// Analytics (proxy to analytics-service)
 			protected.GET("/analytics/sessions", handleAnalyticsProxy)
@@ -541,10 +582,10 @@ func setupRouter(
 			admin := protected.Group("/admin")
 			admin.Use(middleware2.RequireRole("admin", "super_admin"))
 			{
-				admin.GET("/tenants", handleListTenants)
-				admin.POST("/tenants", handleCreateTenant)
-				admin.PUT("/tenants/:id", handleUpdateTenant)
-				admin.GET("/stats", handleSystemStats)
+				admin.GET("/tenants", adminHandler.ListTenants)
+				admin.POST("/tenants", adminHandler.CreateTenant)
+				admin.PUT("/tenants/:id", adminHandler.UpdateTenant)
+				admin.GET("/stats", adminHandler.SystemStats)
 			}
 		}
 	}
@@ -552,23 +593,10 @@ func setupRouter(
 	return r
 }
 
-// Placeholder handlers for routes not yet implemented
-// These will be replaced with proper handler implementations
-
-var (
-	handleListCheckouts          = notImplemented
-	handleCreateCheckout         = notImplemented
-	handleCheckoutCredential     = notImplemented
-	handleCheckinCredential      = notImplemented
-	handleListDiscoveryScans     = notImplemented
-	handleCreateDiscoveryScan    = notImplemented
-	handleRunDiscoveryScan       = notImplemented
-	handleListDiscoveredAssets   = notImplemented
-	handleListTenants            = notImplemented
-	handleCreateTenant           = notImplemented
-	handleUpdateTenant           = notImplemented
-	handleSystemStats            = notImplemented
-)
+// All previously placeholder handlers have been replaced with real implementations:
+// - Checkout handlers: handlers.CheckoutHandler (List, Create, Checkout, Checkin)
+// - Discovery handlers: handlers.DiscoveryHandler (ListScans, CreateScan, RunScan, ListAssets)
+// - Admin handlers: handlers.AdminHandler (ListTenants, CreateTenant, UpdateTenant, SystemStats)
 
 // Analytics service proxy handler
 var analyticsServiceURL string
@@ -639,12 +667,3 @@ func handleAnalyticsProxy(c *gin.Context) {
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
 
-// notImplemented returns a 501 Not Implemented response
-func notImplemented(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error": gin.H{
-			"code":    "NOT_IMPLEMENTED",
-			"message": "This endpoint is not yet implemented",
-		},
-	})
-}
