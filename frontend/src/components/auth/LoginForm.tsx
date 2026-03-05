@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Eye, EyeOff } from 'lucide-react';
+import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/common';
 import { Button } from '@/components/common';
+import toast from 'react-hot-toast';
 
 interface LoginFormData {
   email: string;
@@ -23,6 +24,7 @@ export const LoginForm: React.FC = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof LoginFormData, string>>>({});
 
   const validate = (): boolean => {
@@ -52,11 +54,28 @@ export const LoginForm: React.FC = () => {
     if (!validate()) return;
 
     setIsLoading(true);
+    setLoginError(null);
     try {
       await login(formData.email, formData.password, formData.mfaCode);
       // Navigation is handled by the auth context
-    } catch {
-      // Error is handled by the axios interceptor
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: { message?: string; code?: string } } }; message?: string };
+      const apiMessage = err?.response?.data?.error?.message;
+      const apiCode = err?.response?.data?.error?.code;
+
+      let userMessage = 'Login failed. Please check your credentials and try again.';
+      if (apiCode === 'RATE_LIMIT_EXCEEDED') {
+        userMessage = 'Too many login attempts. Please wait a few minutes before trying again.';
+      } else if (apiCode === 'ACCOUNT_LOCKED') {
+        userMessage = 'Your account has been locked. Please contact your administrator.';
+      } else if (apiCode === 'INVALID_MFA') {
+        userMessage = 'Invalid MFA code. Please check and try again.';
+      } else if (apiMessage) {
+        userMessage = apiMessage;
+      }
+
+      setLoginError(userMessage);
+      toast.error(userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -82,6 +101,26 @@ export const LoginForm: React.FC = () => {
             {mfaRequired ? 'Enter your MFA code' : 'Sign in to your account'}
           </p>
         </div>
+
+        {/* Login Error Banner */}
+        {loginError && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-danger-400" />
+            <div className="flex-1">
+              <p className="text-sm text-danger-300">{loginError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLoginError(null)}
+              className="text-danger-400 hover:text-danger-300"
+            >
+              <span className="sr-only">Dismiss</span>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Login Form */}
         <div className="card">
@@ -163,7 +202,7 @@ export const LoginForm: React.FC = () => {
 
         {/* Footer */}
         <p className="mt-6 text-center text-sm text-gray-400">
-          © 2024 OpenPAM. All rights reserved.
+          © {new Date().getFullYear()} OpenPAM. All rights reserved.
         </p>
       </div>
     </div>

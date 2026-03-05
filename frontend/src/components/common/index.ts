@@ -13,3 +13,4 @@ export { Badge, StatusBadge } from './Badge';
 export { Modal } from './Modal';
 export { Pagination } from './Pagination';
 export { LoadingState, EmptyState, ErrorState } from './LoadingState';
+export { Breadcrumbs } from './Breadcrumbs';

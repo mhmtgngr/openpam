@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +19,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { requestsApi } from '@/api/requests';
 import clsx from 'clsx';
 
 interface NavItem {
@@ -52,15 +54,23 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const { user } = useAuth();
 
+  const isApprover = user?.role && ['admin', 'super_admin', 'operator'].includes(user.role);
+
+  const { data: pendingApprovals } = useQuery({
+    queryKey: ['pending-approvals-count'],
+    queryFn: () => requestsApi.pendingApprovals(),
+    enabled: !!isApprover,
+    refetchInterval: 30000,
+  });
+
   const canAccess = (roles?: string[]) => {
     if (!roles) return true;
     return user?.role && roles.includes(user.role);
   };
 
   const getBadge = (path: string) => {
-    if (path === '/approvals') {
-      // Return pending approvals count from notification context
-      return 0; // Placeholder
+    if (path === '/approvals' && pendingApprovals?.data) {
+      return pendingApprovals.data.length;
     }
     return undefined;
   };
@@ -106,16 +116,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <NavLink
               key={item.path}
               to={item.path}
+              title={collapsed ? item.name : undefined}
               className={({ isActive: isNavActive }) =>
                 clsx(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  collapsed && 'justify-center',
                   isNavActive
                     ? 'bg-primary-600/20 text-primary-400'
                     : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 )
               }
             >
-              <Icon className="h-5 w-5 shrink-0" />
+              <div className="relative shrink-0">
+                <Icon className="h-5 w-5" />
+                {collapsed && badge !== undefined && badge > 0 && (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-danger-500" />
+                )}
+              </div>
               {!collapsed && <span>{item.name}</span>}
               {!collapsed && badge !== undefined && badge > 0 && (
                 <span className="ml-auto rounded-full bg-danger-500 px-2 py-0.5 text-xs text-white">

@@ -67,8 +67,19 @@ export const CreateRequestPage: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: requestsApi.create,
     onSuccess: (data) => {
-      toast.success('Access request created successfully');
+      toast.success('Access request submitted successfully. You will be notified when it is reviewed.');
       navigate(`/requests/${data.id}`);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: { message?: string; code?: string } } } };
+      const code = err?.response?.data?.error?.code;
+      if (code === 'DUPLICATE_REQUEST') {
+        toast.error('You already have an active request for this target.');
+      } else if (code === 'POLICY_VIOLATION') {
+        toast.error('This request violates an access policy. Please review the requirements.');
+      } else {
+        toast.error(err?.response?.data?.error?.message || 'Failed to submit request. Please try again.');
+      }
     },
   });
 

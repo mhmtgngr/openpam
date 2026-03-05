@@ -28,9 +28,14 @@ export const ApprovalsPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'pending'] });
-      toast.success('Request approved');
+      toast.success('Request approved successfully');
       setShowActionModal(false);
+      setSelectedRequest(null);
       setComment('');
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(err?.response?.data?.error?.message || 'Failed to approve request. Please try again.');
     },
   });
 
@@ -42,7 +47,12 @@ export const ApprovalsPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard', 'pending'] });
       toast.success('Request denied');
       setShowActionModal(false);
+      setSelectedRequest(null);
       setComment('');
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: { message?: string } } } };
+      toast.error(err?.response?.data?.error?.message || 'Failed to deny request. Please try again.');
     },
   });
 

@@ -57,9 +57,19 @@ export const SessionsPage: React.FC = () => {
       sessionsApi.terminate(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      toast.success('Session terminated');
+      toast.success('Session terminated successfully');
       setShowTerminateModal(false);
       setTerminateReason('');
+      setSelectedSession(null);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: { message?: string; code?: string } } } };
+      const code = err?.response?.data?.error?.code;
+      if (code === 'MFA_REQUIRED') {
+        toast.error('MFA verification required to terminate sessions.');
+      } else {
+        toast.error(err?.response?.data?.error?.message || 'Failed to terminate session. Please try again.');
+      }
     },
   });
 

@@ -54,6 +54,15 @@ export const CredentialListPage: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['credentials'] });
       toast.success('Credential rotated successfully');
     },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: { message?: string; code?: string } } } };
+      const code = err?.response?.data?.error?.code;
+      if (code === 'MFA_REQUIRED') {
+        toast.error('MFA verification required to rotate credentials. Please re-authenticate.');
+      } else {
+        toast.error(err?.response?.data?.error?.message || 'Failed to rotate credential. Please try again.');
+      }
+    },
   });
 
   const columns: Column<Credential>[] = [
