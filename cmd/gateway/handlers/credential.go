@@ -216,6 +216,7 @@ func (h *CredentialHandler) Get(c *gin.Context) {
 }
 
 // Reveal retrieves and reveals the decrypted secret value
+// SECURITY: Requires MFA verification (enforced via middleware)
 func (h *CredentialHandler) Reveal(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -228,9 +229,27 @@ func (h *CredentialHandler) Reveal(c *gin.Context) {
 		return
 	}
 
+	userID, _ := c.Get("user_id")
+	requestID, _ := c.Get("request_id")
+
+	// SECURITY: Log the access attempt BEFORE retrieving the secret
+	h.logger.Warn().
+		Str("credential_id", id.String()).
+		Str("user_id", userID.(string)).
+		Str("request_id", requestID.(string)).
+		Str("client_ip", c.ClientIP()).
+		Str("action", "credential_reveal").
+		Msg("Credential reveal attempted")
+
 	// Retrieve and decrypt secret
 	plaintext, err := h.service.RetrieveSecret(c.Request.Context(), id)
 	if err != nil {
+		h.logger.Warn().
+			Str("credential_id", id.String()).
+			Str("user_id", userID.(string)).
+			Str("action", "credential_reveal_failed").
+			Err(err).
+			Msg("Credential reveal failed")
 		c.JSON(http.StatusNotFound, gin.H{
 			"error": gin.H{
 				"code":    "CREDENTIAL_NOT_FOUND",
@@ -240,12 +259,13 @@ func (h *CredentialHandler) Reveal(c *gin.Context) {
 		return
 	}
 
-	// Log the access
-	userID, _ := c.Get("user_id")
 	h.logger.Info().
 		Str("credential_id", id.String()).
 		Str("user_id", userID.(string)).
-		Msg("Credential revealed")
+		Str("request_id", requestID.(string)).
+		Str("client_ip", c.ClientIP()).
+		Str("action", "credential_revealed").
+		Msg("Credential revealed successfully")
 
 	c.JSON(http.StatusOK, gin.H{"secret": plaintext})
 }

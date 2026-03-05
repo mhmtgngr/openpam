@@ -162,14 +162,18 @@ func CORS(cfg Config) gin.HandlerFunc {
 }
 
 // SecurityHeaders adds security-related headers
+// SECURITY: Includes Content-Security-Policy to mitigate XSS and data injection attacks
 func SecurityHeaders() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("X-XSS-Protection", "1; mode=block")
-		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Header("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		c.Header("Pragma", "no-cache")
 		c.Next()
 	}
 }
@@ -964,6 +968,75 @@ func (arl *AuthRateLimiter) LoginRateLimitMiddleware() gin.HandlerFunc {
 			Msg("Auth request received")
 
 		c.Next()
+	}
+}
+
+// CSRFProtection provides Cross-Site Request Forgery protection
+// SECURITY: Validates that state-changing requests include a valid CSRF token
+// The token must be sent via the X-CSRF-Token header and match the session's CSRF token
+func CSRFProtection(c *cache.Cache, logger zerolog.Logger) gin.HandlerFunc {
+	return func(c2 *gin.Context) {
+		// Skip safe methods (GET, HEAD, OPTIONS)
+		method := c2.Request.Method
+		if method == "GET" || method == "HEAD" || method == "OPTIONS" {
+			c2.Next()
+			return
+		}
+
+		// Skip CSRF for API requests with Bearer token authentication
+		// Bearer token-based APIs are not vulnerable to CSRF because:
+		// 1. The token is not automatically sent by the browser
+		// 2. The attacker cannot read the token from another origin
+		authHeader := c2.GetHeader("Authorization")
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			c2.Next()
+			return
+		}
+
+		// For cookie-based authentication, require CSRF token
+		csrfToken := c2.GetHeader("X-CSRF-Token")
+		if csrfToken == "" {
+			logger.Warn().
+				Str("path", c2.Request.URL.Path).
+				Str("method", method).
+				Str("ip", c2.ClientIP()).
+				Msg("CSRF token missing on state-changing request")
+			c2.JSON(http.StatusForbidden, gin.H{
+				"error": gin.H{
+					"code":    "CSRF_TOKEN_MISSING",
+					"message": "CSRF token is required for this operation",
+				},
+			})
+			c2.Abort()
+			return
+		}
+
+		// Validate CSRF token against session
+		userID, exists := c2.Get("user_id")
+		if !exists {
+			c2.Next()
+			return
+		}
+
+		expectedToken := ""
+		csrfKey := fmt.Sprintf("csrf:%s", userID.(string))
+		if err := c.Get(c2.Request.Context(), csrfKey, &expectedToken); err != nil || expectedToken != csrfToken {
+			logger.Warn().
+				Str("path", c2.Request.URL.Path).
+				Str("user_id", userID.(string)).
+				Str("ip", c2.ClientIP()).
+				Msg("CSRF token validation failed")
+			c2.JSON(http.StatusForbidden, gin.H{
+				"error": gin.H{
+					"code":    "CSRF_TOKEN_INVALID",
+					"message": "Invalid CSRF token",
+				},
+			})
+			c2.Abort()
+			return
+		}
+
+		c2.Next()
 	}
 }
 

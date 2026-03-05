@@ -227,6 +227,47 @@ func (h *ApprovalHandler) Approve(c *gin.Context) {
 	}
 }
 
+// Deny handles an explicit deny decision for an approval request
+// SECURITY FIX: Separate handler prevents routing bugs where approve handler is reused for deny
+func (h *ApprovalHandler) Deny(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": gin.H{
+				"code":    "INVALID_REQUEST_ID",
+				"message": "Invalid request ID",
+			},
+		})
+		return
+	}
+
+	var req struct {
+		Comments string `json:"comments"`
+	}
+	_ = c.ShouldBindJSON(&req)
+
+	userID, _ := c.Get("user_id")
+	userIDUUID, _ := uuid.Parse(userID.(string))
+
+	if err := h.service.DenyRequest(c.Request.Context(), id, userIDUUID, req.Comments); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to deny request")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": gin.H{
+				"code":    "DENY_FAILED",
+				"message": "Failed to deny request: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	h.logger.Info().
+		Str("request_id", id.String()).
+		Str("denied_by", userIDUUID.String()).
+		Msg("Request denied")
+
+	c.JSON(http.StatusOK, gin.H{"message": "Request denied"})
+}
+
 // Cancel cancels a pending request
 func (h *ApprovalHandler) Cancel(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))

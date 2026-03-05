@@ -3,11 +3,15 @@ export const validateEmail = (email: string): boolean => {
   return re.test(email);
 };
 
+// SECURITY: Password validation must match backend requirements (12+ chars, complexity)
 export const validatePassword = (password: string): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
 
-  if (password.length < 8) {
-    errors.push('Password must be at least 8 characters long');
+  if (password.length < 12) {
+    errors.push('Password must be at least 12 characters long');
+  }
+  if (password.length > 128) {
+    errors.push('Password must not exceed 128 characters');
   }
   if (!/[a-z]/.test(password)) {
     errors.push('Password must contain at least one lowercase letter');
@@ -17,6 +21,19 @@ export const validatePassword = (password: string): { valid: boolean; errors: st
   }
   if (!/\d/.test(password)) {
     errors.push('Password must contain at least one number');
+  }
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]/.test(password)) {
+    errors.push('Password must contain at least one special character');
+  }
+
+  // Check for common weak patterns
+  const lower = password.toLowerCase();
+  const weakPatterns = ['password', 'admin', 'welcome', 'qwerty', '123456'];
+  for (const pattern of weakPatterns) {
+    if (lower.includes(pattern)) {
+      errors.push('Password contains a commonly used pattern');
+      break;
+    }
   }
 
   return {
@@ -45,6 +62,22 @@ export const validatePort = (port: number | string): boolean => {
   return !isNaN(p) && p > 0 && p <= 65535;
 };
 
+// SECURITY: Comprehensive HTML entity encoding to prevent XSS
+// Escapes all characters that could be used for HTML injection
 export const sanitizeInput = (input: string): string => {
-  return input.replace(/[<>]/g, '');
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '`': '&#x60;',
+    '/': '&#x2F;',
+  };
+  return input.replace(/[&<>"'`/]/g, (char) => map[char] || char);
+};
+
+// SECURITY: Validate that a URL is same-origin (relative path only)
+export const isSafeRedirectUrl = (url: string): boolean => {
+  return url.startsWith('/') && !url.startsWith('//') && !url.includes('://');
 };

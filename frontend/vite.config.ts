@@ -29,6 +29,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    // SECURITY: Disable source maps in production to prevent code exposure
+    sourcemap: false,
   },
 });
