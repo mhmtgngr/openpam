@@ -1,22 +1,31 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-# Fix TLS key ownership for PostgreSQL
-if [ -f /tls/server.key ]; then
-    # Copy key to data directory with correct permissions
-    cp /tls/server.key /var/lib/postgresql/data/server.key
-    chown postgres:postgres /var/lib/postgresql/data/server.key
-    chmod 600 /var/lib/postgresql/data/server.key
-    cp /tls/server.crt /var/lib/postgresql/data/server.crt
-    chown postgres:postgres /var/lib/postgresql/data/server.crt
-    cp /tls/ca.crt /var/lib/postgresql/data/ca.crt
-    chown postgres:postgres /var/lib/postgresql/data/ca.crt
-fi
+# OpenPAM PostgreSQL entrypoint
+# Wraps the official postgres entrypoint to enable SSL/TLS
 
-# Drop privileges and run postgres with SSL
-exec su-exec postgres postgres \
-    -c ssl=on \
-    -c ssl_cert_file=/var/lib/postgresql/data/server.crt \
-    -c ssl_key_file=/var/lib/postgresql/data/server.key \
-    -c ssl_ca_file=/var/lib/postgresql/data/ca.crt \
-    "$@"
+# If TLS certs are provided, configure SSL
+if [ -f /tls/server.key ] && [ -f /tls/server.crt ]; then
+    # Copy certs to a location postgres can read
+    mkdir -p /var/lib/postgresql/tls
+    cp /tls/server.key /var/lib/postgresql/tls/server.key
+    cp /tls/server.crt /var/lib/postgresql/tls/server.crt
+    if [ -f /tls/ca.crt ]; then
+        cp /tls/ca.crt /var/lib/postgresql/tls/ca.crt
+    fi
+    chown -R postgres:postgres /var/lib/postgresql/tls
+    chmod 600 /var/lib/postgresql/tls/server.key
+    chmod 644 /var/lib/postgresql/tls/server.crt /var/lib/postgresql/tls/ca.crt 2>/dev/null || true
+
+    echo "TLS certificates configured for PostgreSQL"
+
+    # Delegate to the official postgres entrypoint with SSL args
+    exec docker-entrypoint.sh postgres \
+        -c ssl=on \
+        -c ssl_cert_file=/var/lib/postgresql/tls/server.crt \
+        -c ssl_key_file=/var/lib/postgresql/tls/server.key \
+        "$@"
+else
+    echo "No TLS certificates found, starting PostgreSQL without SSL"
+    exec docker-entrypoint.sh postgres "$@"
+fi
