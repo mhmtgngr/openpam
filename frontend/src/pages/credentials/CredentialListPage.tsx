@@ -11,6 +11,8 @@ import { StatusBadge } from '@/components/common';
 import { Modal } from '@/components/common';
 import { Pagination } from '@/components/common';
 import type { Credential } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { hasPermission } from '@/utils/permissions';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -35,6 +37,9 @@ const rotationPolicies = [
 ];
 
 export const CredentialListPage: React.FC = () => {
+  const { user } = useAuth();
+  const canCreate = hasPermission(user, 'credentials', 'create');
+  const canRotate = hasPermission(user, 'credentials', 'update');
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -123,20 +128,24 @@ export const CredentialListPage: React.FC = () => {
       header: '',
       render: (_value, row) => (
         <div className="flex justify-end gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => rotateMutation.mutate(row.id)}
-            isLoading={rotateMutation.isPending}
-            leftIcon={<RefreshCw className="h-4 w-4" />}
-          >
-            Rotate
-          </Button>
-          <Link to={`/credentials/${row.id}`}>
-            <Button variant="ghost" size="sm">
-              View
+          {canRotate && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => rotateMutation.mutate(row.id)}
+              isLoading={rotateMutation.isPending}
+              leftIcon={<RefreshCw className="h-4 w-4" />}
+            >
+              Rotate
             </Button>
-          </Link>
+          )}
+          {canCreate && (
+            <Link to={`/credentials/${row.id}`}>
+              <Button variant="ghost" size="sm">
+                Edit
+              </Button>
+            </Link>
+          )}
         </div>
       ),
     },
@@ -151,11 +160,13 @@ export const CredentialListPage: React.FC = () => {
             Securely store and manage credentials
           </p>
         </div>
-        <Link to="/credentials/new">
-          <Button leftIcon={<Plus className="h-4 w-4" />}>
-            Add Credential
-          </Button>
-        </Link>
+        {canCreate && (
+          <Link to="/credentials/new">
+            <Button leftIcon={<Plus className="h-4 w-4" />}>
+              Add Credential
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="card">

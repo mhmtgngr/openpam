@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Check, X, Send, Clock, MessageSquare, User, Calendar, AlertCircle } from 'lucide-react';
 import { requestsApi } from '@/api/requests';
 import { usersApi } from '@/api/users';
+import { useAuth } from '@/contexts/AuthContext';
+import { canApproveRequests } from '@/utils/permissions';
 import { Button, Card, Badge, Textarea, Modal, Table, Column } from '@/components/common';
 import type { AccessRequest, RequestComment, User as UserType } from '@/types';
 import toast from 'react-hot-toast';
@@ -13,6 +15,7 @@ export const RequestDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const [showDenyModal, setShowDenyModal] = useState(false);
   const [denyReason, setDenyReason] = useState('');
@@ -115,8 +118,8 @@ export const RequestDetailPage: React.FC = () => {
     addCommentMutation.mutate(commentText);
   };
 
-  const canApprove = request?.status === 'pending';
   const isPending = request?.status === 'pending';
+  const canApprove = isPending && canApproveRequests(user);
   const isFinalized = request?.status === 'approved' || request?.status === 'denied' || request?.status === 'cancelled';
 
   if (isLoading) {

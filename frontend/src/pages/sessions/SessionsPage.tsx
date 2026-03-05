@@ -12,6 +12,8 @@ import { Modal } from '@/components/common';
 import { Textarea } from '@/components/common';
 import { Pagination } from '@/components/common';
 import type { Session } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { canTerminateSessions } from '@/utils/permissions';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -31,6 +33,7 @@ const sessionTypes = [
 ];
 
 export const SessionsPage: React.FC = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -157,7 +160,7 @@ export const SessionsPage: React.FC = () => {
       header: '',
       render: (_value, row) => (
         <div className="flex justify-end gap-2">
-          {row.status === 'active' && row.can_terminate && (
+          {row.status === 'active' && row.can_terminate && canTerminateSessions(user) && (
             <Button
               variant="danger"
               size="sm"

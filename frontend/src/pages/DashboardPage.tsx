@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { dashboardApi } from '@/api/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
+import { canManageUsers, canApproveRequests } from '@/utils/permissions';
 import { Card, CardHeader, ErrorState } from '@/components/common';
 import clsx from 'clsx';
 
@@ -117,7 +118,7 @@ export const DashboardPage: React.FC = () => {
             value={stats?.users.total || 0}
             icon={Users}
             color="bg-primary-400/20 text-primary-400"
-            link="/users"
+            link={canManageUsers(user) ? '/users' : undefined}
           />
           <StatCard
             title="Active Targets"
@@ -138,7 +139,7 @@ export const DashboardPage: React.FC = () => {
             value={stats?.requests.pending || 0}
             icon={Clock}
             color="bg-danger-400/20 text-danger-400"
-            link="/approvals"
+            link={canApproveRequests(user) ? '/approvals' : '/requests/my'}
           />
         </div>
       )}

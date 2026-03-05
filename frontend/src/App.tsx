@@ -133,13 +133,41 @@ const AppRoutes: React.FC = () => {
 
         {/* Targets */}
         <Route path="/targets" element={<TargetListPage />} />
-        <Route path="/targets/new" element={<TargetFormPage />} />
-        <Route path="/targets/:id" element={<TargetFormPage />} />
+        <Route
+          path="/targets/new"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <TargetFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/targets/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <TargetFormPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Credentials */}
         <Route path="/credentials" element={<CredentialListPage />} />
-        <Route path="/credentials/new" element={<CredentialFormPage />} />
-        <Route path="/credentials/:id" element={<CredentialFormPage />} />
+        <Route
+          path="/credentials/new"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <CredentialFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/credentials/:id"
+          element={
+            <ProtectedRoute requiredRoles={['admin', 'super_admin']}>
+              <CredentialFormPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Requests */}
         <Route path="/requests/my" element={<MyRequestsPage />} />
