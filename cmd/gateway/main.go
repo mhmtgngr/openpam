@@ -421,6 +421,8 @@ func setupRouter(
 		// Protected routes (require auth)
 		protected := v1.Group("")
 		protected.Use(middleware2.Auth())
+		// SECURITY: Rate limit authenticated endpoints to prevent abuse
+		protected.Use(rateLimiter.RateLimit(middleware2.ProtectedRateLimitConfig()))
 		{
 			// Auth routes
 			protected.GET("/auth/me", authHandler.Me)
@@ -451,12 +453,12 @@ func setupRouter(
 			// Credentials
 			protected.GET("/credentials", credentialHandler.List)
 			protected.GET("/credentials/:id", credentialHandler.Get)
-			protected.GET("/credentials/:id/reveal", credentialHandler.Reveal)
+			protected.GET("/credentials/:id/reveal", middleware2.RequireMFA(), credentialHandler.Reveal)
 			protected.POST("/credentials", middleware2.RequireRole("admin", "super_admin"), credentialHandler.Create)
 			protected.PUT("/credentials/:id", middleware2.RequireRole("admin", "super_admin"), credentialHandler.Update)
 			protected.DELETE("/credentials/:id", middleware2.RequireRole("admin", "super_admin"), credentialHandler.Delete)
-			protected.POST("/credentials/:id/rotate", credentialHandler.Rotate)
-			protected.POST("/credentials/:id/compromised", credentialHandler.MarkCompromised)
+			protected.POST("/credentials/:id/rotate", middleware2.RequireMFA(), credentialHandler.Rotate)
+			protected.POST("/credentials/:id/compromised", middleware2.RequireMFA(), credentialHandler.MarkCompromised)
 
 			// Checkouts (placeholder - to be implemented)
 			protected.GET("/checkouts", handleListCheckouts)
@@ -478,7 +480,7 @@ func setupRouter(
 			protected.GET("/approvals/requests/:id", approvalHandler.Get)
 			protected.POST("/approvals/requests", approvalHandler.Create)
 			protected.POST("/approvals/requests/:id/approve", approvalHandler.Approve)
-			protected.POST("/approvals/requests/:id/deny", approvalHandler.Approve)
+			protected.POST("/approvals/requests/:id/deny", approvalHandler.Deny)
 			protected.POST("/approvals/requests/:id/cancel", approvalHandler.Cancel)
 			protected.POST("/approvals/requests/:id/delegate", approvalHandler.Delegate)
 

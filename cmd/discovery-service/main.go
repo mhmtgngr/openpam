@@ -181,7 +181,7 @@ func setupRouter(
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.SecurityHeaders())
 	r.Use(middleware.CORS(middleware.Config{
-		AllowedOrigins:  []string{"*"},
+		AllowedOrigins:  []string{"http://localhost:3000", "http://localhost:8580"}, // SECURITY: No wildcard CORS
 		AllowedMethods:  []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:  []string{"Origin", "Content-Type", "Authorization", "X-Request-ID"},
 		ExposeHeaders:   []string{"Content-Length", "X-Request-ID"},

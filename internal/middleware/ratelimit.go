@@ -56,6 +56,16 @@ func PrivilegedRateLimitConfig() RateLimitConfig {
 	}
 }
 
+// ProtectedRateLimitConfig returns rate limit for authenticated/protected endpoints
+// SECURITY: Prevents authenticated users from abusing API endpoints
+func ProtectedRateLimitConfig() RateLimitConfig {
+	return RateLimitConfig{
+		RequestLimit:      60, // 60 requests
+		TimeWindowSeconds: 60, // per minute per user
+		LimitByUser:       true,
+	}
+}
+
 // RateLimiter implements token bucket rate limiting
 type RateLimiter struct {
 	cache  *cache.Cache

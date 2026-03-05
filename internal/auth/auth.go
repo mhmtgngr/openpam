@@ -3,7 +3,10 @@ package auth
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -12,6 +15,84 @@ import (
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+
+// validateEmail validates email format
+func validateEmail(email string) error {
+	if len(email) == 0 || len(email) > 254 {
+		return fmt.Errorf("invalid email length")
+	}
+	if !emailRegex.MatchString(email) {
+		return fmt.Errorf("invalid email format")
+	}
+	return nil
+}
+
+// validateMFACode validates MFA code format (6 digits)
+func validateMFACode(code string) error {
+	if len(code) == 0 {
+		return fmt.Errorf("MFA code is required")
+	}
+	if len(code) != 6 {
+		return fmt.Errorf("MFA code must be 6 digits")
+	}
+	for _, c := range code {
+		if c < '0' || c > '9' {
+			return fmt.Errorf("MFA code must contain only digits")
+		}
+	}
+	return nil
+}
+
+// validatePasswordStrength validates password meets minimum complexity requirements
+// SECURITY: Enforces strong passwords for a PAM platform
+func validatePasswordStrength(password string) error {
+	if len(password) < 12 {
+		return fmt.Errorf("password must be at least 12 characters")
+	}
+	if len(password) > 128 {
+		return fmt.Errorf("password must not exceed 128 characters")
+	}
+
+	var hasUpper, hasLower, hasNumber, hasSpecial bool
+	for _, c := range password {
+		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
+		case unicode.IsLower(c):
+			hasLower = true
+		case unicode.IsNumber(c):
+			hasNumber = true
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			hasSpecial = true
+		}
+	}
+
+	if !hasUpper {
+		return fmt.Errorf("password must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return fmt.Errorf("password must contain at least one lowercase letter")
+	}
+	if !hasNumber {
+		return fmt.Errorf("password must contain at least one number")
+	}
+	if !hasSpecial {
+		return fmt.Errorf("password must contain at least one special character")
+	}
+
+	// Check for common weak passwords
+	lower := strings.ToLower(password)
+	weakPasswords := []string{"password", "admin", "welcome", "qwerty", "123456"}
+	for _, weak := range weakPasswords {
+		if strings.Contains(lower, weak) {
+			return fmt.Errorf("password contains a commonly used pattern")
+		}
+	}
+
+	return nil
+}
 
 // Service handles authentication operations
 type Service struct {
@@ -71,31 +152,69 @@ type LoginResponse struct {
 
 // Authenticate authenticates a user with email and password
 func (s *Service) Authenticate(ctx context.Context, email, password, tenantID string, ip, userAgent string) (*LoginResponse, error) {
+	// SECURITY: Validate email format before querying database
+	if err := validateEmail(email); err != nil {
+		return nil, fmt.Errorf("auth: invalid credentials")
+	}
+
 	// Get user by email
+	// SECURITY: Use generic error message to prevent email enumeration (A01:2021)
 	user, err := s.getUserByEmail(ctx, email, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("auth.GetUser: %w", err)
+		s.logger.Debug().Err(err).Str("email", email).Msg("User lookup failed")
+		return nil, fmt.Errorf("auth: invalid credentials")
 	}
 
 	// Check if account is locked
+	// SECURITY: Do not reveal lock expiry time to prevent enumeration
 	if user.LockedUntil != nil && user.LockedUntil.After(time.Now()) {
-		return nil, fmt.Errorf("auth: account is locked until %s", user.LockedUntil.Format(time.RFC3339))
+		s.logger.Warn().
+			Str("user_id", user.ID.String()).
+			Str("ip", ip).
+			Str("action", "login_blocked_locked").
+			Msg("Login attempt on locked account")
+		return nil, fmt.Errorf("auth: invalid credentials")
 	}
 
 	// Check account status
+	// SECURITY: Do not reveal account status to prevent enumeration
 	if user.Status != "active" {
-		return nil, fmt.Errorf("auth: account is %s", user.Status)
+		s.logger.Warn().
+			Str("user_id", user.ID.String()).
+			Str("status", user.Status).
+			Str("ip", ip).
+			Str("action", "login_blocked_inactive").
+			Msg("Login attempt on inactive account")
+		return nil, fmt.Errorf("auth: invalid credentials")
 	}
 
 	// Verify password
 	if err := s.verifyPassword(password, user.PasswordHash); err != nil {
 		// Increment failed login attempts
 		_ = s.incrementFailedLogins(ctx, user.ID)
+		// SECURITY: Audit log failed login attempt for brute force detection
+		s.logger.Warn().
+			Str("email", email).
+			Str("tenant_id", tenantID).
+			Str("ip", ip).
+			Str("user_agent", userAgent).
+			Str("action", "login_failed").
+			Int("failed_attempts", user.FailedLogins+1).
+			Msg("Failed login attempt")
 		return nil, fmt.Errorf("auth: invalid credentials")
 	}
 
 	// Reset failed logins on successful authentication
 	_ = s.resetFailedLogins(ctx, user.ID)
+
+	// SECURITY: Audit log successful authentication
+	s.logger.Info().
+		Str("user_id", user.ID.String()).
+		Str("email", email).
+		Str("tenant_id", tenantID).
+		Str("ip", ip).
+		Str("action", "login_success").
+		Msg("User authenticated successfully")
 
 	// Generate tokens
 	roles := []string{user.Role}
@@ -136,6 +255,11 @@ func (s *Service) Authenticate(ctx context.Context, email, password, tenantID st
 
 // AuthenticateMFA completes MFA authentication
 func (s *Service) AuthenticateMFA(ctx context.Context, userID uuid.UUID, code, tenantID string) (*LoginResponse, error) {
+	// SECURITY: Validate MFA code format before verification
+	if err := validateMFACode(code); err != nil {
+		return nil, fmt.Errorf("auth: invalid MFA code")
+	}
+
 	// Get user
 	user, err := s.getUserByID(ctx, userID)
 	if err != nil {
@@ -267,14 +391,13 @@ func (s *Service) VerifyAndEnableMFA(ctx context.Context, userID uuid.UUID, code
 		return fmt.Errorf("auth.HashBackupCodes: %w", err)
 	}
 
-	// SECURITY FIX: Encrypt MFA secret before storing
-	secretToStore := secret
-	if s.mfaKeyEncryptor != nil {
-		encryptedSecret, err := s.encryptMFASecret(secret)
-		if err != nil {
-			return fmt.Errorf("auth.EncryptMFASecret: %w", err)
-		}
-		secretToStore = encryptedSecret
+	// SECURITY: MFA encryption is MANDATORY - refuse to store plaintext secrets
+	if s.mfaKeyEncryptor == nil {
+		return fmt.Errorf("auth.EnableMFA: MFA encryption key not configured, refusing to store plaintext MFA secret")
+	}
+	secretToStore, err := s.encryptMFASecret(secret)
+	if err != nil {
+		return fmt.Errorf("auth.EncryptMFASecret: %w", err)
 	}
 
 	// Enable MFA in database with encrypted secret
@@ -302,22 +425,25 @@ func (s *Service) VerifyAndEnableMFA(ctx context.Context, userID uuid.UUID, code
 }
 
 // encryptMFASecret encrypts an MFA secret for storage
+// SECURITY: Returns error if encryptor is nil to prevent plaintext storage
 func (s *Service) encryptMFASecret(secret string) (string, error) {
 	if s.mfaKeyEncryptor == nil {
-		return secret, nil
+		return "", fmt.Errorf("MFA encryption key not configured")
 	}
 	return s.mfaKeyEncryptor.EncryptString(secret)
 }
 
 // decryptMFASecret decrypts an MFA secret from storage
+// SECURITY: Returns error if encryptor is nil
 func (s *Service) decryptMFASecret(encryptedSecret string) (string, error) {
 	if s.mfaKeyEncryptor == nil {
-		return encryptedSecret, nil
+		return "", fmt.Errorf("MFA encryption key not configured")
 	}
 	return s.mfaKeyEncryptor.DecryptString(encryptedSecret)
 }
 
-// Logout logs out a user by revoking their refresh token
+// Logout logs out a user by revoking their refresh token and invalidating active sessions
+// SECURITY: Invalidates both refresh token AND cached access token sessions
 func (s *Service) Logout(ctx context.Context, refreshToken, userID string) error {
 	// Parse token to get ID
 	claims, err := s.jwt.ExtractClaims(refreshToken)
@@ -325,7 +451,21 @@ func (s *Service) Logout(ctx context.Context, refreshToken, userID string) error
 		return err
 	}
 
-	// Revoke token
+	// SECURITY: Invalidate all cached sessions for this user
+	// This prevents continued access with a still-valid access token after logout
+	sessionPattern := fmt.Sprintf("session:%s", userID)
+	_ = s.cache.Delete(ctx, sessionPattern)
+
+	// Also invalidate any CSRF tokens
+	csrfKey := fmt.Sprintf("csrf:%s", userID)
+	_ = s.cache.Delete(ctx, csrfKey)
+
+	s.logger.Info().
+		Str("user_id", userID).
+		Str("action", "logout").
+		Msg("User logged out, sessions invalidated")
+
+	// Revoke refresh token
 	return s.jwt.RevokeToken(ctx, claims.ID)
 }
 
@@ -438,6 +578,16 @@ func (s *Service) GetUser(ctx context.Context, id uuid.UUID) (*User, error) {
 
 // CreateUser creates a new user
 func (s *Service) CreateUser(ctx context.Context, user *User, password string) error {
+	// SECURITY: Validate email format
+	if err := validateEmail(user.Email); err != nil {
+		return fmt.Errorf("auth.CreateUser: %w", err)
+	}
+
+	// SECURITY: Enforce password complexity requirements
+	if err := validatePasswordStrength(password); err != nil {
+		return fmt.Errorf("auth.CreateUser: %w", err)
+	}
+
 	// Hash password
 	hash, err := s.hashPassword(password)
 	if err != nil {
@@ -564,7 +714,18 @@ func (s *Service) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 // ChangePassword changes a user's password
+// SECURITY: Validates password strength, prevents password reuse, and logs the change
 func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
+	// SECURITY: Validate new password strength
+	if err := validatePasswordStrength(newPassword); err != nil {
+		return fmt.Errorf("auth.ChangePassword: %w", err)
+	}
+
+	// SECURITY: Prevent reusing the same password
+	if oldPassword == newPassword {
+		return fmt.Errorf("auth: new password must be different from current password")
+	}
+
 	// Get user
 	user, err := s.getUserByID(ctx, userID)
 	if err != nil {
@@ -573,6 +734,10 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 
 	// Verify old password
 	if err := s.verifyPassword(oldPassword, user.PasswordHash); err != nil {
+		s.logger.Warn().
+			Str("user_id", userID.String()).
+			Str("action", "password_change_failed").
+			Msg("Password change failed: invalid current password")
 		return fmt.Errorf("auth: invalid current password")
 	}
 
@@ -593,6 +758,12 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	if err != nil {
 		return fmt.Errorf("auth.UpdatePassword: %w", err)
 	}
+
+	// SECURITY: Audit log password change
+	s.logger.Info().
+		Str("user_id", userID.String()).
+		Str("action", "password_changed").
+		Msg("User password changed successfully")
 
 	return nil
 }
@@ -663,8 +834,15 @@ func (s *Service) GetRoles(ctx context.Context, userID uuid.UUID) ([]string, err
 	return roles, nil
 }
 
-// DisableMFADisables MFA for a user
+// DisableMFA disables MFA for a user
+// SECURITY: This is a high-risk operation that must be audit logged
 func (s *Service) DisableMFA(ctx context.Context, userID uuid.UUID) error {
+	// SECURITY: Audit log BEFORE the operation for guaranteed traceability
+	s.logger.Warn().
+		Str("user_id", userID.String()).
+		Str("action", "mfa_disable_attempted").
+		Msg("MFA disable attempted - HIGH RISK OPERATION")
+
 	query := `
 		UPDATE users SET
 			mfa_enabled = FALSE,
@@ -675,12 +853,19 @@ func (s *Service) DisableMFA(ctx context.Context, userID uuid.UUID) error {
 	`
 	_, err := s.db.ExecContext(ctx, query, userID)
 	if err != nil {
+		s.logger.Error().
+			Str("user_id", userID.String()).
+			Str("action", "mfa_disable_failed").
+			Err(err).
+			Msg("MFA disable failed")
 		return fmt.Errorf("auth.DisableMFA: %w", err)
 	}
 
-	s.logger.Info().
+	// SECURITY: Audit log the completed operation at WARN level
+	s.logger.Warn().
 		Str("user_id", userID.String()).
-		Msg("MFA disabled")
+		Str("action", "mfa_disabled").
+		Msg("MFA disabled for user - SECURITY EVENT")
 
 	return nil
 }
