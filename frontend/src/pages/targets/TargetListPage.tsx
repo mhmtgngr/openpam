@@ -11,6 +11,8 @@ import { StatusBadge } from '@/components/common';
 import { Modal } from '@/components/common';
 import { Pagination } from '@/components/common';
 import type { Target } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { canManageTargets } from '@/utils/permissions';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -33,6 +35,7 @@ const environments = [
 ];
 
 export const TargetListPage: React.FC = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -137,11 +140,13 @@ export const TargetListPage: React.FC = () => {
           >
             Test
           </Button>
-          <Link to={`/targets/${row.id}`}>
-            <Button variant="ghost" size="sm">
-              View
-            </Button>
-          </Link>
+          {canManageTargets(user) && (
+            <Link to={`/targets/${row.id}`}>
+              <Button variant="ghost" size="sm">
+                Edit
+              </Button>
+            </Link>
+          )}
         </div>
       ),
     },
@@ -156,11 +161,13 @@ export const TargetListPage: React.FC = () => {
             Manage target systems for privileged access
           </p>
         </div>
-        <Link to="/targets/new">
-          <Button leftIcon={<Plus className="h-4 w-4" />}>
-            Add Target
-          </Button>
-        </Link>
+        {canManageTargets(user) && (
+          <Link to="/targets/new">
+            <Button leftIcon={<Plus className="h-4 w-4" />}>
+              Add Target
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="card">

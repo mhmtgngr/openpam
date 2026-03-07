@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Breadcrumbs } from '@/components/common';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import clsx from 'clsx';
 
@@ -23,6 +24,7 @@ export const AppLayout: React.FC = () => {
               sidebarCollapsed ? 'ml-0' : ''
             )}
           >
+            <Breadcrumbs />
             <Outlet />
           </main>
         </div>

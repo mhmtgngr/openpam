@@ -12,6 +12,8 @@ import { Modal } from '@/components/common';
 import { Textarea } from '@/components/common';
 import { Pagination } from '@/components/common';
 import type { Session } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { canTerminateSessions } from '@/utils/permissions';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
@@ -31,6 +33,7 @@ const sessionTypes = [
 ];
 
 export const SessionsPage: React.FC = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -57,9 +60,19 @@ export const SessionsPage: React.FC = () => {
       sessionsApi.terminate(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      toast.success('Session terminated');
+      toast.success('Session terminated successfully');
       setShowTerminateModal(false);
       setTerminateReason('');
+      setSelectedSession(null);
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { error?: { message?: string; code?: string } } } };
+      const code = err?.response?.data?.error?.code;
+      if (code === 'MFA_REQUIRED') {
+        toast.error('MFA verification required to terminate sessions.');
+      } else {
+        toast.error(err?.response?.data?.error?.message || 'Failed to terminate session. Please try again.');
+      }
     },
   });
 
@@ -147,7 +160,7 @@ export const SessionsPage: React.FC = () => {
       header: '',
       render: (_value, row) => (
         <div className="flex justify-end gap-2">
-          {row.status === 'active' && row.can_terminate && (
+          {row.status === 'active' && row.can_terminate && canTerminateSessions(user) && (
             <Button
               variant="danger"
               size="sm"

@@ -30,8 +30,29 @@ export function Table<T>({
 }: TableProps<T>) {
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="skeleton h-6 w-32 animate-pulse rounded" />
+      <div className="overflow-x-auto">
+        <table className={clsx('table', className)}>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th key={column.key} className={clsx('table-head', column.headerClassName)}>
+                  {column.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <tr key={i} className="table-row animate-pulse">
+                {columns.map((column) => (
+                  <td key={column.key} className={clsx('table-cell', column.className)}>
+                    <div className="h-4 w-3/4 rounded bg-gray-700" />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -39,7 +60,10 @@ export function Table<T>({
   if (data.length === 0) {
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-400">
-        <p>{emptyMessage}</p>
+        <svg className="mb-3 h-10 w-10 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+        </svg>
+        <p className="text-sm">{emptyMessage}</p>
       </div>
     );
   }

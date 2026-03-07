@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -8,9 +8,11 @@ import {
   Settings,
   ChevronDown,
   RefreshCw,
+  Command,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
+import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
 
 export const Header: React.FC = () => {
@@ -18,12 +20,16 @@ export const Header: React.FC = () => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, dismissNotification } =
     useNotifications();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuButtonRef = useRef<HTMLButtonElement>(null);
   const notifButtonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,6 +53,35 @@ export const Header: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keyboard shortcut: Ctrl+K / Cmd+K to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries();
+    // Brief delay so user sees the animation
+    setTimeout(() => setIsRefreshing(false), 600);
+  }, [queryClient]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/audit?search=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery('');
+      searchInputRef.current?.blur();
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
   };
@@ -69,24 +104,32 @@ export const Header: React.FC = () => {
     <header className="flex h-16 items-center justify-between border-b border-gray-700 bg-gray-800 px-6">
       {/* Search */}
       <div className="flex-1">
-        <div className="relative w-96">
+        <form onSubmit={handleSearchSubmit} className="relative w-96">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
+            ref={searchInputRef}
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search targets, credentials, users..."
-            className="input pl-10"
+            className="input pl-10 pr-20"
           />
-        </div>
+          <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden items-center gap-0.5 rounded border border-gray-600 bg-gray-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-400 sm:inline-flex">
+            <Command className="h-2.5 w-2.5" />K
+          </kbd>
+        </form>
       </div>
 
       {/* Right side */}
       <div className="flex items-center gap-4">
         {/* Quick refresh */}
         <button
-          className="rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-white"
-          title="Refresh data"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-50 transition-colors"
+          title="Refresh all data"
         >
-          <RefreshCw className="h-5 w-5" />
+          <RefreshCw className={clsx('h-5 w-5', isRefreshing && 'animate-spin')} />
         </button>
 
         {/* Notifications */}
@@ -95,6 +138,7 @@ export const Header: React.FC = () => {
             ref={notifButtonRef}
             onClick={() => setShowNotifications(!showNotifications)}
             className="relative rounded p-2 text-gray-400 hover:bg-gray-700 hover:text-white"
+            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
@@ -123,7 +167,13 @@ export const Header: React.FC = () => {
               </div>
               <div className="max-h-80 overflow-y-auto scrollbar-thin">
                 {notifications.length === 0 ? (
-                  <p className="px-3 py-4 text-center text-sm text-gray-400">No notifications</p>
+                  <div className="px-3 py-8 text-center">
+                    <Bell className="mx-auto h-8 w-8 text-gray-600" />
+                    <p className="mt-2 text-sm text-gray-400">No notifications yet</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      You'll be notified about approvals, sessions, and security events
+                    </p>
+                  </div>
                 ) : (
                   notifications.map((notif) => (
                     <button
@@ -134,8 +184,15 @@ export const Header: React.FC = () => {
                         !notif.read && 'bg-gray-700/50'
                       )}
                     >
-                      <p className="text-sm font-medium text-white">{notif.title}</p>
-                      <p className="text-xs text-gray-400">{notif.message}</p>
+                      <div className="flex items-start gap-2">
+                        {!notif.read && (
+                          <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-primary-400" />
+                        )}
+                        <div className={clsx(!notif.read ? '' : 'pl-4')}>
+                          <p className="text-sm font-medium text-white">{notif.title}</p>
+                          <p className="text-xs text-gray-400">{notif.message}</p>
+                        </div>
+                      </div>
                     </button>
                   ))
                 )}
@@ -150,6 +207,7 @@ export const Header: React.FC = () => {
             ref={userMenuButtonRef}
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 rounded p-1 text-gray-300 hover:bg-gray-700"
+            aria-label="User menu"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-sm font-medium text-white">
               {getUserInitials()}
@@ -165,6 +223,7 @@ export const Header: React.FC = () => {
                   {user?.first_name} {user?.last_name}
                 </p>
                 <p className="text-xs text-gray-400">{user?.email}</p>
+                <p className="mt-1 text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
               </div>
               <button
                 onClick={() => {

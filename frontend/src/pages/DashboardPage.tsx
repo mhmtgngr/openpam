@@ -11,13 +11,14 @@ import {
 } from 'lucide-react';
 import { dashboardApi } from '@/api/dashboard';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardHeader } from '@/components/common';
+import { canManageUsers, canApproveRequests } from '@/utils/permissions';
+import { Card, CardHeader, ErrorState } from '@/components/common';
 import clsx from 'clsx';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
 
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboard', 'stats'],
     queryFn: () => dashboardApi.getStats(),
   });
@@ -94,7 +95,12 @@ export const DashboardPage: React.FC = () => {
       </div>
 
       {/* Stats Grid */}
-      {isLoading ? (
+      {isError ? (
+        <ErrorState
+          message="Unable to load dashboard data. The server may be temporarily unavailable."
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card animate-pulse">
@@ -112,7 +118,7 @@ export const DashboardPage: React.FC = () => {
             value={stats?.users.total || 0}
             icon={Users}
             color="bg-primary-400/20 text-primary-400"
-            link="/users"
+            link={canManageUsers(user) ? '/users' : undefined}
           />
           <StatCard
             title="Active Targets"
@@ -133,7 +139,7 @@ export const DashboardPage: React.FC = () => {
             value={stats?.requests.pending || 0}
             icon={Clock}
             color="bg-danger-400/20 text-danger-400"
-            link="/approvals"
+            link={canApproveRequests(user) ? '/approvals' : '/requests/my'}
           />
         </div>
       )}
